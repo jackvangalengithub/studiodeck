@@ -38,3 +38,5 @@ CREATE TABLE IF NOT EXISTS comment_reads (comment_id TEXT NOT NULL REFERENCES co
 CREATE TABLE IF NOT EXISTS project_logos (project_id TEXT PRIMARY KEY REFERENCES projects(id),data BLOB NOT NULL,mime TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS share_aliases (token_hash TEXT PRIMARY KEY,share_id TEXT NOT NULL REFERENCES shares(id));
 CREATE TABLE IF NOT EXISTS email_outbox (id TEXT PRIMARY KEY,comment_id TEXT NOT NULL REFERENCES comments(id),person_key TEXT NOT NULL,email TEXT NOT NULL,user_id TEXT,share_id TEXT,url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'queued',attempts INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '',UNIQUE(comment_id,email));
+CREATE TABLE IF NOT EXISTS project_details (project_id TEXT PRIMARY KEY REFERENCES projects(id),tags TEXT NOT NULL DEFAULT '[]',deadline TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL CHECK(section IN ('story','current','moodboards','designs','budget')),PRIMARY KEY(iteration_id,slide_id));

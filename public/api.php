@@ -8,7 +8,7 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview'];
+    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
@@ -45,7 +45,7 @@ try {
     if($action==='logout') { $u=owner(true);query('DELETE FROM sessions WHERE token_hash=?',[$u['token_hash']]);setcookie('studiodeck_session','',['expires'=>1,'path'=>'/','httponly'=>true,'samesite'=>'Lax','secure'=>str_starts_with(base_url(),'https://')]);json_response(['ok'=>true]); }
     if($action==='projects') {
         $u=owner();$ps=rows('SELECT p.*,EXISTS(SELECT 1 FROM project_pins pin WHERE pin.project_id=p.id AND pin.user_id=?) AS pinned,EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?) AS can_edit,(SELECT COUNT(*) FROM jobs j WHERE j.project_id=p.id AND j.status IN ("queued","running")) AS processing FROM projects p WHERE '.project_access_sql().(empty($_GET['archived'])?' AND p.archived=0':'').' ORDER BY pinned DESC,p.created_at DESC,p.id',[$u['user_id'],$u['user_id'],$u['studio_id'],$u['user_id']]);
-        foreach($ps as &$p) { $p['iteration']=one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);$p['file_count']=(int)one('SELECT COUNT(*) AS n FROM iteration_files WHERE iteration_id=?',[$p['iteration']['id']])['n']; }
+        foreach($ps as &$p) { $p['iteration']=one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);$p=array_merge($p,project_details($p['id']));$p['members']=project_people($p['id']);$cover=project_cover($p['iteration']['id']);$p['cover_key']=$cover?implode(':',[$p['iteration']['id'],$cover['id'],$cover['image_version_id']??'']):null;$p['file_count']=(int)one('SELECT COUNT(*) AS n FROM iteration_files WHERE iteration_id=?',[$p['iteration']['id']])['n']; }
         json_response(['projects'=>$ps]);
     }
     if($action==='create_project') {
@@ -75,6 +75,7 @@ try {
             foreach(rows('SELECT * FROM iteration_files WHERE iteration_id=?',[$base['id']]) as $r){$r['iteration_id']=$iid;insert('iteration_files',$r);}
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('presentation_slides',$slide);}
             foreach(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$base['id']]) as $layout){$layout['iteration_id']=$iid;insert('slide_layout',$layout);}
+            foreach(rows('SELECT * FROM slide_sections WHERE iteration_id=?',[$base['id']]) as $section){$section['iteration_id']=$iid;insert('slide_sections',$section);}
             ensure_iteration_slides($iid);
             $items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$base['id']]);$map=[];foreach($items as $r)$map[$r['id']]=id();
             foreach($items as $r){$r['id']=$map[$r['id']];$r['iteration_id']=$iid;$r['parent_id']=null;insert('budget_items',$r);}
@@ -154,7 +155,7 @@ try {
     if($action==='studio_theme') {
         $u=owner(true);$b=input();$theme=$b['theme']??[];
         if(!in_array($theme['palette']??'',['sage','clay','slate','ink','ocean','plum','rust','forest','mustard','rose','lavender','espresso','grayscale','warmgray'],true)||!in_array($theme['style']??'modern',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
-        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']??'modern'];
+        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']??'modern','font'=>in_array($theme['font']??'',['serif','sans'],true)?$theme['font']:(in_array($theme['style']??'modern',['classic','editorial'],true)?'serif':'sans')];
         $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
     }
@@ -222,6 +223,7 @@ try {
             foreach($order as $n=>$sid)query('INSERT INTO slide_layout(iteration_id,slide_id,position) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET position=excluded.position',[$i['id'],$sid,$n]);
         }else {
             $sid=text_field($b['slide_id']??'');if(!in_array($sid,$ids,true))fail('Slide not found.',404);
+            if($op==='section'){$section=text_field($b['section']??'',20);if(!in_array($section,['story','current','moodboards','designs','budget'],true))fail('Choose a slide section.');query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Slide section updated');json_response(['ok'=>true]);}
             if(!in_array($op,['show','hide','delete','restore'],true))fail('Unknown slide action.');
             $column=in_array($op,['show','hide'],true)?'hidden':'deleted';$value=in_array($op,['hide','delete'],true)?1:0;
             query('INSERT INTO slide_layout(iteration_id,slide_id,'.$column.') VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET '.$column.'=excluded.'.$column,[$i['id'],$sid,$value]);
