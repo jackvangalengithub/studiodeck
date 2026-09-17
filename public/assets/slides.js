@@ -1,4 +1,4 @@
-export const visualTypes={moodboard:'Moodboard',photo:'Photo',render:'3D render',drawing:'Drawing',other:'Image'};
+export const visualTypes={moodboard:'Moodboard',photo:'Photo',render:'3D render',drawing:'Drawing',floorplan:'Floorplan',other:'Image'};
 export const situations={before:'Before · existing situation',concept:'Concept · proposed design',after:'After · completed project',reference:'Reference / inspiration',unknown:'Situation to review'};
 export function visualSlides(data){
   const files=new Map((data.files||[]).map(f=>[f.id,f]));
@@ -6,7 +6,7 @@ export function visualSlides(data){
   return records.flatMap(s=>{
     const f=files.get(s.source_version_id);if(!f)return [];
     const type=visualTypes[s.type]?s.type:'other';
-    return [{id:'visual-'+s.id,type,title:s.title||visualTypes[type],icon:type==='moodboard'?'leaf':type==='drawing'?'file':'image',situation:situations[s.situation]?s.situation:'unknown',record:s,
+    return [{id:'visual-'+s.id,type,title:s.title||visualTypes[type],icon:type==='moodboard'?'leaf':['drawing','floorplan'].includes(type)?'file':'image',situation:situations[s.situation]?s.situation:'unknown',record:s,
       visual:{...f,slide_id:s.id,slide_image_version:s.image_version_id||'',page_number:s.page_number||0,image_number:s.image_number||0,has_preview:true,name:s.title||f.name,source_name:f.name,legacy:!!s.legacy}}];
   });
 }
@@ -21,6 +21,11 @@ export function presentationSlides(data,{includeHidden=false}={}){
     {id:'budget',type:'budget',title:'The investment',icon:'budget'},
     {id:'contacts',type:'contacts',title:'Your project team',icon:'users'},
     {id:'summary',type:'summary',title:'Everything, together',icon:'download'}];
+  const sections=new Map((data.slide_sections||[]).map(s=>[s.slide_id,s.section]));
   const layout=new Map((data.slide_layout||[]).map(s=>[s.slide_id,s]));
-  return all.map((s,n)=>({...s,hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
+  return all.map((s,n)=>({...s,section:slideSections[sections.get(s.id)]?sections.get(s.id):defaultSlideSection(s),hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
 }
+
+export const slideSections={story:'The story',current:'The current situation',moodboards:'The moodboards',designs:'The designs',budget:'The budget'};
+export function defaultSlideSection(slide){if(slide.type==='budget')return 'budget';if(slide.situation==='before')return 'current';if(slide.type==='moodboard')return 'moodboards';if(slide.visual)return 'designs';return 'story';}
+export function groupSlideOrder(slides){return Object.keys(slideSections).flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}

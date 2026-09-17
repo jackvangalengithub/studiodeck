@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {presentationSlides,visualSlides} from '../public/assets/slides.js';
+import {presentationSlides,visualSlides,groupSlideOrder} from '../public/assets/slides.js';
 const file={id:'source',name:'mixed.pdf',mime:'application/pdf',category:'presentation',has_preview:true,pages:[{number:1,has_preview:true}]};
 const data={files:[file],slides:[
  {id:'a',source_version_id:'source',page_number:1,image_number:1,type:'photo',situation:'before',title:'Existing living room'},
@@ -29,3 +29,10 @@ console.log('PASS Custom ordering, hidden editor slides, deletion without fallba
 const excludedPage={...file,pages:[{number:1,has_preview:true,include_in_presentation:false}]};
 assert.equal(presentationSlides({files:[excludedPage],slides:[]}).some(s=>s.sourceOnly),false);
 console.log('PASS Branding-only/text pages cannot reappear through source-page fallback slides.');
+
+const grouped=presentationSlides({...data,slide_sections:[{slide_id:'visual-b',section:'current'}]});
+assert.equal(grouped.find(s=>s.id==='visual-a').section,'current');
+assert.equal(grouped.find(s=>s.id==='visual-b').section,'current');
+assert.equal(grouped.find(s=>s.id==='visual-d').section,'moodboards');
+assert.equal(groupSlideOrder(grouped).at(-1),'budget');
+console.log('PASS Default and custom slide sections produce a complete grouped order.');
