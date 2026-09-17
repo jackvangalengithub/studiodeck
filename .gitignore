@@ -1,0 +1,11 @@
+/storage/*
+!/storage/.gitkeep
+/.env
+/.sites-runtime/
+/node_modules/
+/.idea/
+/tests/tmp/
+*.sqlite*
+
+__pycache__/
+*.pyc

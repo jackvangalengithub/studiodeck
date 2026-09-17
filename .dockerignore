@@ -1,0 +1,9 @@
+.env
+.git
+.idea
+storage/*
+!storage/.gitkeep
+tests
+node_modules
+dist
+*.sqlite*

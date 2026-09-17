@@ -1,0 +1,11 @@
+key,label,vendor,amount,kind,parent,included,note
+b1,Construction & installation,Van Dijk Bouw,54000,quote,,false,Includes electrical and plumbing subquotes. Demo amounts include 21% VAT.
+b2,Electrical installation,Licht & Lijn,9500,quote,b1,true,Included in main contractor total.
+b3,Plumbing & heating,Warmtewerk,7200,quote,b1,true,Included in main contractor total.
+b4,Kitchen & joinery,Atelier Oak,32000,quote,,false,Oak cabinetry stone worktop and appliances. Demo amount includes VAT.
+b5,Furniture & styling,Studio selection,18950,estimate,,false,
+b6,Lighting,Licht & Lijn,6800,estimate,,false,
+b7,Flooring & finishes,Vloerwerk,12800,quote,,false,
+b8,Design & supervision,Your studio,3900,quote,,false,
+b9,Window treatments,Vendor to be selected,,unknown,,false,Fabric and measurements to be confirmed.
+b10,Garden connection,Quote pending,,unknown,,false,External terrace and threshold detailing.

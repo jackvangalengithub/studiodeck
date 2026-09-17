@@ -1,0 +1,22 @@
+# Two containers from the same image, sharing one storage folder (SQLite DB + mail.log).
+x-app: &app
+  build: .
+  image: studiodeck
+  env_file: .env
+  environment:
+    HOME: /tmp # LibreOffice needs a writable home directory
+  user: "${UID:-1000}:${GID:-1000}"
+  volumes:
+    - ./storage:/app/storage
+  restart: unless-stopped
+
+services:
+  web:
+    <<: *app
+    command: php -S 0.0.0.0:8080 -t /app/public /app/public/router.php
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+
+  worker:
+    <<: *app
+    command: php /app/scripts/worker.php
