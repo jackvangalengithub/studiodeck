@@ -16,10 +16,8 @@ if($action==='read_comments'){
 if($action==='comment_preview'){
     $c=one('SELECT * FROM comments WHERE id=?',[text_field($_GET['id']??'')]);if(!$c)fail('Comment not found.',404);[$i]=access_iteration($c['iteration_id']);
     require_once __DIR__.'/slides.php';$slide=str_starts_with($c['slide'],'visual-')?current_slide($i['id'],substr($c['slide'],7)):null;
-    if($slide){try{$image=slide_image_source($slide);$im=@imagecreatefromstring($image['data']);if($im){$w=240;$h=max(1,(int)(imagesy($im)*$w/imagesx($im)));$thumb=imagescale($im,$w,min(360,$h));header('Content-Type: image/png');imagepng($thumb);exit;}}catch(Throwable $e){}}
-    // Built-in slides have a compact title card instead of a source photograph.
-    $titles=['intro'=>'Welcome home','budget'=>'The investment','contacts'=>'Project team','summary'=>'Everything, together','changes'=>"What is new",'general'=>'General comment'];
-    $p=one('SELECT name FROM projects WHERE id=?',[$i['project_id']]);$im=imagecreatetruecolor(240,150);$bg=imagecolorallocate($im,239,240,233);$ink=imagecolorallocate($im,55,65,51);imagefill($im,0,0,$bg);imagestring($im,4,14,45,substr($titles[$c['slide']]??'Source slide unavailable',0,28),$ink);imagestring($im,2,14,85,substr($p['name'],0,32),$ink);header('Content-Type: image/png');imagepng($im);exit;
+    if($slide){try{$image=slide_image_source($slide);$im=@imagecreatefromstring($image['data']);if($im){$scale=min(240/imagesx($im),160/imagesy($im));$thumb=imagescale($im,max(1,(int)(imagesx($im)*$scale)),max(1,(int)(imagesy($im)*$scale)));header('Content-Type: image/png');imagepng($thumb);exit;}}catch(Throwable $e){}}
+    $im=builtin_comment_thumbnail($c,$i);header('Content-Type: image/png');imagepng($im);exit;
 }
 if(in_array($action,['upload_project_logo','remove_project_logo'],true)){
     $b=$action==='upload_project_logo'?$_POST:input();$u=owner(true);$p=owned_project(text_field($b['project_id']??''),$u);

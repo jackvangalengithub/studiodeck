@@ -146,3 +146,20 @@ AI integration references: [OpenAI Chat API](https://developers.openai.com/api/r
 Extraction references: [PyMuPDF page API](https://pymupdf.readthedocs.io/en/latest/page.html) and [OpenAI vision inputs](https://developers.openai.com/api/docs/guides/images-vision).
 
 When upgrading an existing installation, `php scripts/initialize-slides.php` initializes individual slides for draft projects from their stored extraction, without AI requests. Use **Extract again** to run the current visual classifier on an older document. Newly created iterations also initialize missing slide records from stored sources.
+
+### Profiles, unread comments and communication
+
+- Open **User profile** from the sidebar to set your display name, upload/remove an avatar, choose a personal workspace accent, and opt in or out of comment emails. The accent does not change project presentation colors. Clients have a **Your profile** button in their presentation with the same identity and email preference controls.
+- Comments show a thumbnail of their source slide and an **Unread** marker. Opening a discussion marks its comments as read. Read status is stored in SQLite per person, including client recipients, and survives refreshes and other devices. Listing comments does not mark them read.
+- New comments queue emails for the other project team members and recipients of active links to that iteration. The author is excluded. Preferences, project membership and share validity are rechecked before delivery. Notification links remain tied to the original share, including its expiry and revocation.
+- The existing worker drains `email_outbox`. Failed transport calls retry with a five-minute delay, up to four attempts; delivery can be inspected through `status` and `error`. An interrupted send may be retried, so the transport does not promise exactly-once delivery.
+- **Send to clients** includes an editable message. Presentation and comment emails use the studio's selected palette, a plain-text alternative and **Presented by studiodeck** attribution. Profile preferences currently cover comment notifications; explicitly sent presentation invitations remain separate.
+- `MAIL_TRANSPORT=log` does **not** deliver email. Rendered messages are written to `MAIL_LOG_PATH.messages.jsonl` (default `storage/mail.log.messages.jsonl`) for local review. Production delivery uses the existing `MAIL_TRANSPORT=mail` / `MAIL_FROM` configuration and requires a working PHP mail transport.
+
+### Presentation logos and workspace refinements
+
+The presentation uses the **project logo → studio logo → Studiodeck** fallback. Upload a project/client logo in **Project settings**, or a studio logo in **Studio settings**. Logos and avatars accept PNG, JPEG or WebP up to 2 MB and are decoded and normalized before storage. Removing an override restores the next logo in the fallback. Presentations always show **Presented by studiodeck**.
+
+Project teams use searchable name/email results with removable selections, suited to large studios. The top bar displays the selected studio name, **Current project** opens **All projects** when no project is selected, and the viewport reserves scrollbar space. Profiles have refreshable `/{studioId}/profile` URLs.
+
+Run the isolated integration checks with `PHP_BIN=php python3 tests/test_people.py`. They exercise profiles, client preferences, previews, unread isolation, logo inheritance and notification delivery rules without real email or AI calls.

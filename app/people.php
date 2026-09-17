@@ -30,3 +30,25 @@ function presentation_branding(string $pid): array {
 function unread_comment_count(array $u): int {
     return (int)one('SELECT COUNT(*) AS n FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id WHERE '.project_access_sql().' AND c.author<>? AND NOT EXISTS(SELECT 1 FROM comment_reads r WHERE r.comment_id=c.id AND r.person_key=?)',[$u['studio_id'],$u['user_id'],$u['email'],person_key($u['email'],true)])['n'];
 }
+function builtin_comment_thumbnail(array $c,array $i): GdImage {
+    $p=one('SELECT name,theme FROM projects WHERE id=?',[$i['project_id']]);$theme=json_decode($i['theme'],true)?:json_decode($p['theme'],true)?:[];
+    $dark=($theme['mode']??'light')==='dark';$hex=$dark?($theme['background']??'#152235'):'#f8f8f4';if(!preg_match('/^#[a-f0-9]{6}$/i',$hex))$hex='#152235';
+    $im=imagecreatetruecolor(480,300);$bg=imagecolorallocate($im,hexdec(substr($hex,1,2)),hexdec(substr($hex,3,2)),hexdec(substr($hex,5,2)));$ink=$dark?imagecolorallocate($im,245,245,242):imagecolorallocate($im,38,43,38);$soft=$dark?imagecolorallocate($im,70,80,88):imagecolorallocate($im,220,224,214);imagefill($im,0,0,$bg);
+    $font='/usr/share/fonts/truetype/dejavu/DejaVu'.(($theme['font']??'serif')==='serif'?'Serif':'Sans').'.ttf';
+    $text=function(string $value,int $x,int $y,int $size=20)use($im,$ink,$font){if(is_file($font)&&function_exists('imagettftext'))imagettftext($im,$size,0,$x,$y,$ink,$font,preview_text($value,42));else { $value=substr($value,0,42);$layer=imagecreatetruecolor(max(1,strlen($value)*9),16);$color=imagecolorsforindex($im,imagecolorat($im,0,0));$background=imagecolorallocate($layer,$color['red'],$color['green'],$color['blue']);imagefill($layer,0,0,$background);$fg=imagecolorsforindex($im,$ink);$foreground=imagecolorallocate($layer,$fg['red'],$fg['green'],$fg['blue']);imagestring($layer,5,0,0,$value,$foreground);$scale=$size/12;imagecopyresampled($im,$layer,$x,$y-(int)(16*$scale),0,0,(int)(imagesx($layer)*$scale),(int)(16*$scale),imagesx($layer),16);imagedestroy($layer); }};
+    $text('CONCEPT '.str_pad((string)$i['number'],2,'0',STR_PAD_LEFT),24,35,10);
+    if($c['slide']==='intro'){
+        $text('A place to',24,95);$text('come home to.',24,126);$text(preview_text($p['name'],24),24,170,11);
+        imagefilledrectangle($im,265,60,456,258,$soft);
+        $slide=one("SELECT * FROM presentation_slides WHERE iteration_id=? AND type IN ('render','photo','moodboard') ORDER BY CASE type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,position LIMIT 1",[$i['id']]);
+        if($slide){try{$source=slide_image_source($slide);$photo=@imagecreatefromstring($source['data']);if($photo){$scale=min(191/imagesx($photo),198/imagesy($photo));$w=(int)(imagesx($photo)*$scale);$h=(int)(imagesy($photo)*$scale);imagecopyresampled($im,$photo,265+(int)((191-$w)/2),60+(int)((198-$h)/2),0,0,$w,$h,imagesx($photo),imagesy($photo));imagedestroy($photo);}}catch(Throwable $e){}}
+    }else{
+        $titles=['budget'=>'The investment.','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
+        if(in_array($c['slide'],['budget','summary'],true)){$total=budget_total(rows('SELECT * FROM budget_items WHERE iteration_id=?',[$i['id']]));$text('€ '.number_format($total/100,0,'.',','),24,155,29);foreach([270,220,165] as $n=>$w)imagefilledrectangle($im,24,182+$n*22,$w,192+$n*22,$soft);}
+        elseif($c['slide']==='contacts'){$people=rows("SELECT name FROM contacts WHERE project_id=? AND role<>'Client' LIMIT 3",[$i['project_id']]);foreach($people as $n=>$person){$x=45+$n*145;imagefilledellipse($im,$x+18,145,44,44,$soft);$text(preview_text($person['name'],12),$x-18,195,11);}}
+        else{$text(preview_text($p['name'],36),24,148,15);imagefilledrectangle($im,24,178,365,186,$soft);imagefilledrectangle($im,24,202,305,210,$soft);}
+    }
+    return $im;
+}
+
+function preview_text(string $value,int $length): string {preg_match('/^.{0,'.$length.'}/us',$value,$matches);return $matches[0]??substr($value,0,$length);}
