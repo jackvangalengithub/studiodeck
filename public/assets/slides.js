@@ -23,9 +23,9 @@ export function presentationSlides(data,{includeHidden=false}={}){
     {id:'summary',type:'summary',title:'Everything, together',icon:'download'}];
   const sections=new Map((data.slide_sections||[]).map(s=>[s.slide_id,s.section]));
   const layout=new Map((data.slide_layout||[]).map(s=>[s.slide_id,s]));
-  return all.map((s,n)=>({...s,section:slideSections[sections.get(s.id)]?sections.get(s.id):defaultSlideSection(s),hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
+  return all.map((s,n)=>({...s,section:({...slideSections,...data.slide_groups})[sections.get(s.id)]?sections.get(s.id):defaultSlideSection(s),hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
 }
 
 export const slideSections={story:'The story',current:'The current situation',moodboards:'The moodboards',designs:'The designs',budget:'The budget'};
 export function defaultSlideSection(slide){if(slide.type==='budget')return 'budget';if(slide.situation==='before')return 'current';if(slide.type==='moodboard')return 'moodboards';if(slide.visual)return 'designs';return 'story';}
-export function groupSlideOrder(slides){return Object.keys(slideSections).flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}
+export function groupSlideOrder(slides){return [...new Set([...Object.keys(slideSections),...slides.map(s=>s.section)])].flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}

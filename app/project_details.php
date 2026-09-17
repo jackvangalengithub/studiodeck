@@ -11,3 +11,22 @@ function project_cover(string $iid): ?array {
     require_once __DIR__.'/slides.php';
     return one("SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE s.iteration_id=? AND s.type IN ('render','photo','moodboard') ORDER BY CASE s.type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,s.position,s.id LIMIT 1",[$iid]);
 }
+
+function migrate_slide_groups(PDO $db): void {
+    if(!str_contains((string)$db->query("SELECT sql FROM sqlite_master WHERE name='slide_sections'")->fetchColumn(),'CHECK'))return;
+    $db->exec('BEGIN IMMEDIATE');
+    try {
+        if(str_contains((string)$db->query("SELECT sql FROM sqlite_master WHERE name='slide_sections'")->fetchColumn(),'CHECK')) {
+            $db->exec('ALTER TABLE slide_sections RENAME TO slide_sections_legacy');
+            $db->exec('CREATE TABLE slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL,PRIMARY KEY(iteration_id,slide_id))');
+            $db->exec('INSERT INTO slide_sections SELECT * FROM slide_sections_legacy');
+            $db->exec('DROP TABLE slide_sections_legacy');
+        }
+        $db->exec('COMMIT');
+    } catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+}
+function slide_groups(string $iid): array {
+    $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget'];
+    foreach(rows('SELECT id,label FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group)$defaults[$group['id']]=$group['label'];
+    return $defaults;
+}

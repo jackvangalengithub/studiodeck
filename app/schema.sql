@@ -39,4 +39,6 @@ CREATE TABLE IF NOT EXISTS project_logos (project_id TEXT PRIMARY KEY REFERENCES
 CREATE TABLE IF NOT EXISTS share_aliases (token_hash TEXT PRIMARY KEY,share_id TEXT NOT NULL REFERENCES shares(id));
 CREATE TABLE IF NOT EXISTS email_outbox (id TEXT PRIMARY KEY,comment_id TEXT NOT NULL REFERENCES comments(id),person_key TEXT NOT NULL,email TEXT NOT NULL,user_id TEXT,share_id TEXT,url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'queued',attempts INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '',UNIQUE(comment_id,email));
 CREATE TABLE IF NOT EXISTS project_details (project_id TEXT PRIMARY KEY REFERENCES projects(id),tags TEXT NOT NULL DEFAULT '[]',deadline TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL CHECK(section IN ('story','current','moodboards','designs','budget')),PRIMARY KEY(iteration_id,slide_id));
+CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL,PRIMARY KEY(iteration_id,slide_id));
+
+CREATE TABLE IF NOT EXISTS slide_groups (iteration_id TEXT NOT NULL REFERENCES iterations(id),id TEXT NOT NULL,label TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(iteration_id,id));

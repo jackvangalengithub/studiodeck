@@ -11,7 +11,7 @@ try {
     $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
-    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','add_slide_group','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
     require __DIR__.'/../app/studio_api.php';
     require __DIR__.'/../app/project_api.php';
@@ -76,6 +76,7 @@ try {
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('presentation_slides',$slide);}
             foreach(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$base['id']]) as $layout){$layout['iteration_id']=$iid;insert('slide_layout',$layout);}
             foreach(rows('SELECT * FROM slide_sections WHERE iteration_id=?',[$base['id']]) as $section){$section['iteration_id']=$iid;insert('slide_sections',$section);}
+            foreach(rows('SELECT * FROM slide_groups WHERE iteration_id=?',[$base['id']]) as $group){$group['iteration_id']=$iid;insert('slide_groups',$group);}
             ensure_iteration_slides($iid);
             $items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$base['id']]);$map=[];foreach($items as $r)$map[$r['id']]=id();
             foreach($items as $r){$r['id']=$map[$r['id']];$r['iteration_id']=$iid;$r['parent_id']=null;insert('budget_items',$r);}
@@ -212,6 +213,12 @@ try {
         if(!$slide)fail('Slide not found.',404);
         $image=slide_image_source($slide,isset($_GET['original']));header('Content-Type: '.$image['mime']);header('Content-Length: '.strlen($image['data']));echo $image['data'];exit;
     }
+    if($action==='add_slide_group') {
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',60);
+        if(!$label)fail('Give the group a name.');$groups=slide_groups($i['id']);if(count($groups)>=35)fail('Use up to 35 slide groups.');
+        foreach($groups as $existing)if(strtolower($existing)===strtolower($label))fail('A group with this name already exists.');
+        $gid=id();insert('slide_groups',['iteration_id'=>$i['id'],'id'=>$gid,'label'=>$label,'position'=>count($groups)]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Added slide group: '.$label);json_response(['id'=>$gid],201);
+    }
     if($action==='slide_layout') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
         $ids=editor_slide_ids($i['id']);$op=$b['operation']??'';
@@ -223,7 +230,7 @@ try {
             foreach($order as $n=>$sid)query('INSERT INTO slide_layout(iteration_id,slide_id,position) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET position=excluded.position',[$i['id'],$sid,$n]);
         }else {
             $sid=text_field($b['slide_id']??'');if(!in_array($sid,$ids,true))fail('Slide not found.',404);
-            if($op==='section'){$section=text_field($b['section']??'',20);if(!in_array($section,['story','current','moodboards','designs','budget'],true))fail('Choose a slide section.');query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Slide section updated');json_response(['ok'=>true]);}
+            if($op==='section'){$section=text_field($b['section']??'',40);if(!isset(slide_groups($i['id'])[$section]))fail('Choose a slide section.');query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Slide section updated');json_response(['ok'=>true]);}
             if(!in_array($op,['show','hide','delete','restore'],true))fail('Unknown slide action.');
             $column=in_array($op,['show','hide'],true)?'hidden':'deleted';$value=in_array($op,['hide','delete'],true)?1:0;
             query('INSERT INTO slide_layout(iteration_id,slide_id,'.$column.') VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET '.$column.'=excluded.'.$column,[$i['id'],$sid,$value]);

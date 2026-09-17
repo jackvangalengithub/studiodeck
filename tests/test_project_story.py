@@ -70,6 +70,9 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         admin.call('slide_layout',{'iteration':iid,'slide_id':'visual-'+sid,'operation':'section','section':'current'})
         admin.call('slide_layout',{'iteration':iid,'slide_id':'summary','operation':'section','section':'budget'})
         admin.call('slide_layout',{'iteration':iid,'slide_id':'summary','operation':'section','section':'bad'},expected=400)
+        custom=admin.call('add_slide_group',{'iteration':iid,'label':'Materials & finishes'},expected=201)['id']
+        admin.call('slide_layout',{'iteration':iid,'slide_id':'contacts','operation':'section','section':custom})
+        check(admin.call('project',query='&id='+pid)['slide_groups'][custom]=='Materials & finishes','Custom slide groups are persistent')
         order=['summary','visual-'+sid,'intro','changes','budget','contacts'];admin.call('slide_layout',{'iteration':iid,'operation':'reorder','order':order})
         check(sorted(admin.call('project',query='&id='+pid)['slide_layout'],key=lambda s:s['position'])[0]['slide_id']=='summary','Complete slide reorder persists')
         admin.call('studio_theme',{'theme':{'palette':'warmgray','style':'classic','font':'serif'}})
@@ -82,6 +85,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         admin.call('slide_layout',{'iteration':iid,'slide_id':'intro','operation':'section','section':'budget'},expected=409)
         newer=admin.call('new_iteration',{'iteration':iid},expected=201)['id']
         copied=admin.call('project',query='&id='+pid+'&iteration='+newer)
+        check(copied['slide_groups']==shared['slide_groups'],'New iterations preserve custom group definitions')
         check(copied['slide_sections']==shared['slide_sections'],'New iterations copy slide sections')
         admin.call('slide_layout',{'iteration':newer,'slide_id':'summary','operation':'section','section':'story'})
         check(client.call('deck')['slide_sections']==shared['slide_sections'],'Shared section assignments remain preserved')
