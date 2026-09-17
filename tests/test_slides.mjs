@@ -17,3 +17,12 @@ assert.equal(slides.filter(s=>s.sourceOnly).length,0);
 assert.equal(presentationSlides({files:[],slides:[]}).length,5);
 assert.equal(visualSlides({...data,slides:[{...data.slides[1],image_version_id:'edited'}]})[0].visual.slide_image_version,'edited');
 console.log('PASS Repeating slide types, separate before/concept labels, exact page/crop mapping, stable feedback IDs and generated variants.');
+
+const arranged={...data,slide_layout:[{slide_id:'visual-c',position:0},{slide_id:'intro',position:1,hidden:1},{slide_id:'visual-a',position:2,deleted:1}]};
+assert.equal(presentationSlides(arranged)[0].id,'visual-c');
+assert.equal(presentationSlides(arranged).some(s=>['intro','visual-a'].includes(s.id)),false);
+assert.equal(presentationSlides(arranged,{includeHidden:true}).some(s=>s.id==='intro'&&s.hidden),true);
+assert.equal(presentationSlides(arranged,{includeHidden:true}).some(s=>s.id==='visual-a'),false);
+assert.equal(presentationSlides({...data,slide_layout:slides.map(s=>({slide_id:s.id,hidden:1}))}).length,0);
+assert.equal(presentationSlides({...data,slide_layout:slides.map(s=>({slide_id:s.id,deleted:1}))},{includeHidden:true}).length,0);
+console.log('PASS Custom ordering, hidden editor slides, deletion without fallback duplication, and empty presentations.');

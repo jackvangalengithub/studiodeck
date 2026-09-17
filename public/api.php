@@ -11,7 +11,7 @@ try {
     $read=['session','projects','project','deck','file','document_page','slide_image'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
-    if(in_array($action,['category','theme','save_budget','retry_job','save_slide'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session') { $s=current_session();json_response(['user'=>$s?['email'=>$s['email'],'name'=>$s['name']]:null,'csrf'=>$s['csrf']??null,'capabilities'=>capabilities()]); }
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
@@ -69,6 +69,7 @@ try {
             insert('iterations',['id'=>$iid,'project_id'=>$base['project_id'],'number'=>$n,'title'=>text_field($b['title']??('Design development '.$n),120),'status'=>'draft','theme'=>$base['theme'],'created_at'=>now()]);
             foreach(rows('SELECT * FROM iteration_files WHERE iteration_id=?',[$base['id']]) as $r){$r['iteration_id']=$iid;insert('iteration_files',$r);}
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('presentation_slides',$slide);}
+            foreach(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$base['id']]) as $layout){$layout['iteration_id']=$iid;insert('slide_layout',$layout);}
             ensure_iteration_slides($iid);
             $items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$base['id']]);$map=[];foreach($items as $r)$map[$r['id']]=id();
             foreach($items as $r){$r['id']=$map[$r['id']];$r['iteration_id']=$iid;$r['parent_id']=null;insert('budget_items',$r);}
@@ -197,6 +198,23 @@ try {
         [$i]=access_iteration((string)($_GET['iteration']??''));$slide=current_slide($i['id'],(string)($_GET['slide_id']??''));
         if(!$slide)fail('Slide not found.',404);
         $image=slide_image_source($slide,isset($_GET['original']));header('Content-Type: '.$image['mime']);header('Content-Length: '.strlen($image['data']));echo $image['data'];exit;
+    }
+    if($action==='slide_layout') {
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        $ids=editor_slide_ids($i['id']);$op=$b['operation']??'';
+        if($op==='reorder') {
+            $deleted=array_column(rows('SELECT slide_id FROM slide_layout WHERE iteration_id=? AND deleted=1',[$i['id']]),'slide_id');
+            $expected=array_values(array_diff($ids,$deleted));$order=$b['order']??null;
+            if(!is_array($order)||count(array_filter($order,'is_string'))!==count($order))fail('Send the complete slide order.');
+            $a=$expected;$c=$order;sort($a);sort($c);if($a!==$c)fail('The slide list changed. Refresh before reordering.',409);
+            foreach($order as $n=>$sid)query('INSERT INTO slide_layout(iteration_id,slide_id,position) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET position=excluded.position',[$i['id'],$sid,$n]);
+        }else {
+            $sid=text_field($b['slide_id']??'');if(!in_array($sid,$ids,true))fail('Slide not found.',404);
+            if(!in_array($op,['show','hide','delete','restore'],true))fail('Unknown slide action.');
+            $column=in_array($op,['show','hide'],true)?'hidden':'deleted';$value=in_array($op,['hide','delete'],true)?1:0;
+            query('INSERT INTO slide_layout(iteration_id,slide_id,'.$column.') VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET '.$column.'=excluded.'.$column,[$i['id'],$sid,$value]);
+        }
+        audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Presentation slides: '.$op);json_response(['ok'=>true]);
     }
     if($action==='save_slide') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$slide=current_slide($i['id'],text_field($b['slide_id']??''));if(!$slide)fail('Slide not found.',404);

@@ -145,3 +145,16 @@ function ensure_iteration_slides(string $iid): void {
         if($visuals)save_visual_slides($iid,$v,$visuals);
     }
 }
+
+// Includes generated section slides and legacy source pages, so every editor row is manageable.
+function editor_slide_ids(string $iid): array {
+    $slides=project_slides($iid);$ids=['intro'];$covered=[];
+    foreach($slides as $s){$ids[]='visual-'.$s['id'];$covered[$s['source_version_id']]=true;}
+    $files=rows('SELECT v.id,v.mime,f.category FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? ORDER BY f.rowid',[$iid]);
+    if(!$slides)foreach($files as $f)if(str_starts_with($f['mime'],'image/')){$ids[]='visual-legacy-'.$f['id'];$covered[$f['id']]=true;}
+    foreach($files as $f)if(!isset($covered[$f['id']])&&in_array($f['category'],['drawings','presentation','moodboard'],true)){
+        $pages=rows('SELECT number FROM document_pages WHERE version_id=? AND preview IS NOT NULL ORDER BY number',[$f['id']]);
+        foreach($pages?:[['number'=>0]] as $p)$ids[]='source-'.$f['id'].'-'.$p['number'];
+    }
+    return [...$ids,'changes','budget','contacts','summary'];
+}

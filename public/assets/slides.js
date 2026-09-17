@@ -10,15 +10,17 @@ export function visualSlides(data){
       visual:{...f,slide_id:s.id,slide_image_version:s.image_version_id||'',page_number:s.page_number||0,image_number:s.image_number||0,has_preview:true,name:s.title||f.name,source_name:f.name,legacy:!!s.legacy}}];
   });
 }
-export function presentationSlides(data){
+export function presentationSlides(data,{includeHidden=false}={}){
   const visuals=visualSlides(data),covered=new Set(visuals.map(s=>s.visual.id));
   const documents=(data.files||[]).filter(f=>!covered.has(f.id)&&['drawings','presentation','moodboard'].includes(f.category)).flatMap(f=>{
     const pages=(f.pages||[]).filter(p=>p.has_preview);
     return (pages.length?pages:[null]).map(p=>({id:`source-${f.id}-${p?.number||0}`,type:'source',title:p?`${f.name} · Page ${p.number}`:f.name,icon:'file',visual:{...f,page_number:p?.number||0},sourceOnly:true}));
   });
-  return [{id:'intro',type:'intro',title:'Welcome home',icon:'slide'},...visuals,...documents,
+  const all=[{id:'intro',type:'intro',title:'Welcome home',icon:'slide'},...visuals,...documents,
     {id:'changes',type:'changes',title:'What’s new',icon:'history'},
     {id:'budget',type:'budget',title:'The investment',icon:'budget'},
     {id:'contacts',type:'contacts',title:'Your project team',icon:'users'},
     {id:'summary',type:'summary',title:'Everything, together',icon:'download'}];
+  const layout=new Map((data.slide_layout||[]).map(s=>[s.slide_id,s]));
+  return all.map((s,n)=>({...s,hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
 }

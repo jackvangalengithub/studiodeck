@@ -37,6 +37,13 @@ export async function demoRequest(action,body={}) {
       if(old)d.files[d.files.indexOf(old)]=entry;else d.files.push(entry);d.changes.push({type:old?'updated':'added',name:file.name});d.events.unshift({id:uid(),actor:'You',type:'file_uploaded',detail:file.name,created_at:stamp()});
     }return {message:'Files added to this demo session. Document extraction runs in the PHP app.'};
   }
+  if(action==='slide_layout'){
+    if(d.iteration.status!=='draft')throw Error('Create a new iteration to edit slides.');
+    d.slide_layout??=[];const row=id=>{let s=d.slide_layout.find(s=>s.slide_id===id);if(!s){s={slide_id:id,hidden:0,deleted:0,position:null};d.slide_layout.push(s);}return s;};
+    if(body.operation==='reorder')body.order.forEach((id,n)=>row(id).position=n);
+    else {const s=row(body.slide_id);if(['hide','show'].includes(body.operation))s.hidden=body.operation==='hide'?1:0;else s.deleted=body.operation==='delete'?1:0;}
+    return {ok:true};
+  }
   if(action==='category'){d.files.find(x=>x.asset_id===body.asset_id).category=body.category;return {ok:true};}
   if(action==='theme'){d.project.theme=body.theme;d.iteration.theme=JSON.stringify(body.theme);return {ok:true};}
   if(action==='save_budget'){const row={...body,id:body.id||uid(),amount_cents:body.kind==='unknown'||body.amount===''?null:Math.round(Number(body.amount)*100),included:body.parent_id&&body.included?1:0,parent_id:body.parent_id||null,source_version_id:null};const old=d.budget.find(x=>x.id===row.id);if(old)Object.assign(old,row);else d.budget.push(row);return {ok:true};}

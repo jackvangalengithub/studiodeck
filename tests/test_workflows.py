@@ -172,12 +172,33 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         check(owner.call('slide_image',query=f'&iteration={page_iid}&slide_id={render_slide["id"]}&original=1',raw=True)==crop,'Original render remains available for comparison')
         check(owner.call('file',query=f'&iteration={page_iid}&id={version}',raw=True)==fixture.read_bytes(),'Photorealistic editing does not replace or alter the PDF')
         check(apply_variant(page_iid,None,variation2).returncode!=0,'Stale image results cannot overwrite a newer slide image')
+        slide_ids=['intro']+['visual-'+s['id'] for s in page_deck['slides']]+['changes','budget','contacts','summary']
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'hide','slide_id':'intro'},csrf=False,expected=403)
+        stranger.call('slide_layout',{'iteration':page_iid,'operation':'hide','slide_id':'intro'},expected=404)
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'hide','slide_id':'missing'},expected=404)
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'hide','slide_id':'intro'})
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'delete','slide_id':'changes'})
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'delete','slide_id':'visual-'+before_slide['id']})
+        check(owner.call('slide_image',query=f'&iteration={page_iid}&slide_id={before_slide["id"]}',raw=True)==image,'Deleting a slide preserves its original image')
+        order=list(reversed([x for x in slide_ids if x not in ['changes','visual-'+before_slide['id']]]))
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'reorder','order':order+['changes']},expected=409)
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'reorder','order':order[:-1]+[order[0]]},expected=409)
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'reorder','order':order})
+        layout=owner.call('project',query='&id='+page_pid)['slide_layout']
+        check(next(s for s in layout if s['slide_id']=='intro')['hidden']==1 and next(s for s in layout if s['slide_id']=='changes')['deleted']==1,'Visibility and deletion persist for built-in and image slides')
+        check([s['slide_id'] for s in sorted([s for s in layout if not s['deleted']],key=lambda s:s['position'])]==order,'Complete slide order is persisted, including hidden slides')
         shared_page=owner.call('share',{'iteration':page_iid,'emails':['pages@example.test']})['links'][0]
         viewer=Client(base);viewer.bearer=shared_page['url'].split('/#/view/')[1]
         check(viewer.call('document_page',query=f'&id={version}&page=2&image=1',raw=True)==image,'Shared links can view their own extracted images')
         owner.call('reprocess',{'iteration':page_iid,'version_id':version},expected=409)
         next_iid=owner.call('new_iteration',{'iteration':page_iid,'title':'Re-extracted'},expected=201)['id']
         slide_copy=owner.call('project',query=f'&id={page_pid}&iteration={next_iid}')['slides']
+        copied_layout=owner.call('project',query=f'&id={page_pid}&iteration={next_iid}')['slide_layout']
+        check(copied_layout==layout,'New iterations preserve order, visibility and deleted slides')
+        owner.call('slide_layout',{'iteration':page_iid,'operation':'show','slide_id':'intro'},expected=409)
+        viewer.call('slide_layout',{'iteration':page_iid,'operation':'show','slide_id':'intro'},expected=401)
+        owner.call('slide_layout',{'iteration':next_iid,'operation':'show','slide_id':'intro'})
+        check(next(s for s in viewer.call('deck')['slide_layout'] if s['slide_id']=='intro')['hidden']==1,'Editing visibility in the next draft preserves the shared presentation')
         copied_render=next(s for s in slide_copy if s['id']==render_slide['id'])
         check(copied_render['type']=='render' and copied_render['situation']=='concept' and copied_render['image_version_id'],'New iterations preserve slide types, situation labels and selected image versions')
         check(apply_variant(next_iid,copied_render['image_version_id'],variation2).returncode==0,'A copied slide can receive a new image in the next draft')
