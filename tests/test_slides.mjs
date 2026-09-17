@@ -26,3 +26,6 @@ assert.equal(presentationSlides(arranged,{includeHidden:true}).some(s=>s.id==='v
 assert.equal(presentationSlides({...data,slide_layout:slides.map(s=>({slide_id:s.id,hidden:1}))}).length,0);
 assert.equal(presentationSlides({...data,slide_layout:slides.map(s=>({slide_id:s.id,deleted:1}))},{includeHidden:true}).length,0);
 console.log('PASS Custom ordering, hidden editor slides, deletion without fallback duplication, and empty presentations.');
+const excludedPage={...file,pages:[{number:1,has_preview:true,include_in_presentation:false}]};
+assert.equal(presentationSlides({files:[excludedPage],slides:[]}).some(s=>s.sourceOnly),false);
+console.log('PASS Branding-only/text pages cannot reappear through source-page fallback slides.');

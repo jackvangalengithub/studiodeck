@@ -13,8 +13,8 @@ export function visualSlides(data){
 export function presentationSlides(data,{includeHidden=false}={}){
   const visuals=visualSlides(data),covered=new Set(visuals.map(s=>s.visual.id));
   const documents=(data.files||[]).filter(f=>!covered.has(f.id)&&['drawings','presentation','moodboard'].includes(f.category)).flatMap(f=>{
-    const pages=(f.pages||[]).filter(p=>p.has_preview);
-    return (pages.length?pages:[null]).map(p=>({id:`source-${f.id}-${p?.number||0}`,type:'source',title:p?`${f.name} · Page ${p.number}`:f.name,icon:'file',visual:{...f,page_number:p?.number||0},sourceOnly:true}));
+    const pages=(f.pages||[]).filter(p=>p.has_preview&&p.include_in_presentation!==false);
+    return (pages.length?pages:(f.pages?.length?[]:[null])).map(p=>({id:`source-${f.id}-${p?.number||0}`,type:'source',title:p?`${f.name} · Page ${p.number}`:f.name,icon:'file',visual:{...f,page_number:p?.number||0},sourceOnly:true}));
   });
   const all=[{id:'intro',type:'intro',title:'Welcome home',icon:'slide'},...visuals,...documents,
     {id:'changes',type:'changes',title:'What’s new',icon:'history'},

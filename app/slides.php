@@ -49,9 +49,10 @@ function visual_candidates(array $v,array $extracted): array {
         $result[]=['key'=>'0:0','page_number'=>0,'image_number'=>0,'raw'=>$extracted['preview']??'','mime'=>'image/png','context'=>$v['name'],'page_preview'=>null,'palette'=>[],...visual_text_hint($v['name'])];
     }
     foreach($extracted['pages']??[] as $page) {
+        if(isset($page['include_in_presentation'])&&!$page['include_in_presentation'])continue;
         $category=$page['analysis']['category']??'other';
-        // Preserve the assembled moodboard alongside its independently classified pictures.
-        if($page['preview']&&((!$page['images']&&!in_array($category,['budget'],true))||($category==='moodboard'&&count($page['images'])>1))) {
+        // Legacy imports may need a page slide. Planned compositions already have one accepted image.
+        if(!isset($page['extraction_plan'])&&$page['preview']&&((!$page['images']&&!in_array($category,['budget'],true))||($category==='moodboard'&&count($page['images'])>1))) {
             $hint=visual_text_hint($page['text']);if($category==='moodboard')$hint=clean_visual_label(['type'=>'moodboard'], $hint);
             if($category==='drawings')$hint=clean_visual_label(['type'=>'drawing'],$hint);
             $result[]=['key'=>$page['number'].':0','page_number'=>$page['number'],'image_number'=>0,'raw'=>$page['preview'],'mime'=>'image/jpeg','context'=>$page['text'],'page_preview'=>null,'palette'=>$page['palette']??[],...$hint];
@@ -60,7 +61,7 @@ function visual_candidates(array $v,array $extracted): array {
             $caption=nearby_image_text($page,$image);
             // Full-page context helps vision, but cannot turn every image on a mixed page into the same type.
             $result[]=['key'=>$page['number'].':'.$image['number'],'page_number'=>$page['number'],'image_number'=>$image['number'],'raw'=>$image['data']??'','mime'=>'image/jpeg','context'=>"Nearby caption:\n".$caption."\nFull page text (may describe other images):\n".$page['text'],
-                'page_preview'=>$page['preview'],'bbox'=>$image['bbox']??null,'palette'=>$image['palette']??[],...visual_text_hint($caption)];
+                'page_preview'=>$page['preview'],'bbox'=>$image['bbox']??null,'palette'=>$image['palette']??[],...(!empty($image['classification'])?clean_visual_label($image['classification']):visual_text_hint($caption)),'page_planned'=>isset($page['extraction_plan'])];
         }
     }
     return $result;
@@ -69,7 +70,7 @@ function classify_visuals(array $v,array &$extracted,?callable $request=null): a
     $visuals=visual_candidates($v,$extracted);
     if(!$request&&env('OPENAI_API_KEY')==='')return $visuals;
     $request??='ai_json';
-    foreach(array_chunk(array_keys($visuals),6) as $indices) {
+    foreach(array_chunk(array_keys(array_filter($visuals,fn($c)=>empty($c['page_planned']))),6) as $indices) {
         processing_progress('classifying_images',['image'=>$indices[0]+1,'total_images'=>count($visuals)]);
         $content=[['type'=>'text','text'=>'Source filename (context only): '.$v['name']]];$contextPages=[];
         foreach($indices as $index) {
@@ -153,8 +154,10 @@ function editor_slide_ids(string $iid): array {
     $files=rows('SELECT v.id,v.mime,f.category FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? ORDER BY f.rowid',[$iid]);
     if(!$slides)foreach($files as $f)if(str_starts_with($f['mime'],'image/')){$ids[]='visual-legacy-'.$f['id'];$covered[$f['id']]=true;}
     foreach($files as $f)if(!isset($covered[$f['id']])&&in_array($f['category'],['drawings','presentation','moodboard'],true)){
-        $pages=rows('SELECT number FROM document_pages WHERE version_id=? AND preview IS NOT NULL ORDER BY number',[$f['id']]);
-        foreach($pages?:[['number'=>0]] as $p)$ids[]='source-'.$f['id'].'-'.$p['number'];
+        $pages=rows('SELECT number,metadata FROM document_pages WHERE version_id=? AND preview IS NOT NULL ORDER BY number',[$f['id']]);
+        $hasPages=(bool)one('SELECT number FROM document_pages WHERE version_id=? LIMIT 1',[$f['id']]);
+        $pages=array_filter($pages,fn($p)=>(json_decode($p['metadata'],true)['include_in_presentation']??true)!==false);
+        foreach($pages?:($hasPages?[]:[['number'=>0]]) as $p)$ids[]='source-'.$f['id'].'-'.$p['number'];
     }
     return [...$ids,'changes','budget','contacts','summary'];
 }

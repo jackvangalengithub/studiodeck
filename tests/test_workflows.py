@@ -129,7 +129,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         check(any(x['label']=='Bench' and x['amount_cents']==123456 for x in office['budget']),'Excel cells import into exact integer-cent budget amounts')
         check(any(x['name']=='mood.pptx' and x['category']=='moodboard' for x in office['files']),'PowerPoint text informs automatic categorization')
         from test_extraction import make_pdf
-        fixture=tmp/'material-study.pdf';make_pdf(fixture)
+        fixture=tmp/'material-study.pdf';make_pdf(fixture,mixed=True)
         made=owner.call('create_project',{'name':'Page extraction checks','emails':[]},expected=201)
         page_pid,page_iid=made['project_id'],made['iteration_id']
         uploaded=owner.call('upload',{'iteration':page_iid},files=[('material-study.pdf','application/pdf',fixture.read_bytes())],expected=201)
@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         _,error=worker.communicate();check(worker.returncode==0,'Page worker completes: '+error.decode()[:100])
         page_deck=owner.call('project',query='&id='+page_pid)
         file=page_deck['files'][0]
-        check(len(file['pages'])==4 and file['metadata']['image_count']>=5,'Every page and extracted image is persisted')
+        check(len(file['pages'])==4 and file['metadata']['image_count']>=4,'Every page and extracted image is persisted')
         check(any(s in observed for s in ['extracting_text','extracting_images','extracting_colors']),'Progress API reports actual extraction stages')
         check(all('images' in p and 'has_text' in p for p in page_deck['files'][0]['pages']),'File explorer receives extracted image entries and text availability')
         detail=owner.call('document_page',query=f'&iteration={page_iid}&id={version}&page=2')

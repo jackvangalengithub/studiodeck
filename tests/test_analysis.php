@@ -43,3 +43,23 @@ check_analysis(visual_text_hint('living-room.jpg')['type']==='other'&&visual_tex
 $failedInput=$visualInput;$failedInput['warnings']=[];
 $failed=classify_visuals($v,$failedInput,function(){throw new RuntimeException('Simulated service failure');});
 check_analysis(count($failed)===8&&count($failedInput['warnings'])===2,'Failed classification keeps all images available for manual review');
+
+$dir=sys_get_temp_dir().'/studiodeck-page-plan-'.bin2hex(random_bytes(6));mkdir($dir);
+try{
+    file_put_contents($dir.'/page.jpg','complete-page-preview');
+    $inventory=['pages'=>[['number'=>1,'text'=>'Moodboard','preview'=>'page.jpg','images'=>[],'candidates'=>[['id'=>'p1-i1','bbox'=>[.1,.1,.9,.8],'area_ratio'=>.56,'likely_branding'=>false]]],['number'=>2,'text'=>'Photo','preview'=>'page.jpg','images'=>[],'candidates'=>[]]],'page_count'=>2,'warnings'=>[]];
+    $planCalls=[];
+    $plans=plan_document_pages($inventory,$dir,function($prompt,$content)use(&$planCalls){
+        $planCalls[]=$content;preg_match('/^PAGE (\d+)/',$content[0]['text'],$m);
+        return ['number'=>(int)$m[1],'content_type'=>'collage','strategy'=>'preserve','confidence'=>'high','regions'=>[['role'=>'collage','bbox'=>[.1,.1,.9,.8]]]];
+    });
+    check_analysis(count($planCalls)===2&&count($plans)===2,'Complete pages are classified individually before final crops exist');
+    check_analysis(count(array_filter($planCalls[0],fn($c)=>$c['type']==='image_url'))===1&&str_contains($planCalls[0][0]['text'],'area_ratio'),'Page planning sees the full page plus native image area and geometry');
+    $attempt=0;$partial=plan_document_pages($inventory,$dir,function()use(&$attempt){if(++$attempt===1)throw new RuntimeException('offline');return ['number'=>99,'content_type'=>'photo','regions'=>[]];});
+    check_analysis(!$partial&&count($inventory['warnings'])===2,'Failed or mismatched page plans are rejected for conservative code fallback');
+}finally{unlink($dir.'/page.jpg');rmdir($dir);}
+$planned=['text'=>'Moodboard','preview'=>null,'warnings'=>[],'pages'=>[['number'=>1,'text'=>'Moodboard','preview'=>'full-page','include_in_presentation'=>true,'extraction_plan'=>['strategy'=>'preserve'],'analysis'=>['category'=>'moodboard','page_first'=>true,'style'=>'Japandi'], 'palette'=>[], 'images'=>[['number'=>1,'data'=>'complete-board','classification'=>['type'=>'moodboard','confidence'=>'high'],'bbox'=>[.1,.1,.9,.8]]]]]];
+$visuals=classify_visuals($v,$planned,function(){throw new RuntimeException('Should not reclassify a planned region');});
+check_analysis(count($visuals)===1&&$visuals[0]['type']==='moodboard'&&!$planned['warnings'],'A planned collage becomes one slide without duplicate full-page or component slides');
+$planned['pages'][0]['include_in_presentation']=false;
+check_analysis(visual_candidates($v,$planned)===[],'Branding-only and text pages do not reappear as image slides');

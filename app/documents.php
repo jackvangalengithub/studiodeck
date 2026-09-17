@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/page_analysis.php';
 
 function processing_progress(string $stage,array $detail=[]): void {
     if(isset($GLOBALS['processing_job'])) {
@@ -9,7 +10,7 @@ function processing_progress(string $stage,array $detail=[]): void {
 function extract_document(string $path,string $dir): array {
     processing_progress('reading_pages');
     $buffer='';
-    run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir],7200,function($chunk)use(&$buffer){
+    run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir,'--inventory'],7200,function($chunk)use(&$buffer){
         $buffer.=$chunk;
         while(($pos=strpos($buffer,"\n"))!==false) {
             $line=substr($buffer,0,$pos);$buffer=substr($buffer,$pos+1);
@@ -17,11 +18,22 @@ function extract_document(string $path,string $dir): array {
             if(is_array($p)&&isset($p['stage']))processing_progress($p['stage'],array_diff_key($p,['stage'=>1]));
         }
     });
+    $inventory=json_decode(file_get_contents($dir.'/inventory.json'),true);
+    if(!is_array($inventory))throw new RuntimeException('Document pages could not be read.');
+    $plans=plan_document_pages($inventory,$dir);
+    file_put_contents($dir.'/inventory.json',json_encode($inventory,JSON_INVALID_UTF8_SUBSTITUTE));
+    file_put_contents($dir.'/page-plans.json',json_encode((object)$plans,JSON_INVALID_UTF8_SUBSTITUTE));
+    processing_progress('extracting_images');
+    $buffer='';
+    run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir,'--apply-plan'],7200,function($chunk)use(&$buffer){
+        $buffer.=$chunk;
+        while(($pos=strpos($buffer,"\n"))!==false){$line=substr($buffer,0,$pos);$buffer=substr($buffer,$pos+1);$p=json_decode($line,true);if(is_array($p)&&isset($p['stage']))processing_progress($p['stage'],array_diff_key($p,['stage'=>1]));}
+    });
     $manifest=json_decode(file_get_contents($dir.'/manifest.json'),true);
     if(!is_array($manifest))throw new RuntimeException('Document extraction did not return readable results.');
     foreach($manifest['pages'] as &$page) {
         $fallback=suggested_style($page['text']);
-        $page['analysis']=['category'=>category_for('','',$page['text']),'style'=>$fallback['style'],'summary'=>'','evidence'=>$fallback['reason'],'confidence'=>'low'];
+        $page['analysis']??=['category'=>category_for('','',$page['text']),'style'=>$fallback['style'],'summary'=>'','evidence'=>$fallback['reason'],'confidence'=>'low'];
         $page['preview']=$page['preview']?file_get_contents($dir.'/'.basename($page['preview'])):null;
         foreach($page['images'] as &$image) { $image['data']=file_get_contents($dir.'/'.basename($image['file']));unset($image['file']); }
         unset($image);
@@ -73,7 +85,7 @@ function document_page_summaries(string $vid): array {
     foreach($pages as &$page) {
         $meta=json_decode($page['metadata'],true)?:[];
         $images=rows('SELECT number,LENGTH(data) AS size FROM document_images WHERE version_id=? AND page_number=? ORDER BY number',[$vid,$page['number']]);
-        $page=['number'=>$page['number'],'has_preview'=>$page['has_preview'],'has_text'=>$page['text_length']>0,'images'=>$images,'image_count'=>(int)one('SELECT COUNT(*) AS n FROM document_images WHERE version_id=? AND page_number=?',[$vid,$page['number']])['n'],'palette'=>$meta['palette']??[],'category'=>$meta['analysis']['category']??'','summary'=>$meta['analysis']['summary']??''];
+        $page=['number'=>$page['number'],'has_preview'=>$page['has_preview'],'has_text'=>$page['text_length']>0,'images'=>$images,'image_count'=>(int)one('SELECT COUNT(*) AS n FROM document_images WHERE version_id=? AND page_number=?',[$vid,$page['number']])['n'],'palette'=>$meta['palette']??[],'category'=>$meta['analysis']['category']??'','summary'=>$meta['analysis']['summary']??'','include_in_presentation'=>$meta['include_in_presentation']??true,'extraction_plan'=>$meta['extraction_plan']??null];
     }
     return $pages;
 }
