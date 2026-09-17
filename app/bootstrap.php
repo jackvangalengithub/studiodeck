@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__.'/studios.php';
+
 const ROOT = __DIR__ . '/..';
 foreach (is_file(ROOT . '/.env') ? file(ROOT . '/.env', FILE_IGNORE_NEW_LINES) : [] as $line) {
     if (!$line || str_starts_with(trim($line), '#') || !str_contains($line, '=')) continue;
@@ -22,6 +24,7 @@ function db(): PDO {
     $db->exec('PRAGMA busy_timeout = 5000');
     $db->exec('PRAGMA journal_mode = WAL');
     $db->exec(file_get_contents(__DIR__ . '/schema.sql'));
+    migrate_studios($db);
     @chmod($path, 0600);
     return $db;
 }
@@ -59,18 +62,28 @@ function rate_limit(string $key,int $limit,int $seconds): void {
 }
 function current_session(): ?array {
     $t=$_COOKIE['studiodeck_session']??'';
-    return $t ? one('SELECT s.*, u.email, u.name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',[hash_token($t),time()]) : null;
+    $s=$t?one('SELECT s.*,u.email,u.name FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?',[hash_token($t),time()]):null;
+    if($s&&!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$s['studio_id'],$s['user_id']])){
+        $s['studio_id']=user_studios($s['user_id'])[0]['id']??null;
+        query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$s['studio_id'],$s['token_hash']]);
+    }
+    return $s;
 }
 function owner(bool $write=false): array {
     $s=current_session(); if(!$s) fail('Please sign in to your studio.',401);
     if($write && !hash_equals($s['csrf'],$_SERVER['HTTP_X_CSRF_TOKEN']??'')) fail('Please refresh the page and try again.',403);
     return $s;
 }
-function owned_project(string $pid,array $u): array { $p=one('SELECT * FROM projects WHERE id=? AND user_id=?',[$pid,$u['user_id']]); if(!$p) fail('Project not found.',404); return $p; }
-function owned_iteration(string $iid,array $u,bool $editable=false): array {
-    $i=one('SELECT i.* FROM iterations i JOIN projects p ON p.id=i.project_id WHERE i.id=? AND p.user_id=?',[$iid,$u['user_id']]);
-    if(!$i) fail('Presentation not found.',404);
-    if($editable && $i['status']!=='draft') fail('This iteration has been shared. Create a new iteration to make changes.',409);
+function owned_project(string $pid,array $u,bool $write=true): array {
+    $p=one('SELECT p.* FROM projects p WHERE p.id=? AND '.project_access_sql(),[$pid,$u['studio_id'],$u['user_id']]);
+    if(!$p)fail('Project not found.',404);
+    if($write&&!project_member($pid,$u['user_id']))fail('Only project team members can edit this project.',403);
+    return $p;
+}
+function owned_iteration(string $iid,array $u,bool $editable=false,bool $write=false): array {
+    $i=one('SELECT * FROM iterations WHERE id=?',[$iid]);if(!$i)fail('Presentation not found.',404);
+    owned_project($i['project_id'],$u,$editable||$write);
+    if($editable&&$i['status']!=='draft')fail('This iteration has been shared. Create a new iteration to make changes.',409);
     return $i;
 }
 function access_iteration(string $iid='', bool $write=false): array {
@@ -81,7 +94,7 @@ function access_iteration(string $iid='', bool $write=false): array {
         $i=one('SELECT * FROM iterations WHERE id=?',[$s['iteration_id']]);
         return [$i,$s['email'],false,$s];
     }
-    $u=owner($write); return [owned_iteration($iid,$u),$u['email'],true,null];
+    $u=owner($write); return [owned_iteration($iid,$u,false,$write),$u['email'],true,null];
 }
 function allowed_versions(string $iid): array {
     $allowed=[];
@@ -127,6 +140,7 @@ function deck_payload(array $i, bool $isOwner): array {
     require_once __DIR__.'/slides.php';
     $result=['project'=>$p,'iteration'=>$i,'files'=>$files,'slides'=>project_slides($i['id']),'slide_layout'=>rows('SELECT slide_id,hidden,deleted,position FROM slide_layout WHERE iteration_id=?',[$i['id']]),'budget'=>$items,'total_cents'=>budget_total($items),'changes'=>$changes,'previous_total_cents'=>$previous?budget_total(rows('SELECT * FROM budget_items WHERE iteration_id=?',[$previous['id']])):null,'contacts'=>rows('SELECT * FROM contacts WHERE project_id=?'.($isOwner?'':" AND role <> 'Client'"),[$p['id']]),'comments'=>rows('SELECT * FROM comments WHERE iteration_id=? ORDER BY created_at',[$i['id']]),'capabilities'=>capabilities()];
     if($isOwner) {
+        $u=current_session();$project=one('SELECT studio_id,visibility,archived FROM projects WHERE id=?',[$p['id']]);$result['project']=array_merge($result['project'],$project);$result['can_edit']=$u?project_member($p['id'],$u['user_id']):false;$result['members']=rows('SELECT u.id,u.name,u.email FROM project_members m JOIN users u ON u.id=m.user_id WHERE m.project_id=?',[$p['id']]);
         $result['iterations']=rows('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC',[$p['id']]);
         $result['events']=rows('SELECT * FROM events WHERE project_id=? ORDER BY created_at DESC LIMIT 80',[$p['id']]);
         $result['jobs']=rows('SELECT j.id,j.version_id,j.type,j.status,j.error,j.payload,v.name FROM jobs j LEFT JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? ORDER BY j.created_at',[$i['id']]);

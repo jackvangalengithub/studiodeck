@@ -8,18 +8,19 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    $read=['session','projects','project','deck','file','document_page','slide_image'];
+    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
-    if($action==='session') { $s=current_session();json_response(['user'=>$s?['email'=>$s['email'],'name'=>$s['name']]:null,'csrf'=>$s['csrf']??null,'studio_theme'=>$s?(json_decode(one('SELECT theme FROM studio_preferences WHERE user_id=?',[$s['user_id']])['theme']??'{}',true)?:[]):null,'capabilities'=>capabilities()]); }
+    if($action==='session')json_response(session_details(current_session()));
+    require __DIR__.'/../app/studio_api.php';
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
         $allowed=array_filter(array_map('trim',explode(',',env('DESIGNER_EMAILS'))));
-        if($allowed && !in_array($email,$allowed,true))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
+        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
         $u=one('SELECT * FROM users WHERE email=?',[$email]);
-        if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u); }
+        if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);create_studio($u['id'],$u['name']."’s studio"); }
         $t=token();insert('login_tokens',['token_hash'=>hash_token($t),'user_id'=>$u['id'],'expires_at'=>time()+900]);
         $url=base_url().'/#/login/'.$t;
         $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to your studio:\n\n".$url."\n\nThis link expires in 15 minutes and works once.");
@@ -41,7 +42,7 @@ try {
     }
     if($action==='logout') { $u=owner(true);query('DELETE FROM sessions WHERE token_hash=?',[$u['token_hash']]);setcookie('studiodeck_session','',['expires'=>1,'path'=>'/','httponly'=>true,'samesite'=>'Lax','secure'=>str_starts_with(base_url(),'https://')]);json_response(['ok'=>true]); }
     if($action==='projects') {
-        $u=owner();$ps=rows('SELECT * FROM projects WHERE user_id=? ORDER BY created_at DESC',[$u['user_id']]);
+        $u=owner();$ps=rows('SELECT p.* FROM projects p WHERE '.project_access_sql().' ORDER BY p.created_at DESC',[$u['studio_id'],$u['user_id']]);
         foreach($ps as &$p) { $p['iteration']=one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);$p['file_count']=(int)one('SELECT COUNT(*) AS n FROM iteration_files WHERE iteration_id=?',[$p['iteration']['id']])['n']; }
         json_response(['projects'=>$ps]);
     }
@@ -49,7 +50,8 @@ try {
         $u=owner(true);$b=input();$name=text_field($b['name']??'',160);if(!$name)fail('Give your project a name.');$emails=[];
         foreach(array_slice($b['emails']??[],0,20) as $email)$emails[]=email_field($email);
         $p=transaction(function()use($u,$b,$name,$emails){
-            $pid=id();$iid=id();insert('projects',['id'=>$pid,'user_id'=>$u['user_id'],'name'=>$name,'location'=>text_field($b['location']??'',160),'description'=>text_field($b['description']??'',2000),'theme'=>'{}','created_at'=>now()]);
+            if(!$u['studio_id'])fail('Join or create a studio first.',403);$pid=id();$iid=id();insert('projects',['id'=>$pid,'user_id'=>$u['user_id'],'studio_id'=>$u['studio_id'],'name'=>$name,'location'=>text_field($b['location']??'',160),'description'=>text_field($b['description']??'',2000),'theme'=>'{}','created_at'=>now()]);
+            insert('project_members',['project_id'=>$pid,'user_id'=>$u['user_id']]);
             insert('iterations',['id'=>$iid,'project_id'=>$pid,'number'=>1,'title'=>'First concept','status'=>'draft','theme'=>'{}','created_at'=>now()]);
             foreach(array_unique($emails) as $email)insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>explode('@',$email)[0],'role'=>'Client','email'=>$email,'phone'=>'']);
             insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>$u['name'],'role'=>'Interior designer','email'=>$u['email'],'phone'=>'']);
@@ -57,12 +59,12 @@ try {
         });json_response($p,201);
     }
     if($action==='project') {
-        $u=owner();$p=owned_project((string)($_GET['id']??''),$u);$iid=$_GET['iteration']??'';
+        $u=owner();$p=owned_project((string)($_GET['id']??''),$u,false);$iid=$_GET['iteration']??'';
         $i=$iid?owned_iteration($iid,$u):one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);if($i['project_id']!==$p['id'])fail('Presentation not found.',404);json_response(deck_payload($i,true));
     }
     if($action==='deck') { [$i,$actor,$isOwner]=access_iteration((string)($_GET['iteration']??''));json_response(deck_payload($i,$isOwner)); }
     if($action==='new_iteration') {
-        $u=owner(true);$b=input();$base=owned_iteration(text_field($b['iteration']??''),$u);
+        $u=owner(true);$b=input();$base=owned_iteration(text_field($b['iteration']??''),$u,false,true);
         $new=transaction(function()use($u,$b,$base){
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$base['id']]))fail('Wait for file processing to finish before creating another iteration.',409);
             $n=(int)one('SELECT MAX(number) AS n FROM iterations WHERE project_id=?',[$base['project_id']])['n']+1;$iid=id();
@@ -150,7 +152,7 @@ try {
         $u=owner(true);$b=input();$theme=$b['theme']??[];
         if(!in_array($theme['palette']??'',['sage','clay','slate','ink'],true)||!in_array($theme['style']??'',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
         $theme=['palette'=>$theme['palette'],'style'=>$theme['style']];
-        query('INSERT INTO studio_preferences(user_id,theme) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme',[$u['user_id'],json_encode($theme)]);json_response(['studio_theme'=>$theme]);
+        query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
     }
     if($action==='theme') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$theme=$b['theme']??[];
@@ -172,7 +174,7 @@ try {
         insert('contacts',['id'=>id(),'project_id'=>$p['id'],'name'=>$name,'email'=>email_field($b['email']??''),'role'=>text_field($b['role']??'Architect',80),'phone'=>text_field($b['phone']??'',40)]);json_response(['ok'=>true]);
     }
     if($action==='share') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u);$emails=[];foreach(array_slice($b['emails']??[],0,20) as $e)$emails[]=email_field($e);if(!$emails)fail('Add a client email address.');
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,false,true);$emails=[];foreach(array_slice($b['emails']??[],0,20) as $e)$emails[]=email_field($e);if(!$emails)fail('Add a client email address.');
         $links=transaction(function()use($i,$u,$emails){
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$i['id']]))fail('Your files are still being processed. Please wait before sharing.',409);
             $links=[];foreach(array_unique($emails) as $email){$t=token();$sid=id();insert('shares',['id'=>$sid,'iteration_id'=>$i['id'],'token_hash'=>hash_token($t),'email'=>$email,'expires_at'=>time()+90*86400,'revoked'=>0,'created_at'=>now()]);$links[]=['id'=>$sid,'email'=>$email,'url'=>base_url().'/#/view/'.$t];}
@@ -182,7 +184,7 @@ try {
         json_response(['links'=>$links]);
     }
     if($action==='revoke_share') {
-        $u=owner(true);$b=input();$s=one('SELECT * FROM shares WHERE id=?',[text_field($b['id']??'')]);if(!$s)fail('Link not found.',404);$i=owned_iteration($s['iteration_id'],$u);query('UPDATE shares SET revoked=1 WHERE id=?',[$s['id']]);audit($i['project_id'],$i['id'],$u['email'],'link_revoked',$s['email']);json_response(['ok'=>true]);
+        $u=owner(true);$b=input();$s=one('SELECT * FROM shares WHERE id=?',[text_field($b['id']??'')]);if(!$s)fail('Link not found.',404);$i=owned_iteration($s['iteration_id'],$u,false,true);query('UPDATE shares SET revoked=1 WHERE id=?',[$s['id']]);audit($i['project_id'],$i['id'],$u['email'],'link_revoked',$s['email']);json_response(['ok'=>true]);
     }
     if($action==='comment' || $action==='view_event') {
         $b=input();[$i,$actor,$isOwner]=access_iteration(text_field($b['iteration']??''),true);rate_limit('engagement:'.$actor,80,3600);$slide=text_field($b['slide']??'intro',80);
