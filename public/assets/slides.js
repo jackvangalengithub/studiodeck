@@ -4,7 +4,7 @@ export function visualSlides(data){
   const files=new Map((data.files||[]).map(f=>[f.id,f]));
   const records=data.slides?.length?data.slides:(data.files||[]).filter(f=>f.mime.startsWith('image/')).map(f=>({id:'legacy-'+f.id,source_version_id:f.id,type:f.category==='moodboard'?'moodboard':/render|3d/i.test(f.name)?'render':'photo',situation:'unknown',title:f.name,metadata:{confidence:'low'},legacy:true}));
   return records.flatMap(s=>{
-    const f=files.get(s.source_version_id);if(!f)return [];
+    const f=files.get(s.source_version_id);if(!f||f.category==='legal')return [];
     const type=visualTypes[s.type]?s.type:'other';
     return [{id:'visual-'+s.id,type,title:s.title||visualTypes[type],icon:type==='moodboard'?'leaf':['drawing','floorplan'].includes(type)?'file':'image',situation:situations[s.situation]?s.situation:'unknown',record:s,
       visual:{...f,slide_id:s.id,slide_image_version:s.image_version_id||'',page_number:s.page_number||0,image_number:s.image_number||0,has_preview:true,name:s.title||f.name,source_name:f.name,legacy:!!s.legacy}}];

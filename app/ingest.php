@@ -5,7 +5,7 @@ require_once __DIR__.'/documents.php';
 require_once __DIR__.'/slides.php';
 
 function category_for(string $name,string $mime,string $text=''): string {
-    $rules=['budget'=>'budget|quote|offerte|begroting|cost|invoice','moodboard'=>'mood|material|styling|palette|sfeer','drawings'=>'drawing|floor.?plan|plattegrond|construction|detail|technical|tekening','renders'=>'render|3d|visualisation|visualization|interior|photo'];
+    $rules=['legal'=>'contract|agreement|legal|terms|voorwaarden|overeenkomst|bestek|specification|scope.of.work','budget'=>'budget|quote|offerte|begroting|cost|invoice','moodboard'=>'mood|material|styling|palette|sfeer','drawings'=>'drawing|floor.?plan|plattegrond|construction|detail|technical|tekening','renders'=>'render|3d|visualisation|visualization|interior|photo'];
     // A cost row mentioning styling must not turn an explicitly named budget into a moodboard.
     foreach($rules as $category=>$pattern)if(preg_match('/'.$pattern.'/i',$name))return $category;
     if(preg_match('/\.(xlsx?|csv)$/i',$name))return 'budget';
@@ -124,7 +124,7 @@ function replace_source_budget(string $iid,string $vid,array $items): void {
         query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$p],$map[$key]]);
     }
 }
-function extract_version(array $v): array {
+function extract_version(array $v,bool $legal=false): array {
     $dir=sys_get_temp_dir().'/studiodeck-'.id(); mkdir($dir,0700); $ext=strtolower(pathinfo($v['name'],PATHINFO_EXTENSION)); $path=$dir.'/source.'.$ext; file_put_contents($path,$v['data']);
     $text='';$preview=null;$table=[];$warnings=[];$pages=[];$pageCount=0;
     try {
@@ -134,8 +134,8 @@ function extract_version(array $v): array {
             $path=$dir.'/source.'.$target; $ext=$target;
             if(!is_file($path))throw new RuntimeException('Legacy Office conversion is unavailable.');
         }
-        if(in_array($ext,['pdf','ppt','pptx'],true)) {
-            $document=extract_document($path,$dir);$pages=$document['pages'];$pageCount=$document['page_count'];$warnings=$document['warnings'];
+        if(in_array($ext,['pdf','ppt','pptx'],true)||($legal&&str_starts_with($v['mime'],'image/'))) {
+            $document=extract_document($path,$dir,$legal);$pages=$document['pages'];$pageCount=$document['page_count'];$warnings=$document['warnings'];
             $text=implode("\n\n",array_map(fn($p)=>'--- Page '.$p['number']." ---\n".$p['text'],$pages));
             foreach($pages as $p) { if(!$preview&&$p['preview'])$preview=png_preview($p['preview']);foreach($p['warnings'] as $w)$warnings[]='Page '.$p['number'].': '.$w; }
             if(!$pages)$warnings[]='No pages could be extracted. Review the original or try exporting it as a PDF.';
@@ -148,7 +148,8 @@ function extract_version(array $v): array {
         if(str_starts_with($v['mime'],'image/'))$preview=png_preview($v['data']);
     } catch(Throwable $e) { $warnings[]=$e->getMessage(); }
     finally { remove_temp_dir($dir); }
-    return ['text'=>substr($text,0,150000),'preview'=>$preview,'items'=>table_budget($table),'warnings'=>$warnings,'pages'=>$pages,'page_count'=>$pageCount];
+    if($legal&&!$pages&&trim($text))$pages=[['number'=>1,'text'=>$text,'preview'=>null,'images'=>[],'palette'=>[],'warnings'=>[],'include_in_presentation'=>false,'analysis'=>['category'=>'legal']]];
+    return ['text'=>$text,'preview'=>$preview,'items'=>table_budget($table),'warnings'=>$warnings,'pages'=>$pages,'page_count'=>$pageCount?:count($pages)];
 }
 function remove_temp_dir(string $dir): void { foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST) as $f) { if($f->isDir())rmdir($f->getPathname());else unlink($f->getPathname()); } rmdir($dir); }
 function png_preview(string $raw): ?string {

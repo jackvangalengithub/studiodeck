@@ -108,7 +108,7 @@ function save_visual_slides(string $iid,array $v,array $visuals): void {
     }
 }
 function project_slides(string $iid): array {
-    $slides=rows('SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE s.iteration_id=? ORDER BY s.position,s.page_number,s.image_number,s.id',[$iid]);
+    $slides=rows('SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE f.category!="legal" AND s.iteration_id=? ORDER BY s.position,s.page_number,s.image_number,s.id',[$iid]);
     foreach($slides as &$s)$s['metadata']=json_decode($s['metadata'],true)?:[];
     return $slides;
 }
@@ -136,7 +136,7 @@ function save_slide_image_result(array $job,array $rawSlide,array $payload,strin
 }
 function ensure_iteration_slides(string $iid): void {
     // Initialize older extracted sources from stored evidence without sending another AI request.
-    foreach(rows('SELECT v.id,v.asset_id,v.name,v.mime,v.metadata,CASE WHEN v.preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND NOT EXISTS (SELECT 1 FROM presentation_slides s WHERE s.iteration_id=f.iteration_id AND s.source_version_id=f.version_id)',[$iid]) as $v) {
+    foreach(rows('SELECT v.id,v.asset_id,v.name,v.mime,v.metadata,CASE WHEN v.preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.category!="legal" AND f.iteration_id=? AND NOT EXISTS (SELECT 1 FROM presentation_slides s WHERE s.iteration_id=f.iteration_id AND s.source_version_id=f.version_id)',[$iid]) as $v) {
         $pages=[];
         foreach(rows('SELECT number,text,metadata,CASE WHEN preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM document_pages WHERE version_id=? ORDER BY number',[$v['id']]) as $page) {
             $p=json_decode($page['metadata'],true)?:[];$p['number']=$page['number'];$p['text']=$page['text'];$p['preview']=$page['has_preview']?'stored':null;$p['images']=[];

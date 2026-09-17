@@ -94,17 +94,18 @@ try {
             $name=basename(str_replace('\\','/',text_field($rawName,240)));if(preg_match('/[\x00-\x1f]/',$name))fail('Please rename this file.');
             $prepared[]=['name'=>$name,'mime'=>validate_upload($name,$tmp),'data'=>file_get_contents($tmp)];
         }
-        $result=transaction(function()use($prepared,$replace,$i,$u){
+        $uploadCategory=text_field($_POST['category']??'');if(!in_array($uploadCategory,['','legal'],true))fail('Unknown upload category.');
+        $result=transaction(function()use($prepared,$replace,$i,$u,$uploadCategory){
             owned_iteration($i['id'],$u,true);$ids=[];
             foreach($prepared as $f) {
                 $old=$replace?one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND f.asset_id=?',[$i['id'],$replace]):one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND v.name=?',[$i['id'],$f['name']]);
                 if($replace&&!$old)fail('The file to replace was not found.',404);
                 $sha=hash('sha256',$f['data']);if($old&&$old['sha256']===$sha) { $ids[]=$old['id'];continue; }
-                $asset=$old['asset_id']??id();$vid=id();$category=category_for($f['name'],$f['mime']);
+                $asset=$old['asset_id']??id();$vid=id();$category=$uploadCategory?:category_for($f['name'],$f['mime']);
                 if(!$old)insert('assets',['id'=>$asset,'project_id'=>$i['project_id'],'category'=>$category,'created_at'=>now()]);
                 $n=(int)(one('SELECT MAX(number) AS n FROM file_versions WHERE asset_id=?',[$asset])['n']??0)+1;
                 insert('file_versions',['id'=>$vid,'asset_id'=>$asset,'parent_id'=>$old['id']??null,'number'=>$n,'name'=>$f['name'],'mime'=>$f['mime'],'size'=>strlen($f['data']),'sha256'=>$sha,'data'=>$f['data'],'preview'=>null,'extracted_text'=>'','metadata'=>'{}','created_at'=>now()]);
-                if($old)query('UPDATE iteration_files SET version_id=? WHERE iteration_id=? AND asset_id=?',[$vid,$i['id'],$asset]);
+                if($old)query('UPDATE iteration_files SET version_id=?,category=? WHERE iteration_id=? AND asset_id=?',[$vid,$category,$i['id'],$asset]);
                 else insert('iteration_files',['iteration_id'=>$i['id'],'asset_id'=>$asset,'version_id'=>$vid,'category'=>$category]);
                 insert('jobs',['id'=>id(),'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$vid,'type'=>'ingest','payload'=>'{}','status'=>'queued','error'=>'','created_at'=>now()]);
                 audit($i['project_id'],$i['id'],$u['email'],$old?'file_replaced':'file_uploaded',$f['name']);$ids[]=$vid;
@@ -150,7 +151,8 @@ try {
         });json_response(['id'=>$new],202);
     }
     if($action==='category') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','presentation','other'],true))fail('Unknown category.');
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','legal','presentation','other'],true))fail('Unknown category.');
+        if(one("SELECT 1 FROM jobs j JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? AND v.asset_id=? AND j.status IN ('queued','running')",[$i['id'],text_field($b['asset_id']??'')]))fail('Wait for this file to finish processing before changing its category.',409);
         query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);json_response(['ok'=>true]);
     }
     if($action==='studio_theme') {
@@ -200,7 +202,7 @@ try {
     }
     if($action==='budget_chat') {
         $b=input();[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$i['id']]);
-        json_response(budget_answer($question,$items));
+        json_response(budget_answer($question,$items,legal_evidence($i['id'],$question)));
     }
     if($action==='retry_job') {
         $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);

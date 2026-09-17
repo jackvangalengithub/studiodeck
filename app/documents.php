@@ -7,7 +7,11 @@ function processing_progress(string $stage,array $detail=[]): void {
         query("UPDATE jobs SET payload=?,started_at=? WHERE id=? AND status='running'",[json_encode(['progress'=>['stage'=>$stage,...$detail]],JSON_INVALID_UTF8_SUBSTITUTE),now(),$GLOBALS['processing_job']]);
     }
 }
-function extract_document(string $path,string $dir): array {
+function extract_document(string $path,string $dir,bool $legal=false): array {
+    if($legal){
+        $buffer='';run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir,'--legal-text'],7200,function($chunk)use(&$buffer){$buffer.=$chunk;while(($pos=strpos($buffer,"\n"))!==false){$line=substr($buffer,0,$pos);$buffer=substr($buffer,$pos+1);$p=json_decode($line,true);if(is_array($p)&&isset($p['stage']))processing_progress($p['stage'],array_diff_key($p,['stage'=>1]));}});
+        $result=json_decode(file_get_contents($dir.'/manifest.json'),true);if(!is_array($result))throw new RuntimeException('Legal document text could not be read.');return $result;
+    }
     processing_progress('reading_pages');
     $buffer='';
     run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir,'--inventory'],7200,function($chunk)use(&$buffer){

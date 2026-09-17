@@ -15,16 +15,16 @@ do {
     if(!$job){if($once)break;usleep(750000);continue;}
     try {
         $v=one('SELECT * FROM file_versions WHERE id=?',[$job['version_id']]);
-        $current=one('SELECT version_id FROM iteration_files WHERE iteration_id=? AND asset_id=?',[$job['iteration_id'],$v['asset_id']]);
+        $current=one('SELECT version_id,category FROM iteration_files WHERE iteration_id=? AND asset_id=?',[$job['iteration_id'],$v['asset_id']]);
         if(!$current||$current['version_id']!==$v['id'])throw new RuntimeException('This file was replaced before processing finished.');
         if($job['type']==='ingest') {
             $GLOBALS['processing_job']=$job['id'];processing_progress('reading_pages');
-            $e=extract_version($v);$cat=category_for($v['name'],$v['mime'],$e['text']);$analysis=[];
-            if(env('OPENAI_API_KEY')!=='') { try{$analysis=analyze_file($v,$e);}catch(Throwable $ex){$e['warnings'][]=$ex->getMessage();} }
+            $legal=$current['category']==='legal'||category_for($v['name'],$v['mime'])==='legal';$e=extract_version($v,$legal);$cat=$legal?'legal':category_for($v['name'],$v['mime'],$e['text']);$analysis=[];
+            if($cat!=='legal'&&env('OPENAI_API_KEY')!=='') { try{$analysis=analyze_file($v,$e);}catch(Throwable $ex){$e['warnings'][]=$ex->getMessage();} }
             if(in_array($analysis['category']??'',['moodboard','renders','drawings','budget','presentation','other'],true))$cat=$analysis['category'];
             $items=$e['items']?:($cat==='budget'?($analysis['items']??[]):[]);
             if($cat==='budget'&&!$items)$e['warnings'][]='No structured costs were found. Add costs manually or connect AI for quote extraction.';
-            $visuals=classify_visuals($v,$e);
+            $visuals=$cat==='legal'?[]:classify_visuals($v,$e);
             processing_progress('applying_results');
             $measured=document_palette($e['pages'],$cat);
             $colors=$measured?array_column($measured,'hex'):($e['preview']?palette($e['preview']):[]);
@@ -44,7 +44,7 @@ do {
                 // A nonfinancial replacement must not leave its predecessor's costs behind.
                 replace_source_budget($i['id'],$v['id'],$cat==='budget'?$items:[]);
                 $oldTheme=json_decode($i['theme'],true)?:[];
-                if(!in_array($cat,['budget','drawings'],true)&&$theme['colors']&&(!$oldTheme||(!empty($oldTheme['automatic'])&&($theme['source_priority']>=($oldTheme['source_priority']??0)))))query('UPDATE iterations SET theme=? WHERE id=?',[json_encode($theme),$i['id']]);
+                if(!in_array($cat,['budget','drawings','legal'],true)&&$theme['colors']&&(!$oldTheme||(!empty($oldTheme['automatic'])&&($theme['source_priority']>=($oldTheme['source_priority']??0)))))query('UPDATE iterations SET theme=? WHERE id=?',[json_encode($theme),$i['id']]);
                 audit($job['project_id'],$i['id'],'Studiodeck','file_processed',$v['name']);
             });
             processing_progress('complete',['warning_count'=>count($e['warnings'])]);

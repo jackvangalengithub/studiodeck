@@ -464,9 +464,48 @@ def extract(path, directory, inventory=False):
     return extract_pdf(path,output,inventory)
 
 
+def extract_legal_text(path, directory):
+    """Keep every page's text; skip visual classification and image crops."""
+    suffix = Path(path).suffix.lower()
+    if suffix in ('.ppt', '.pptx'):
+        subprocess.run(['libreoffice', '-env:UserInstallation=file://'+str(Path(directory)/'lo-profile'),
+                        '--headless', '--convert-to', 'pdf:impress_pdf_Export', '--outdir', directory, path],
+                       capture_output=True, timeout=120, check=True)
+        path = Path(directory)/(Path(path).stem+'.pdf')
+    pages = []
+    source = fitz.open(path)
+    if not source.is_pdf:
+        converted = source.convert_to_pdf()
+        source.close()
+        source = fitz.open(stream=converted, filetype='pdf')
+    with source as doc:
+        if doc.needs_pass:
+            raise RuntimeError('This PDF is password protected. Upload an unlocked copy.')
+        for index, page in enumerate(doc):
+            number = index + 1
+            print(json.dumps({'stage':'extracting_text','page':number,'total':len(doc)}), flush=True)
+            native = page.get_text(sort=True)
+            warnings = []
+            image_area = sum((fitz.Rect(i['bbox']) & page.cropbox).get_area() for i in page.get_image_info())
+            if len(native.strip()) < 40 or image_area > page.rect.get_area() * .35:
+                try:
+                    blocks = ocr(pix_image(page, edge=2400), directory, number)
+                    normalized = re.sub(r'\W+', '', native).lower()
+                    native += '\n' + '\n'.join(b['text'] for b in blocks if re.sub(r'\W+', '', b['text']).lower() not in normalized)
+                except (OSError, subprocess.SubprocessError):
+                    warnings.append('OCR was unavailable; text inside images may be missing.')
+            if not native.strip():
+                warnings.append('No readable text was found on this page. Check the original.')
+            pages.append({'number':number, 'text':native.strip(), 'preview':None, 'images':[], 'palette':[],
+                          'warnings':warnings, 'include_in_presentation':False, 'analysis':{'category':'legal'}})
+        return {'pages':pages, 'page_count':len(doc), 'warnings':[]}
+
+
 if __name__ == '__main__':
     try:
-        if len(sys.argv)>3 and sys.argv[3]=='--apply-plan':
+        if len(sys.argv)>3 and sys.argv[3]=='--legal-text':
+            manifest=extract_legal_text(sys.argv[1],sys.argv[2])
+        elif len(sys.argv)>3 and sys.argv[3]=='--apply-plan':
             root=Path(sys.argv[2]);manifest=json.loads((root/'inventory.json').read_text())
             output=Output(root);output.size=sum(f.stat().st_size for f in root.glob('*.jpg'))
             manifest=materialize_pages(manifest,output,json.loads((root/'page-plans.json').read_text()))
