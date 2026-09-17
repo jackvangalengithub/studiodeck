@@ -12,11 +12,12 @@ def check(value,message):
     print('PASS',message)
 class Client:
     def __init__(self,base):
-        self.base=base; self.csrf=''; self.bearer=''
+        self.base=base; self.csrf=''; self.bearer=''; self.studio_context=None
         self.cookies=http.cookiejar.CookieJar()
         self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
     def call(self,action,data=None,query='',files=None,expected=200,csrf=True,raw=False,file_field='files[]'):
         headers={}
+        if self.studio_context:headers['X-Studio-ID']=self.studio_context
         if self.csrf and csrf: headers['X-CSRF-Token']=self.csrf
         if self.bearer: headers['Authorization']='Bearer '+self.bearer
         if files:
@@ -116,6 +117,11 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(admin.call('projects')['projects']==[],'Selected studio scopes the project list')
         check(admin.call('comments_feed')['items']==[] and admin.call('activity_feed')['items']==[],'Feeds are isolated to the selected studio')
         admin.call('project',query='&id='+pid,expected=404)
+        admin.studio_context=studio
+        check(admin.call('project',query='&id='+pid)['project']['id']==pid,'An open tab keeps its explicit studio context when another tab switches studios')
+        admin.studio_context='not-a-member'
+        admin.call('projects',expected=404)
+        admin.studio_context=None
         admin.call('save_studio_user',{'email':'member@example.test','name':'Member in studio two','role':'admin'})
         check(len(member.call('session')['studios'])==2,'One account can belong to multiple studios')
         member.call('switch_studio',{'studio_id':other})

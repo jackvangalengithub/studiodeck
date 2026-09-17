@@ -67,6 +67,10 @@ function current_session(): ?array {
         $s['studio_id']=user_studios($s['user_id'])[0]['id']??null;
         query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$s['studio_id'],$s['token_hash']]);
     }
+    if($s&&!empty($_SERVER['HTTP_X_STUDIO_ID'])){
+        $studio=$_SERVER['HTTP_X_STUDIO_ID'];if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$studio,$s['user_id']]))fail('Studio not found.',404);
+        $s['studio_id']=$studio;
+    }
     return $s;
 }
 function owner(bool $write=false): array {

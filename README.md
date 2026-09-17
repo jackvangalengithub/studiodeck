@@ -35,6 +35,12 @@ This runs two containers from one image: `web` (PHP server) and `worker` (backgr
 
 A single container (`docker build -t studiodeck . && docker run --rm -p 8080:8080 --env-file .env -v studiodeck-data:/app/storage studiodeck`) also works; `scripts/start.sh` then starts both processes.
 
+## Workspace URLs
+
+Workspace paths include the studio ID: `/{studioId}/projects`, `/{studioId}/projects/{projectId}`, and `/{studioId}/slide/{slideId}`. Query parameters preserve the selected iteration, tab, and slide's project. Refreshing, copying a workspace URL, and browser Back/Forward restore that view; recipients still need studio and project access. Switching studios changes the URL prefix. Search and archive filters are also preserved. Existing client-share and login links remain supported.
+
+The included PHP router serves these application paths. If using another web server, route the studio workspace paths to `public/index.html`, keep `/api.php` routed to PHP, and serve `/assets/` normally.
+
 ## One-time studio setup
 
 - Set `APP_ENV=production` and `APP_URL` to your exact HTTPS application origin. Links are created from this configured origin, never an incoming Host header.

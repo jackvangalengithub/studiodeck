@@ -19,3 +19,10 @@ if($action==='activity_feed'||$action==='comments_feed'){
     else $items=rows("SELECT c.*,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,s.title AS slide_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide WHERE ".$where.' ORDER BY c.created_at DESC,c.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
     $more=count($items)>100;json_response(['items'=>array_slice($items,0,100),'has_more'=>$more]);
 }
+
+if($action==='resolve_slide'){
+    $u=owner();$sid=text_field($_GET['slide']??'');if(str_starts_with($sid,'visual-'))$sid=substr($sid,7);
+    $params=[$sid,$u['studio_id'],$u['user_id']];$where='s.id=? AND '.project_access_sql();if(!empty($_GET['iteration'])){$where.=' AND i.id=?';$params[]=text_field($_GET['iteration']);}
+    $slide=one('SELECT s.id,i.id AS iteration_id,p.id AS project_id FROM presentation_slides s JOIN iterations i ON i.id=s.iteration_id JOIN projects p ON p.id=i.project_id WHERE '.$where.' ORDER BY i.number DESC LIMIT 1',$params);
+    if(!$slide)fail('Slide not found in this studio.',404);json_response($slide);
+}
