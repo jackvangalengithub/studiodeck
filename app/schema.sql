@@ -33,3 +33,8 @@ CREATE TABLE IF NOT EXISTS studio_members (studio_id TEXT NOT NULL REFERENCES st
 CREATE TABLE IF NOT EXISTS project_members (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
 CREATE TABLE IF NOT EXISTS project_pins (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
 CREATE TABLE IF NOT EXISTS studio_logos (studio_id TEXT PRIMARY KEY REFERENCES studios(id),data BLOB NOT NULL,mime TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS person_profiles (person_key TEXT PRIMARY KEY,name TEXT NOT NULL DEFAULT '',color TEXT NOT NULL DEFAULT '',avatar BLOB,email_comments INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS comment_reads (comment_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,person_key TEXT NOT NULL,read_at TEXT NOT NULL,PRIMARY KEY(comment_id,person_key));
+CREATE TABLE IF NOT EXISTS project_logos (project_id TEXT PRIMARY KEY REFERENCES projects(id),data BLOB NOT NULL,mime TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS share_aliases (token_hash TEXT PRIMARY KEY,share_id TEXT NOT NULL REFERENCES shares(id));
+CREATE TABLE IF NOT EXISTS email_outbox (id TEXT PRIMARY KEY,comment_id TEXT NOT NULL REFERENCES comments(id),person_key TEXT NOT NULL,email TEXT NOT NULL,user_id TEXT,share_id TEXT,url TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'queued',attempts INTEGER NOT NULL DEFAULT 0,next_attempt INTEGER NOT NULL DEFAULT 0,error TEXT NOT NULL DEFAULT '',UNIQUE(comment_id,email));

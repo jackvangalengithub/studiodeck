@@ -8,13 +8,14 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide'];
+    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
     require __DIR__.'/../app/studio_api.php';
     require __DIR__.'/../app/project_api.php';
+    require __DIR__.'/../app/people_api.php';
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
@@ -177,13 +178,13 @@ try {
         insert('contacts',['id'=>id(),'project_id'=>$p['id'],'name'=>$name,'email'=>email_field($b['email']??''),'role'=>text_field($b['role']??'Architect',80),'phone'=>text_field($b['phone']??'',40)]);json_response(['ok'=>true]);
     }
     if($action==='share') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,false,true);$emails=[];foreach(array_slice($b['emails']??[],0,20) as $e)$emails[]=email_field($e);if(!$emails)fail('Add a client email address.');
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,false,true);$emails=[];foreach(array_slice($b['emails']??[],0,20) as $e)$emails[]=email_field($e);if(!$emails)fail('Add a client email address.');$message=text_field($b['message']??'Your presentation is ready. You can review the design, explore the budget and leave feedback.',3000);
         $links=transaction(function()use($i,$u,$emails){
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$i['id']]))fail('Your files are still being processed. Please wait before sharing.',409);
             $links=[];foreach(array_unique($emails) as $email){$t=token();$sid=id();insert('shares',['id'=>$sid,'iteration_id'=>$i['id'],'token_hash'=>hash_token($t),'email'=>$email,'expires_at'=>time()+90*86400,'revoked'=>0,'created_at'=>now()]);$links[]=['id'=>$sid,'email'=>$email,'url'=>base_url().'/#/view/'.$t];}
             query("UPDATE iterations SET status='shared' WHERE id=?",[$i['id']]);audit($i['project_id'],$i['id'],$u['email'],'links_created','Created '.$i['number'].' client presentation links');return $links;
         });
-        foreach($links as &$link){$link['sent']=send_email($link['email'],'Your interior design presentation',"Your presentation is ready:\n\n".$link['url']."\n\nYou can review the design, explore the budget and leave feedback.");if($link['sent'])audit($i['project_id'],$i['id'],$u['email'],'presentation_sent',$link['email']);}
+        foreach($links as &$link){$link['sent']=send_branded_email($link['email'],$i['project_id'],'Your interior design presentation',$message,$link['url']);if($link['sent'])audit($i['project_id'],$i['id'],$u['email'],'presentation_sent',$link['email']);}
         json_response(['links'=>$links]);
     }
     if($action==='revoke_share') {
@@ -191,7 +192,7 @@ try {
     }
     if($action==='comment' || $action==='view_event') {
         $b=input();[$i,$actor,$isOwner]=access_iteration(text_field($b['iteration']??''),true);rate_limit('engagement:'.$actor,80,3600);$slide=text_field($b['slide']??'intro',80);
-        if($action==='comment') {$body=text_field($b['body']??'',4000);if(!$body)fail('Write your feedback first.');insert('comments',['id'=>id(),'iteration_id'=>$i['id'],'slide'=>$slide,'author'=>$actor,'body'=>$body,'created_at'=>now()]);audit($i['project_id'],$i['id'],$actor,'change_requested',$slide.': '.$body);}
+        if($action==='comment') {$body=text_field($b['body']??'',4000);if(!$body)fail('Write your feedback first.');transaction(function()use($i,$slide,$actor,$body){$c=['id'=>id(),'iteration_id'=>$i['id'],'slide'=>$slide,'author'=>$actor,'body'=>$body,'created_at'=>now()];insert('comments',$c);audit($i['project_id'],$i['id'],$actor,'change_requested',$slide.': '.$body);queue_comment_notifications($i,$c);});}
         else audit($i['project_id'],$i['id'],$actor,$isOwner?'preview_opened':'presentation_viewed',$slide);
         json_response(['ok'=>true]);
     }

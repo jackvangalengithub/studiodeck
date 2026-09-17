@@ -26,7 +26,7 @@ function user_studios(string $uid): array {return rows('SELECT s.id,s.name,s.the
 function session_details(?array $s): array {
     if(!$s)return ['user'=>null,'csrf'=>null,'studio'=>null,'studios'=>[],'studio_theme'=>null,'capabilities'=>capabilities()];
     $studios=user_studios($s['user_id']);$studio=null;foreach($studios as $v)if($v['id']===$s['studio_id'])$studio=$v;
-    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name']],'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>$studio?(json_decode($studio['theme'],true)?:[]):[],'capabilities'=>capabilities()];
+    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name'],'profile'=>profile_for(person_key($s['email'],true),$s['name'])],'unread_count'=>unread_comment_count($s),'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>$studio?(json_decode($studio['theme'],true)?:[]):[],'capabilities'=>capabilities()];
 }
 function create_studio(string $uid,string $name): string {
     $sid=id();insert('studios',['id'=>$sid,'name'=>$name,'theme'=>'{}','created_at'=>now()]);insert('studio_members',['studio_id'=>$sid,'user_id'=>$uid,'role'=>'admin']);return $sid;

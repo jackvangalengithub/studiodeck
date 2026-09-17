@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/studios.php';
+require_once __DIR__.'/people.php';
+require_once __DIR__.'/communications.php';
 
 const ROOT = __DIR__ . '/..';
 foreach (is_file(ROOT . '/.env') ? file(ROOT . '/.env', FILE_IGNORE_NEW_LINES) : [] as $line) {
@@ -93,7 +95,7 @@ function owned_iteration(string $iid,array $u,bool $editable=false,bool $write=f
 function access_iteration(string $iid='', bool $write=false): array {
     $auth=$_SERVER['HTTP_AUTHORIZATION']??'';
     if(str_starts_with($auth,'Bearer ')) {
-        $s=one('SELECT * FROM shares WHERE token_hash=? AND revoked=0 AND expires_at>?',[hash_token(substr($auth,7)),time()]);
+        $s=one('SELECT * FROM shares WHERE (token_hash=? OR id IN (SELECT share_id FROM share_aliases WHERE token_hash=?)) AND revoked=0 AND expires_at>?',[hash_token(substr($auth,7)),hash_token(substr($auth,7)),time()]);
         if(!$s || ($iid && $iid!==$s['iteration_id'])) fail('This presentation link is expired or unavailable.',403);
         $i=one('SELECT * FROM iterations WHERE id=?',[$s['iteration_id']]);
         return [$i,$s['email'],false,$s];
@@ -109,10 +111,13 @@ function allowed_versions(string $iid): array {
     return $allowed;
 }
 function capabilities(): array { return ['ai'=>env('OPENAI_API_KEY')!=='','mail'=>env('MAIL_TRANSPORT','log')==='mail','demo'=>false]; }
-function send_email(string $to,string $subject,string $body): bool {
-    if(env('MAIL_TRANSPORT','log')!=='mail') return false;
-    $from=email_field(env('MAIL_FROM','studio@example.com'));
-    return mail($to,$subject,$body,['From'=>$from,'Content-Type'=>'text/plain; charset=UTF-8']);
+function send_email(string $to,string $subject,string $body,?string $html=null): bool {
+    if(env('MAIL_TRANSPORT','log')!=='mail') {
+        if($html){$path=(env('MAIL_LOG_PATH')?:ROOT.'/storage/mail.log').'.messages.jsonl';file_put_contents($path,json_encode(['at'=>now(),'to'=>$to,'subject'=>$subject,'text'=>$body,'html'=>$html],JSON_INVALID_UTF8_SUBSTITUTE)."\n",FILE_APPEND|LOCK_EX);@chmod($path,0600);}return false;
+    }
+    $from=email_field(env('MAIL_FROM','studio@example.com'));$headers=['From'=>$from,'MIME-Version'=>'1.0'];
+    if($html){$boundary='sd-'.bin2hex(random_bytes(16));$headers['Content-Type']='multipart/alternative; boundary="'.$boundary.'"';$body="--$boundary\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n".chunk_split(base64_encode($body))."--$boundary\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n".chunk_split(base64_encode($html))."--$boundary--\r\n";}else $headers['Content-Type']='text/plain; charset=UTF-8';
+    return mail($to,$subject,$body,$headers);
 }
 function project_files(string $iid): array {
     $files=rows('SELECT v.id, f.asset_id, f.category, v.parent_id, v.number, v.name, v.mime, v.size, v.metadata, v.created_at, CASE WHEN v.preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? ORDER BY v.created_at, v.name',[$iid]);
@@ -151,5 +156,6 @@ function deck_payload(array $i, bool $isOwner): array {
         foreach($result['jobs'] as &$job) { $payload=json_decode($job['payload'],true)?:[];$job['progress']=$payload['progress']??null;if($job['type']==='slide_image_edit')$job['slide_id']=$payload['slide_id']??null;unset($job['payload']); }unset($job);
         $result['shares']=rows('SELECT id,email,expires_at,revoked,created_at FROM shares WHERE iteration_id=?',[$i['id']]);
     }
+    [$key,$email,$name]=profile_identity();$result['profile']=profile_for($key,$name);$result['comments']=decorate_comments($result['comments'],$key);$result['branding']=presentation_branding($p['id']);
     return $result;
 }

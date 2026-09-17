@@ -5,6 +5,7 @@ require_once __DIR__.'/../app/ai.php';
 if(PHP_SAPI!=='cli')exit;
 $once=in_array('--once',$argv,true);
 do {
+    $mailed=dispatch_comment_email();
     $job=transaction(function(){
         // An interrupted job is surfaced for an explicit retry; image API calls are never retried blindly.
         query("UPDATE jobs SET status='failed',error='Processing was interrupted. Please retry this file.' WHERE status='running' AND started_at<?",[gmdate('Y-m-d\TH:i:s\Z',time()-600)]);
