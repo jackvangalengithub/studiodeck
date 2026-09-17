@@ -64,3 +64,8 @@
 .presentation .slide-area{animation:none}.slide-in-motion{overflow-x:clip}.slide-outgoing{overflow:hidden}.studio-switch{padding:9px 6px;gap:5px}.studio-switch select{font-size:12px}.sidebar{overflow-y:auto}.profile{margin-top:22px}.project-sub{flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){.slide-area{animation:none!important}}
 .project-team-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:-12px 0 25px}.project-team-inline>.button{margin-left:auto}
+
+/* Reserve viewport space even on short pages and while dialogs lock scrolling. */
+html{scrollbar-gutter:stable} @supports not (scrollbar-gutter:stable){html{overflow-y:scroll}}
+.workspace-studio-name{font-size:14px;color:var(--muted);max-width:40vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-selected{margin:18px 0}.team-selected>p{margin-bottom:10px}.team-results{max-height:330px;overflow:auto;scrollbar-gutter:stable}.team-result{display:flex;align-items:center;justify-content:space-between;text-align:left;width:100%;padding:12px;border-bottom:1px solid var(--line);gap:12px}.team-result:hover{background:var(--soft)}.team-result small{display:block;color:var(--muted);margin-top:4px}
