@@ -42,3 +42,4 @@ CREATE TABLE IF NOT EXISTS project_details (project_id TEXT PRIMARY KEY REFERENC
 CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL,PRIMARY KEY(iteration_id,slide_id));
 
 CREATE TABLE IF NOT EXISTS slide_groups (iteration_id TEXT NOT NULL REFERENCES iterations(id),id TEXT NOT NULL,label TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(iteration_id,id));
+CREATE TABLE IF NOT EXISTS project_delete_confirmations (token_hash TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL);
