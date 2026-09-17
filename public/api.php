@@ -8,7 +8,7 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed'];
+    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
@@ -152,14 +152,15 @@ try {
     }
     if($action==='studio_theme') {
         $u=owner(true);$b=input();$theme=$b['theme']??[];
-        if(!in_array($theme['palette']??'',['sage','clay','slate','ink'],true)||!in_array($theme['style']??'',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
-        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']];
+        if(!in_array($theme['palette']??'',['sage','clay','slate','ink','ocean','plum','rust','forest','mustard','rose','lavender','espresso'],true)||!in_array($theme['style']??'modern',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
+        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']??'modern'];
+        $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
     }
     if($action==='theme') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$theme=$b['theme']??[];
         $style=text_field($theme['style']??'Modern',40);$font=in_array($theme['font']??'',['serif','sans'],true)?$theme['font']:'serif';$colors=array_values(array_filter(array_slice($theme['colors']??[],0,5),fn($c)=>is_string($c)&&preg_match('/^#[a-f0-9]{6}$/i',$c)));
-        query('UPDATE iterations SET theme=? WHERE id=?',[json_encode(['style'=>$style,'font'=>$font,'colors'=>$colors,'automatic'=>false]),$i['id']]);json_response(['ok'=>true]);
+        query('UPDATE iterations SET theme=? WHERE id=?',[json_encode(['style'=>$style,'font'=>$font,'colors'=>$colors,'mode'=>($theme['mode']??'light')==='dark'?'dark':'light','background'=>is_string($theme['background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['background'])?$theme['background']:'#152235','automatic'=>false]),$i['id']]);json_response(['ok'=>true]);
     }
     if($action==='save_budget') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',300);if(!$label)fail('Give the cost a name.');$bid=text_field($b['id']??'');

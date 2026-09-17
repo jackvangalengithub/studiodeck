@@ -42,3 +42,17 @@ if($action==='project_members'){
         query('DELETE FROM project_members WHERE project_id=?',[$p['id']]);foreach($ids as $uid)insert('project_members',['project_id'=>$p['id'],'user_id'=>$uid]);
     });json_response(['ok'=>true]);
 }
+
+if($action==='studio_logo'){
+    $u=owner();$sid=text_field($_GET['studio_id']??$u['studio_id']??'');if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$sid,$u['user_id']]))fail('Studio not found.',404);
+    $logo=one('SELECT data,mime FROM studio_logos WHERE studio_id=?',[$sid]);if(!$logo)fail('Logo not found.',404);header('Content-Type: '.$logo['mime']);header('Content-Length: '.strlen($logo['data']));echo $logo['data'];exit;
+}
+if($action==='upload_studio_logo'){
+    $u=owner(true);if(!$u['studio_id'])fail('Choose a studio first.',403);$f=$_FILES['logo']??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||!is_uploaded_file($f['tmp_name']))fail('Choose a logo image.');
+    if(filesize($f['tmp_name'])>2*1024*1024)fail('The logo can be up to 2 MB.');$info=@getimagesize($f['tmp_name']);
+    if(!$info||!in_array($info['mime'],['image/png','image/jpeg','image/webp'],true)||$info[0]*$info[1]>12000000)fail('Choose a PNG, JPEG, or WebP logo up to 12 megapixels.');
+    $image=@imagecreatefromstring(file_get_contents($f['tmp_name']));if(!$image)fail('This logo could not be read.');
+    $scale=min(1,640/max($info[0],$info[1]));$w=max(1,(int)round($info[0]*$scale));$h=max(1,(int)round($info[1]*$scale));$out=imagecreatetruecolor($w,$h);imagealphablending($out,false);imagesavealpha($out,true);imagecopyresampled($out,$image,0,0,0,0,$w,$h,$info[0],$info[1]);ob_start();imagepng($out);$data=ob_get_clean();imagedestroy($image);imagedestroy($out);
+    transaction(function()use($u,$data){query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);insert('studio_logos',['studio_id'=>$u['studio_id'],'data'=>$data,'mime'=>'image/png']);});json_response(['ok'=>true]);
+}
+if($action==='remove_studio_logo'){$u=owner(true);query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);json_response(['ok'=>true]);}

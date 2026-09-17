@@ -73,7 +73,13 @@ A single container (`docker build -t studiodeck . && docker run --rm -p 8080:808
 
 After upload, a dismissible full-screen animation reports the actual worker stage and page number. **Continue working** closes it; the project banner keeps reporting progress and **View progress** reopens it. Completion and failures are shown explicitly.
 
-In **Studio settings**, choose Sage, Clay, Slate or Ink and a Classic, Modern, Minimal or Editorial style. The workspace previews choices immediately; **Save studio appearance** persists them for your account, while Cancel restores the saved look. Studio appearance never affects client presentations. **Project style** on the project page controls that project's own palette and typography.
+In **Studio settings**, upload a PNG/JPEG/WebP logo (up to 2 MB) and choose from 12 brand palettes. The workspace previews palette changes immediately; saving applies them to everyone in that studio. Cancel restores the saved palette. Studio branding controls workspace navigation, upload areas and project cards. Slide previews and full-screen presentations use only **Project style**: extracted design colors, typography, and light or dark mode with midnight-blue or soft-black backgrounds.
+
+Use **Studio users** to view members. Studio admins can add, edit and remove studio memberships; this role does not bypass project access. A single account can belong to several studios, selected in the top-left menu. Existing accounts and projects migrate into their own studio automatically. Removing a member revokes that studio's access without deleting the account or its other studios; projects must retain a team member and studios must retain an admin.
+
+**Project settings** controls visibility and team membership. Team-only projects are private to their assigned users. Public projects are viewable by everyone in the selected studio, with editing restricted to the project team. Client access still requires a separate presentation link. The project list supports search, personal pins, archiving, and processing indicators. Archived projects remain accessible through **Show archived**.
+
+The main **Activity** and **Comments** pages cover accessible projects in the selected studio. Comments are ordered newest first and link to the original iteration and slide. A slide's comment-count button opens its discussion. Project comments include earlier iterations.
 
 Expand a source document in **Files** to browse its derived JPEG images, page previews and UTF-8 text files. Each entry has a stable filename and source-page reference; extracted images show their detected classification and can be relabelled. Preview or download each derived file independently. Originals and previously shared versions stay intact.
 
@@ -110,6 +116,8 @@ PHP_BIN=php python3 tests/test_workflows.py
 python3 tests/test_extraction.py
 php tests/test_analysis.php
 node tests/test_slides.mjs
+node tests/test_themes.mjs
+PHP_BIN=php python3 tests/test_studios.py
 ```
 
 The integration suite uses an isolated temporary database and fake `.test` addresses. It checks token replay/expiry, 14-day sessions, CSRF, tenant isolation, upload validation, PDF/CSV/XLSX/PPTX ingestion, integer-cent totals, subquote cycles, shared snapshot immutability, replacement accounting, version download restrictions, feedback, revocation and link expiry. It also checks page/image access, progress stages, palette provenance, re-extraction snapshots and manual theme preservation. The extraction suite exercises multi-page PDF, rotated pages, scanned text, slide ordering, intact collages, white dividers inside photos, rejected repeated logos, malformed plans and model-directed scan crops with real document tools. The analysis test verifies whole-page planning before final crops, mismatched page rejection, one-slide collage preservation, multi-page vision requests, independent image classification across batches, mixed Before/Concept captions and partial API failure handling. Slide tests cover repeating types, stable identifiers and crop references. Workflow tests also simulate image edit results to check preservation of originals, stale-result rejection and immutable shared slide images. These tests send no real email and make no live AI calls.

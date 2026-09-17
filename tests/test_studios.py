@@ -15,14 +15,14 @@ class Client:
         self.base=base; self.csrf=''; self.bearer=''
         self.cookies=http.cookiejar.CookieJar()
         self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
-    def call(self,action,data=None,query='',files=None,expected=200,csrf=True,raw=False):
+    def call(self,action,data=None,query='',files=None,expected=200,csrf=True,raw=False,file_field='files[]'):
         headers={}
         if self.csrf and csrf: headers['X-CSRF-Token']=self.csrf
         if self.bearer: headers['Authorization']='Bearer '+self.bearer
         if files:
             boundary='studiodeck-test-boundary';parts=[]
             for k,v in data.items():parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
-            for name,mime,blob in files:parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="files[]"; filename="{name}"\r\nContent-Type: {mime}\r\n\r\n'.encode()+blob+b'\r\n')
+            for name,mime,blob in files:parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{file_field}"; filename="{name}"\r\nContent-Type: {mime}\r\n\r\n'.encode()+blob+b'\r\n')
             parts.append(f'--{boundary}--\r\n'.encode());body=b''.join(parts);headers['Content-Type']='multipart/form-data; boundary='+boundary
         elif data is not None:body=json.dumps(data).encode();headers['Content-Type']='application/json'
         else:body=None
@@ -66,6 +66,14 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         member=Client(base);member.login('member@example.test',log)
         check(member.call('session')['studio']['id']==studio,'Added user joins the intended studio')
         member.call('save_studio_user',{'email':'blocked@example.test','name':'Blocked'},expected=403)
+        from test_extraction import png
+        logo=png('#225566')
+        admin.call('upload_studio_logo',{},files=[('logo.png','image/png',logo)],file_field='logo')
+        check(member.call('studio_logo',raw=True).startswith(b'\x89PNG') and member.call('session')['studio']['has_logo'],'Studio logo is shared with members as a normalized image')
+        admin.call('upload_studio_logo',{},files=[('logo.svg','image/svg+xml',b'<svg onload="alert(1)"/>')],file_field='logo',expected=400)
+        admin.call('studio_theme',{'name':'Shared studio','theme':{'palette':'ocean','style':'modern'}})
+        check(member.call('session')['studio_theme']['palette']=='ocean','Branding preferences belong to the studio, not one account')
+
         p=admin.call('create_project',{'name':'Private admin project','emails':[]},expected=201);pid=p['project_id'];iid=p['iteration_id']
         check(member.call('projects')['projects']==[],'Studio membership does not reveal private projects')
         member.call('project',query='&id='+pid,expected=404)
@@ -87,7 +95,11 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(member.call('projects')['projects']==[],'Making a project private removes it from non-team lists')
         admin.call('project_members',{'project_id':pid,'user_ids':[aid,mid]})
         check(member.call('project',query='&id='+pid)['can_edit'],'Project team members can open and edit their project')
-        member.call('theme',{'iteration':iid,'theme':{'colors':['#112233'],'font':'sans','style':'Modern'}})
+        member.call('theme',{'iteration':iid,'theme':{'colors':['#112233'],'font':'sans','style':'Modern','mode':'dark','background':'#111314'}})
+        admin.call('studio_theme',{'theme':{'palette':'plum','style':'modern'}})
+        t=member.call('project',query='&id='+pid)['project']['theme']
+        check(t['mode']=='dark' and t['background']=='#111314' and t['colors']==['#112233'],'Studio branding changes preserve the independent project palette and dark presentation settings')
+
         member.call('comment',{'iteration':iid,'slide':'intro','body':'Please review the entrance.'})
         member.call('comment',{'iteration':iid,'slide':'budget','body':'Please check the allowance.'})
         comments=admin.call('comments_feed')['items']
@@ -111,6 +123,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         admin.call('switch_studio',{'studio_id':studio})
         admin.call('remove_studio_user',{'id':mid})
         member.call('switch_studio',{'studio_id':studio},expected=404)
+        member.call('studio_logo',query='&studio_id='+studio,expected=404)
         check(len(member.call('session')['studios'])==1,'Removal revokes only the selected studio membership')
         admin.call('save_studio_user',{'id':aid,'email':'admin@example.test','name':'Admin','role':'member'},expected=409)
         check(True,'Last studio admin cannot be removed or demoted')
