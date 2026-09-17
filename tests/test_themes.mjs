@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import {projectThemeVariables} from '../public/assets/project-theme.js';
 import {studioPalettes} from '../public/assets/studio.js';
-assert.equal(Object.keys(studioPalettes).length,12);
+assert.equal(Object.keys(studioPalettes).length,14);
 const light=projectThemeVariables({colors:['#172838','#eeeecc'],font:'serif'});
 const dark=projectThemeVariables({colors:['#172838','#eeeecc'],font:'sans',mode:'dark',background:'#152235'});
 assert.equal(dark['--deck-bg'],'#152235');assert.equal(dark['--ink'],'#f5f5f2');assert.equal(dark['--heading'],'Arial,sans-serif');
 assert.equal(projectThemeVariables({mode:'dark',background:'#111314'})['--deck-bg'],'#111314');
 assert.notEqual(light['--deck-bg'],dark['--deck-bg']);
 assert.equal(projectThemeVariables({colors:['invalid'],mode:'dark',background:'invalid'})['--deck-bg'],'#152235');
-console.log('PASS Twelve studio palettes and independent, readable light/dark project themes.');
+console.log('PASS Fourteen studio palettes and independent, readable light/dark project themes.');

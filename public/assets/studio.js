@@ -10,8 +10,10 @@ export const studioPalettes={
   mustard:{name:'Ochre & ivory',colors:['#776022','#f0ecd9','#faf9f1','#c9b875']},
   rose:{name:'Rose & stone',colors:['#80515b','#f2e6e8','#fbf6f7','#d4aeb5']},
   lavender:{name:'Lavender & pearl',colors:['#57527d','#eae8f3','#f7f6fb','#b4aed1']},
-  espresso:{name:'Espresso & oat',colors:['#58483a','#ece6de','#faf7f2','#b8a691']}
+  espresso:{name:'Espresso & oat',colors:['#58483a','#ece6de','#faf7f2','#b8a691']},
+  grayscale:{name:'Pure grayscale',colors:['#454545','#eeeeee','#fafafa','#bdbdbd'],ink:'#2b2b2b',muted:'#666666',surface:'#ffffff'},
+  warmgray:{name:'Warm grayscale',colors:['#55534f','#efede9','#faf9f6','#c7c3bc'],ink:'#2e2d2a',muted:'#69665f',surface:'#fffefb'}
 };
 export const studioStyles={classic:'Classic',modern:'Modern',minimal:'Minimal',editorial:'Editorial'};
 export function cleanStudioTheme(theme={}){return {palette:studioPalettes[theme.palette]?theme.palette:'sage',style:studioStyles[theme.style]?theme.style:'modern'};}
-export function applyStudioTheme(theme,active){const root=document.documentElement;delete root.dataset.studioPalette;delete root.dataset.studioStyle;if(active){const value=cleanStudioTheme(theme),colors=studioPalettes[value.palette].colors;root.dataset.studioPalette=value.palette;root.dataset.studioStyle='modern';Object.entries({'--green':colors[0],'--soft':colors[1],'--bg':colors[2],'--accent':colors[3],'--line':colors[3]+'66','--ink':'#292d2a','--muted':'#636b65','--surface':'#ffffff','--heading':'Arial,sans-serif','--on-accent':'#ffffff'}).forEach(([k,v])=>root.style.setProperty(k,v));}}
+export function applyStudioTheme(theme,active){const root=document.documentElement;delete root.dataset.studioPalette;delete root.dataset.studioStyle;if(active){const value=cleanStudioTheme(theme),palette=studioPalettes[value.palette],colors=palette.colors;root.dataset.studioPalette=value.palette;root.dataset.studioStyle='modern';Object.entries({'--green':colors[0],'--soft':colors[1],'--bg':colors[2],'--accent':colors[3],'--line':colors[3]+'66','--ink':palette.ink||'#292d2a','--muted':palette.muted||'#636b65','--surface':palette.surface||'#ffffff','--heading':'Arial,sans-serif','--on-accent':'#ffffff'}).forEach(([k,v])=>root.style.setProperty(k,v));}}

@@ -153,7 +153,7 @@ try {
     }
     if($action==='studio_theme') {
         $u=owner(true);$b=input();$theme=$b['theme']??[];
-        if(!in_array($theme['palette']??'',['sage','clay','slate','ink','ocean','plum','rust','forest','mustard','rose','lavender','espresso'],true)||!in_array($theme['style']??'modern',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
+        if(!in_array($theme['palette']??'',['sage','clay','slate','ink','ocean','plum','rust','forest','mustard','rose','lavender','espresso','grayscale','warmgray'],true)||!in_array($theme['style']??'modern',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
         $theme=['palette'=>$theme['palette'],'style'=>$theme['style']??'modern'];
         $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
