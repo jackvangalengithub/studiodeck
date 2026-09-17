@@ -14,6 +14,7 @@ try {
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
     require __DIR__.'/../app/studio_api.php';
+    require __DIR__.'/../app/project_api.php';
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
@@ -42,15 +43,16 @@ try {
     }
     if($action==='logout') { $u=owner(true);query('DELETE FROM sessions WHERE token_hash=?',[$u['token_hash']]);setcookie('studiodeck_session','',['expires'=>1,'path'=>'/','httponly'=>true,'samesite'=>'Lax','secure'=>str_starts_with(base_url(),'https://')]);json_response(['ok'=>true]); }
     if($action==='projects') {
-        $u=owner();$ps=rows('SELECT p.* FROM projects p WHERE '.project_access_sql().' ORDER BY p.created_at DESC',[$u['studio_id'],$u['user_id']]);
+        $u=owner();$ps=rows('SELECT p.*,EXISTS(SELECT 1 FROM project_pins pin WHERE pin.project_id=p.id AND pin.user_id=?) AS pinned,EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?) AS can_edit,(SELECT COUNT(*) FROM jobs j WHERE j.project_id=p.id AND j.status IN ("queued","running")) AS processing FROM projects p WHERE '.project_access_sql().(empty($_GET['archived'])?' AND p.archived=0':'').' ORDER BY pinned DESC,p.created_at DESC,p.id',[$u['user_id'],$u['user_id'],$u['studio_id'],$u['user_id']]);
         foreach($ps as &$p) { $p['iteration']=one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);$p['file_count']=(int)one('SELECT COUNT(*) AS n FROM iteration_files WHERE iteration_id=?',[$p['iteration']['id']])['n']; }
         json_response(['projects'=>$ps]);
     }
     if($action==='create_project') {
         $u=owner(true);$b=input();$name=text_field($b['name']??'',160);if(!$name)fail('Give your project a name.');$emails=[];
         foreach(array_slice($b['emails']??[],0,20) as $email)$emails[]=email_field($email);
-        $p=transaction(function()use($u,$b,$name,$emails){
-            if(!$u['studio_id'])fail('Join or create a studio first.',403);$pid=id();$iid=id();insert('projects',['id'=>$pid,'user_id'=>$u['user_id'],'studio_id'=>$u['studio_id'],'name'=>$name,'location'=>text_field($b['location']??'',160),'description'=>text_field($b['description']??'',2000),'theme'=>'{}','created_at'=>now()]);
+        $visibility=$b['visibility']??'team';if(!in_array($visibility,['team','public'],true))fail('Choose project visibility.');
+        $p=transaction(function()use($u,$b,$name,$emails,$visibility){
+            if(!$u['studio_id'])fail('Join or create a studio first.',403);$pid=id();$iid=id();insert('projects',['id'=>$pid,'user_id'=>$u['user_id'],'studio_id'=>$u['studio_id'],'visibility'=>$visibility,'name'=>$name,'location'=>text_field($b['location']??'',160),'description'=>text_field($b['description']??'',2000),'theme'=>'{}','created_at'=>now()]);
             insert('project_members',['project_id'=>$pid,'user_id'=>$u['user_id']]);
             insert('iterations',['id'=>$iid,'project_id'=>$pid,'number'=>1,'title'=>'First concept','status'=>'draft','theme'=>'{}','created_at'=>now()]);
             foreach(array_unique($emails) as $email)insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>explode('@',$email)[0],'role'=>'Client','email'=>$email,'phone'=>'']);
