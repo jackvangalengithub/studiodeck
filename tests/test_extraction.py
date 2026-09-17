@@ -90,6 +90,39 @@ class DocumentTests(unittest.TestCase):
             self.assertIn('Second:',rendered['pages'][1]['text'])
             self.assertTrue(rendered['pages'][0]['images'])
 
+    def test_real_photo_in_captioned_scan(self):
+        photo=Image.open(ROOT/'public/assets/interior.webp').convert('RGB').resize((960,640))
+        for picture in [photo,photo.convert('L').convert('RGB')]:
+            scan=Image.new('RGB',(1200,1000),'#f7f5f1');scan.paste(picture,(120,100))
+            draw=ImageDraw.Draw(scan);font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',30)
+            draw.text((120,790),'Living room - existing situation',font=font,fill='#333333')
+            bounds=extractor.tight_photo_bounds(scan)
+            self.assertIsNotNone(bounds)
+            for actual,expected in zip(bounds,[.1,.1,.9,.74]):self.assertAlmostEqual(actual,expected,delta=.018)
+
+    def test_tight_photos_exclude_captions_and_margins(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'captioned.pdf';doc=fitz.open()
+            for color in ['#60774f','#676767']:
+                page=doc.new_page(width=600,height=800)
+                scan=Image.new('RGB',(1200,1600),'white');draw=ImageDraw.Draw(scan)
+                font=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',36)
+                draw.text((100,90),'Existing living room',font=font,fill='black')
+                draw.rectangle((120,300,1079,939),fill=color)
+                draw.text((120,990),'Photo caption must stay outside the crop',font=font,fill='black')
+                raw=io.BytesIO();scan.save(raw,'PNG');page.insert_image(page.rect,stream=raw.getvalue())
+            doc.save(path);doc.close()
+            result=extractor.extract(str(path),directory)
+            for p in result['pages']:
+                self.assertEqual(len(p['images']),1)
+                b=p['images'][0]['bbox']
+                for actual,expected in zip(b,[.1,.1875,.9,.5875]):self.assertAlmostEqual(actual,expected,delta=.012)
+                image=Image.open(Path(directory)/p['images'][0]['file']).convert('RGB')
+                self.assertAlmostEqual(image.width/image.height,1.5,delta=.06)
+                paper=sum(min(pixel)>235 for pixel in image.getdata())/(image.width*image.height)
+                self.assertLess(paper,.025)
+                self.assertIn('caption',p['text'].lower())
+
     def test_later_pages_and_reported_limit(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'source.pdf';doc=fitz.open()

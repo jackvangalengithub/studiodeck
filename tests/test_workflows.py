@@ -56,6 +56,10 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         check(13.99*86400 < cookie.expires-time.time() <14.01*86400,'Designer session has a 14-day expiry')
         owner.call('create_project',{'name':'Missing CSRF'},csrf=False,expected=403)
         check(True,'Designer writes require the session CSRF token')
+        owner.call('studio_theme',{'theme':{'palette':'clay','style':'classic'}},csrf=False,expected=403)
+        owner.call('studio_theme',{'theme':{'palette':'invalid','style':'classic'}},expected=400)
+        owner.call('studio_theme',{'theme':{'palette':'clay','style':'classic'}})
+        check(owner.call('session')['studio_theme']=={'palette':'clay','style':'classic'},'Studio appearance persists independently of any project')
         made=owner.call('create_project',{'name':'Test family project','emails':['client@example.test']},expected=201)
         pid,iid=made['project_id'],made['iteration_id']
         for name,mime,blob in [('budget.csv','text/csv',(ROOT/'public/assets/example-budget.csv').read_bytes()),('living.webp','image/webp',(ROOT/'public/assets/interior.webp').read_bytes()),('floorplan.pdf','application/pdf',(ROOT/'public/assets/concept-plan.pdf').read_bytes())]:
@@ -78,6 +82,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         client=Client(base);client.bearer=share['url'].split('/#/view/')[1]
         shared=client.call('deck')
         check('events' not in shared and 'shares' not in shared,'Client payload excludes studio activity and other client links')
+        check('studio_theme' not in shared and shared['project']['theme']!={'palette':'clay','style':'classic'},'Client presentations do not receive studio appearance settings')
         owner.call('save_budget',{'iteration':iid,'label':'Changed after share','amount':'123'},expected=409)
         check(True,'Shared iterations reject edits')
         second=owner.call('new_iteration',{'iteration':iid,'title':'Second concept'},expected=201)['id']
@@ -101,6 +106,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         stranger.call('project',query='&id='+pid,expected=404)
         stranger.call('file',query='&iteration='+iid+'&id='+old['id'],expected=404)
         check(True,'A different designer cannot access another studio’s project or files')
+        check(stranger.call('session')['studio_theme']==[],'Studio preferences are isolated between designers')
         owner.call('revoke_share',{'id':share['id']})
         client.call('deck',expected=403)
         check(True,'Revocation immediately disables a client link')
@@ -139,6 +145,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         file=page_deck['files'][0]
         check(len(file['pages'])==4 and file['metadata']['image_count']>=5,'Every page and extracted image is persisted')
         check(any(s in observed for s in ['extracting_text','extracting_images','extracting_colors']),'Progress API reports actual extraction stages')
+        check(all('images' in p and 'has_text' in p for p in page_deck['files'][0]['pages']),'File explorer receives extracted image entries and text availability')
         detail=owner.call('document_page',query=f'&iteration={page_iid}&id={version}&page=2')
         check('Japandi' in detail['text'] and len(detail['images'])==2,'Page API returns the correct page text and crops')
         check(page_deck['project']['theme']['style']=='Japandi','Style comes from source evidence instead of a fixed default')

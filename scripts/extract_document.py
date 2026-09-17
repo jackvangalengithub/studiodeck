@@ -101,6 +101,53 @@ def ocr(image, directory, number):
         path.unlink(missing_ok=True)
 
 
+def tight_photo_bounds(image):
+    """Find a dense rectangular image, excluding light margins and sparse caption bands.
+
+    Uses luminance as well as colour, so monochrome photographs are retained.
+    Ambiguous/mostly white artwork is left for the original image fallback.
+    """
+    small = image.convert('RGB')
+    small.thumbnail((640, 640))
+    width, height = small.size
+    if min(width, height) < 16:
+        return None
+    pixels = list(small.getdata())
+    # White and warm-grey paper backgrounds; colour photographs touching the edge
+    # do not become their own background sample.
+    corners = [pixels[0], pixels[width-1], pixels[-width], pixels[-1]]
+    paper = [p for p in corners if min(p) >= 215 and max(p)-min(p) < 28]
+    background = tuple(sorted(p[c] for p in paper)[len(paper)//2] for c in range(3)) if paper else (255, 255, 255)
+    mask = [max(abs(p[c]-background[c]) for c in range(3)) > 22 for p in pixels]
+    def longest_run(indices):
+        runs = []
+        for n in indices:
+            if not runs or n > runs[-1][-1]+2:
+                runs.append([n])
+            else:
+                runs[-1].append(n)
+        return max(runs, key=len) if runs else []
+    # Captions have sparse strokes interrupted by line spacing; a photo has a
+    # sustained band of occupied rows. Then fit the sides against that band.
+    rows = longest_run([y for y in range(height) if sum(mask[y*width:(y+1)*width])/width >= .32])
+    if len(rows) < max(12, height*.08):
+        return None
+    top, bottom = rows[0], rows[-1]+1
+    cols = [x for x in range(width) if sum(mask[y*width+x] for y in range(top,bottom))/(bottom-top) >= .45]
+    if not cols or cols[-1]-cols[0] < max(12,width*.08):
+        return None
+    left, right = cols[0], cols[-1]+1
+    # Refine row bounds after removing the horizontal paper margins.
+    rows = longest_run([y for y in range(height) if sum(mask[y*width+left:y*width+right])/(right-left) >= .45])
+    if len(rows) < 12:
+        return None
+    top, bottom = rows[0], rows[-1]+1
+    density = sum(sum(mask[y*width+left:y*width+right]) for y in range(top,bottom))/((right-left)*(bottom-top))
+    if density < .5:
+        return None
+    return [left/width, top/height, right/width, bottom/height]
+
+
 def split_board(image):
     """Split flattened moodboards at wide white gutters; retain a whole image if ambiguous."""
     small = image.convert('RGB')
@@ -130,12 +177,16 @@ def split_board(image):
     result = []
     for rect in divide((0, 0, small.width, small.height)):
         crop = small.crop(rect)
-        # Exclude blank gutters and sparse text-only regions.
-        colored = sum(max(p)-min(p) > 18 and min(p) < 230 for p in crop.getdata())
-        if colored / max(1, crop.width*crop.height) < .08:
+        tight = tight_photo_bounds(crop)
+        if not tight:
             continue
-        result.append([rect[0]/small.width, rect[1]/small.height, rect[2]/small.width, rect[3]/small.height])
-    return result if len(result) > 1 else []
+        result.append([(rect[0]+tight[0]*crop.width)/small.width,
+                       (rect[1]+tight[1]*crop.height)/small.height,
+                       (rect[0]+tight[2]*crop.width)/small.width,
+                       (rect[1]+tight[3]*crop.height)/small.height])
+    # A scan with just one photograph and a caption still needs a tight crop.
+    return result
+
 
 
 def extract_pdf(path, output):
@@ -198,10 +249,18 @@ def extract_pdf(path, output):
                 images = []
                 for rect, kind in candidates[:MAX_IMAGES]:
                     try:
-                        im = pix_image(page, rect, 1200)
+                        im = pix_image(page, rect, 1600)
+                        source_rect = fitz.Rect(rect)
+                        tight = tight_photo_bounds(im)
+                        if tight and (tight[0] > .008 or tight[1] > .008 or tight[2] < .992 or tight[3] < .992):
+                            rect = fitz.Rect(source_rect.x0+tight[0]*source_rect.width, source_rect.y0+tight[1]*source_rect.height,
+                                             source_rect.x0+tight[2]*source_rect.width, source_rect.y0+tight[3]*source_rect.height)
+                            im = pix_image(page, rect, 1200)
+                            kind = 'tight_photo_crop'
+
                         n = len(entry['images'])+1
                         entry['images'].append({'number': n, 'file': output.image(im, f'page-{number}-image-{n}.jpg',1200),
-                                                'bbox': box(rect,page.rect.width,page.rect.height), 'kind': kind,
+                                                'bbox': box(rect,page.rect.width,page.rect.height), 'source_bbox': box(source_rect,page.rect.width,page.rect.height), 'kind': kind,
                                                 'palette': sampled_palette([im])})
                         images.append(im.copy().resize((100,100)))
                     except Exception as exc:
@@ -272,6 +331,10 @@ def native_pptx(path, output):
                         im = im.crop((round(l*im.width),round(t*im.height),round((1-r)*im.width),round((1-b)*im.height)))
                     # Composite transparent PNGs onto white for the saved preview.
                     canvas = Image.new('RGB',im.size,'white');canvas.paste(im,mask=im.getchannel('A'))
+                    tight = tight_photo_bounds(canvas)
+                    if tight:
+                        canvas = canvas.crop((round(tight[0]*canvas.width),round(tight[1]*canvas.height),round(tight[2]*canvas.width),round(tight[3]*canvas.height)))
+                    im = canvas
                     n = len(page['images'])+1
                     page['images'].append({'number':n,'file':output.image(canvas,f'page-{index+1}-image-{n}.jpg',1200),
                                            'bbox':None,'kind':'embedded_crop','palette':sampled_palette([im])})

@@ -69,10 +69,11 @@ function save_document_pages(string $vid,array $pages): void {
     }
 }
 function document_page_summaries(string $vid): array {
-    $pages=rows('SELECT number,metadata,CASE WHEN preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM document_pages WHERE version_id=? ORDER BY number',[$vid]);
+    $pages=rows('SELECT number,metadata,LENGTH(text) AS text_length,CASE WHEN preview IS NOT NULL THEN 1 ELSE 0 END AS has_preview FROM document_pages WHERE version_id=? ORDER BY number',[$vid]);
     foreach($pages as &$page) {
         $meta=json_decode($page['metadata'],true)?:[];
-        $page=['number'=>$page['number'],'has_preview'=>$page['has_preview'],'image_count'=>(int)one('SELECT COUNT(*) AS n FROM document_images WHERE version_id=? AND page_number=?',[$vid,$page['number']])['n'],'palette'=>$meta['palette']??[],'category'=>$meta['analysis']['category']??'','summary'=>$meta['analysis']['summary']??''];
+        $images=rows('SELECT number,LENGTH(data) AS size FROM document_images WHERE version_id=? AND page_number=? ORDER BY number',[$vid,$page['number']]);
+        $page=['number'=>$page['number'],'has_preview'=>$page['has_preview'],'has_text'=>$page['text_length']>0,'images'=>$images,'image_count'=>(int)one('SELECT COUNT(*) AS n FROM document_images WHERE version_id=? AND page_number=?',[$vid,$page['number']])['n'],'palette'=>$meta['palette']??[],'category'=>$meta['analysis']['category']??'','summary'=>$meta['analysis']['summary']??''];
     }
     return $pages;
 }

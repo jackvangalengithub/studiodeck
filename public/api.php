@@ -11,8 +11,8 @@ try {
     $read=['session','projects','project','deck','file','document_page','slide_image'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
-    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
-    if($action==='session') { $s=current_session();json_response(['user'=>$s?['email'=>$s['email'],'name'=>$s['name']]:null,'csrf'=>$s['csrf']??null,'capabilities'=>capabilities()]); }
+    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    if($action==='session') { $s=current_session();json_response(['user'=>$s?['email'=>$s['email'],'name'=>$s['name']]:null,'csrf'=>$s['csrf']??null,'studio_theme'=>$s?(json_decode(one('SELECT theme FROM studio_preferences WHERE user_id=?',[$s['user_id']])['theme']??'{}',true)?:[]):null,'capabilities'=>capabilities()]); }
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
@@ -145,6 +145,12 @@ try {
     if($action==='category') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','presentation','other'],true))fail('Unknown category.');
         query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);json_response(['ok'=>true]);
+    }
+    if($action==='studio_theme') {
+        $u=owner(true);$b=input();$theme=$b['theme']??[];
+        if(!in_array($theme['palette']??'',['sage','clay','slate','ink'],true)||!in_array($theme['style']??'',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
+        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']];
+        query('INSERT INTO studio_preferences(user_id,theme) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme',[$u['user_id'],json_encode($theme)]);json_response(['studio_theme'=>$theme]);
     }
     if($action==='theme') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$theme=$b['theme']??[];

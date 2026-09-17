@@ -16,13 +16,13 @@ const events=[{id:'e1',actor:'Sophie de Vries',type:'file_uploaded',detail:'Upda
 const current={project,iteration:{id:'it-2',project_id:project.id,number:2,title:'Design development',status:'draft',theme:JSON.stringify(theme),created_at:'2026-09-17T08:00:00Z'},files,budget,contacts,comments:[{id:'cm1',slide:'renders',author:'family@example.com',body:'Could we explore a warmer finish for the kitchen?',created_at:'2026-09-16T14:20:00Z'}],events,shares:[],jobs:[],changes:[{type:'updated',name:'Living room render'},{type:'updated',name:'Kitchen & joinery budget'}],previous_total_cents:12480000,capabilities:{demo:true,ai:false,mail:false}};
 const previous=structuredClone(current);previous.iteration={...previous.iteration,id:'it-1',number:1,title:'First concept',status:'shared',created_at:'2026-09-14T10:00:00Z'};previous.budget.find(x=>x.id==='b4').amount_cents-=365000;previous.files[0].id='v-living-1';previous.files[0].number=1;previous.files[0].name='Living room — concept 01.webp';previous.files[0].history=[previous.files[0].history[1]];previous.files[3].id='v-budget-1';previous.files[3].number=1;previous.files[3].url='assets/example-budget-v1.csv';previous.files[3].history=[previous.files[3].history[1]];previous.changes=[];previous.previous_total_cents=null;
 const decks=new Map([['it-2',current],['it-1',previous]]);
-let selected='it-2';
+let selected='it-2',studioTheme={palette:'sage',style:'modern'};
 const total=items=>items.reduce((sum,x)=>sum+(!Number(x.included)?Number(x.amount_cents??0):0),0);
 function enrich(d){d.total_cents=total(d.budget);d.iterations=[...decks.values()].filter(x=>x.project.id===d.project.id).map(x=>x.iteration).sort((a,b)=>b.number-a.number);return structuredClone(d);}
 export function demoFile(id){for(const d of decks.values())for(const file of d.files){if(file.id===id)return file;const h=file.history.find(v=>v.id===id);if(h)return h;}return null;}
 export async function demoRequest(action,body={}) {
   const iid=body.iteration||selected;let d=decks.get(iid)||decks.get(selected);
-  if(action==='session')return {user:{name:'Sophie de Vries',email:'sophie@example.com'},csrf:'demo',capabilities:{demo:true,ai:false,mail:false}};
+  if(action==='session')return {user:{name:'Sophie de Vries',email:'sophie@example.com'},csrf:'demo',studio_theme:studioTheme,capabilities:{demo:true,ai:false,mail:false}};
   if(action==='projects'){const map=new Map();for(const d of [...decks.values()].sort((a,b)=>a.iteration.number-b.iteration.number))map.set(d.project.id,{...d.project,iteration:d.iteration,file_count:d.files.length});return {projects:[...map.values()]};}
   if(action==='project'){d=body.iteration?decks.get(body.iteration):[...decks.values()].filter(x=>x.project.id===body.id).sort((a,b)=>b.iteration.number-a.iteration.number)[0];if(!d)throw Error('Project not found.');selected=d.iteration.id;return enrich(d);}
   if(action==='deck')return enrich(decks.get(body.iteration||selected));
@@ -44,6 +44,7 @@ export async function demoRequest(action,body={}) {
     else {const s=row(body.slide_id);if(['hide','show'].includes(body.operation))s.hidden=body.operation==='hide'?1:0;else s.deleted=body.operation==='delete'?1:0;}
     return {ok:true};
   }
+  if(action==='studio_theme'){studioTheme=body.theme;return {studio_theme:studioTheme};}
   if(action==='category'){d.files.find(x=>x.asset_id===body.asset_id).category=body.category;return {ok:true};}
   if(action==='theme'){d.project.theme=body.theme;d.iteration.theme=JSON.stringify(body.theme);return {ok:true};}
   if(action==='save_budget'){const row={...body,id:body.id||uid(),amount_cents:body.kind==='unknown'||body.amount===''?null:Math.round(Number(body.amount)*100),included:body.parent_id&&body.included?1:0,parent_id:body.parent_id||null,source_version_id:null};const old=d.budget.find(x=>x.id===row.id);if(old)Object.assign(old,row);else d.budget.push(row);return {ok:true};}
