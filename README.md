@@ -163,3 +163,23 @@ The presentation uses the **project logo → studio logo → Studiodeck** fallba
 Project teams use searchable name/email results with removable selections, suited to large studios. The top bar displays the selected studio name, **Current project** opens **All projects** when no project is selected, and the viewport reserves scrollbar space. Profiles have refreshable `/{studioId}/profile` URLs.
 
 Run the isolated integration checks with `PHP_BIN=php python3 tests/test_people.py`. They exercise profiles, client preferences, previews, unread isolation, logo inheritance and notification delivery rules without real email or AI calls.
+
+### Presentation sections, floorplans and slide ordering
+
+The presentation header, section index and footer stay visible. Only the slide content scrolls. The old navigation dots are replaced by an index for **The story**, **The current situation**, **The moodboards**, **The designs** and **The budget**; empty sections are omitted.
+
+The editor suggests a section from each slide’s type and situation. Use its **Section** selector to change it, and **Arrange by section** to put related slides together. Existing custom order is retained until you rearrange it. Section assignments are copied into new iterations and shared iterations remain preserved.
+
+Drag the dedicated slide handle to reorder in list or grid view. Touch dragging is supported. Keyboard users can focus the handle, press Space, use arrow keys/Home/End, then Enter to save or Escape to cancel. Up/down buttons have been removed.
+
+**Floorplan** is a separate image type, detected from new source evidence or selected in **Edit labels** for an existing slide. It provides zoom, fit-to-view and drag-to-pan controls. With the plan focused, use +/− to zoom, arrow keys to pan, and 0 to fit.
+
+### Project dashboard and workspace styling
+
+Project tiles use the same selected cover image as the project overview and show team avatars/names. Pinned projects have their own section above a divider; the extra heading and divider disappear when no matching projects are pinned. **Project settings** includes a deadline and up to 20 custom labels. Project search includes labels.
+
+Upload an avatar in **User profile**. Project members and their avatars also appear on the client-facing **Your project team** slide, together with additional non-client project contacts.
+
+**Studio settings** offers classic/modern/minimal/editorial workspace styles and serif/sans heading fonts, with previews of the background, text, button and palette colors. These settings do not change project typography. Checkboxes, radios and upload buttons use the current palette; uploads show the selected filename and size.
+
+`python3 tests/test_project_story.py` checks metadata validation, image access, shared section immutability, floorplan labels, team avatars and studio font persistence with isolated data.
