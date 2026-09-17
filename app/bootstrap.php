@@ -130,7 +130,7 @@ function deck_payload(array $i, bool $isOwner): array {
         $result['iterations']=rows('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC',[$p['id']]);
         $result['events']=rows('SELECT * FROM events WHERE project_id=? ORDER BY created_at DESC LIMIT 80',[$p['id']]);
         $result['jobs']=rows('SELECT j.id,j.version_id,j.type,j.status,j.error,j.payload,v.name FROM jobs j LEFT JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? ORDER BY j.created_at',[$i['id']]);
-        foreach($result['jobs'] as &$job) { $job['progress']=(json_decode($job['payload'],true)?:[])['progress']??null;unset($job['payload']); }unset($job);
+        foreach($result['jobs'] as &$job) { $payload=json_decode($job['payload'],true)?:[];$job['progress']=$payload['progress']??null;if($job['type']==='slide_image_edit')$job['slide_id']=$payload['slide_id']??null;unset($job['payload']); }unset($job);
         $result['shares']=rows('SELECT id,email,expires_at,revoked,created_at FROM shares WHERE iteration_id=?',[$i['id']]);
     }
     return $result;
