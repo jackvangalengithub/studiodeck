@@ -54,7 +54,9 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         admin.call('upload_avatar',{},files=[('avatar.png','image/png',png('#778899'))],file_field='avatar')
         p=admin.call('create_project',{'name':'Project story','visibility':'public'},expected=201);pid=p['project_id'];iid=p['iteration_id']
         admin.call('project_settings',{'project_id':pid,'tags':['Renovation','Coastal','Renovation'],'deadline':'2027-02-28'})
+        admin.call('project_settings',{'project_id':pid,'location':'Amsterdam'})
         details=admin.call('project',query='&id='+pid)
+        check(details['project']['location']=='Amsterdam' and details['project']['visibility']=='public','Location edits preserve existing project visibility and metadata')
         check(details['project']['tags']==['Renovation','Coastal'] and details['project']['deadline']=='2027-02-28','Project labels and deadline persist without duplicate labels')
         admin.call('project_settings',{'project_id':pid,'deadline':'2027-02-30'},expected=400)
         admin.call('project_settings',{'project_id':pid,'tags':['x']*21},expected=400)
@@ -84,6 +86,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         check(admin.call('session')['studio_theme']=={'palette':'warmgray','style':'editorial','font':'serif'},'Studio chrome stays fixed when legacy theme choices are submitted')
         users=admin.call('save_studio_user',{'email':'viewer@example.test','name':'Viewer'})['users'];viewer=Client(base);viewer.login('viewer@example.test',log)
         viewer.call('reorder_slide_groups',{'iteration':iid,'order':group_order},expected=403)
+        viewer.call('project_settings',{'project_id':pid,'location':'Forbidden'},expected=403)
         viewer.call('project_settings',{'project_id':pid,'deadline':'2027-01-01'},expected=403)
         viewer.call('slide_layout',{'iteration':iid,'slide_id':'intro','operation':'section','section':'budget'},expected=403)
         link=admin.call('share',{'iteration':iid,'emails':['client@example.test']})['links'][0];client=Client(base);client.bearer=link['url'].split('/#/view/')[1]

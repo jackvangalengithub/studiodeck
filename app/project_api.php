@@ -3,11 +3,12 @@ if($action==='project_settings'){
     $u=owner(true);$b=input();transaction(function()use($u,$b){
         $p=owned_project(text_field($b['project_id']??''),$u);$visibility=$b['visibility']??$p['visibility'];if(!in_array($visibility,['team','public'],true))fail('Choose public or team members only.');
         $archived=array_key_exists('archived',$b)?(!empty($b['archived'])?1:0):(int)$p['archived'];
-        query('UPDATE projects SET visibility=?,archived=? WHERE id=?',[$visibility,$archived,$p['id']]);
+        $location=array_key_exists('location',$b)?text_field($b['location'],160):$p['location'];
+        query('UPDATE projects SET visibility=?,archived=?,location=? WHERE id=?',[$visibility,$archived,$location,$p['id']]);
         $details=project_details($p['id']);$tags=$b['tags']??$details['tags'];if(!is_array($tags)||count($tags)>20)fail('Use up to 20 project labels.');$tags=array_values(array_unique(array_filter(array_map(fn($tag)=>text_field($tag,40),$tags))));
         $deadline=text_field($b['deadline']??$details['deadline'],10);if($deadline){$date=DateTimeImmutable::createFromFormat('!Y-m-d',$deadline);if(!$date||$date->format('Y-m-d')!==$deadline)fail('Choose a valid deadline.');}
         query('INSERT INTO project_details(project_id,tags,deadline) VALUES(?,?,?) ON CONFLICT(project_id) DO UPDATE SET tags=excluded.tags,deadline=excluded.deadline',[$p['id'],json_encode($tags),$deadline]);
-        $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);audit($p['id'],$i['id'],$u['email'],'project_settings_updated',($archived?'Archived':'Active').' · '.($visibility==='public'?'Public within studio':'Project team only'));
+        $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);audit($p['id'],$i['id'],$u['email'],'project_settings_updated',$location!==$p['location']?($location?'Updated project location: '.$location:'Removed project location'):($archived?'Archived':'Active').' · '.($visibility==='public'?'Public within studio':'Project team only'));
     });json_response(['ok'=>true]);
 }
 if($action==='pin_project'){
