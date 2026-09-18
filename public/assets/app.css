@@ -170,3 +170,10 @@ body.presentation-fullscreen .presentation>.preview-bar{display:none}body.presen
 
 /* Compact iteration and slide editor controls. */
 .iteration-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}.iteration-controls .iteration-select{position:static;display:block;max-width:210px}.editor-slide-actions .icon-button{flex-shrink:0}.editor-slide-actions [data-action="delete-slide"]{color:var(--danger,#a54938)}@media(max-width:700px){.tabs-row{flex-wrap:wrap}.iteration-controls{width:100%;justify-content:flex-end;padding-bottom:8px}.iteration-controls .iteration-select{max-width:calc(100vw - 110px)}}
+
+/* Keep image editing information inside its dialog. */
+#app [data-enhancement-allowance]{display:none}.modal:has(.ai-preset-buttons){max-width:1000px}.modal .ai-preset-buttons{display:flex;flex-wrap:wrap;gap:8px}.modal .ai-preset-buttons .button{white-space:nowrap;flex:0 0 auto}
+/* Align the studio controls and keep scope questions in the client presentation. */
+.tabs-row .iteration-controls{align-items:center;margin-bottom:12px}.tabs-row .iteration-controls .iteration-select{margin:0;min-height:36px}.iteration-controls>.icon-button{height:36px;width:36px;min-height:36px;flex-shrink:0}.budget-admin-layout{grid-template-columns:minmax(0,1fr)}.preview-bar{align-items:center;min-height:64px}.preview-slide-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.preview-bar>.row{flex-shrink:0;align-items:center}
+@media(min-width:961px){.presentation-budget .chat-panel{top:calc(var(--budget-summary-height,160px) + 12px);max-height:var(--budget-chat-height,60vh);display:flex;flex-direction:column;align-self:start}.presentation-budget .chat-panel .chat-body{min-height:0;overflow-y:auto;flex:1}.presentation-budget .chat-panel :is(.chat-heading,.chat-form,.chat-footer){flex-shrink:0}}
+@media(max-width:700px){.preview-bar{flex-wrap:wrap;gap:10px;min-height:0}.preview-slide-label{display:none}.preview-bar>.row{margin-left:auto}.tabs-row .iteration-controls{margin-bottom:0}}
