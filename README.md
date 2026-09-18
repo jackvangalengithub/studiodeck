@@ -79,7 +79,7 @@ The included PHP router serves these application paths. If using another web ser
 
 After upload, a dismissible full-screen animation reports the actual worker stage and page number. **Continue working** closes it; the project banner keeps reporting progress and **View progress** reopens it. Completion and failures are shown explicitly.
 
-In **Studio settings**, upload a PNG/JPEG/WebP logo (up to 2 MB) and choose from 14 brand palettes, including Pure grayscale and Warm grayscale (a subtle beige-white tint). The workspace previews palette changes immediately; saving applies them to everyone in that studio. Cancel restores the saved palette. Studio branding controls workspace navigation, upload areas and project cards. Slide previews and full-screen presentations use only **Project style**: extracted design colors, typography, and light or dark mode with midnight-blue or soft-black backgrounds.
+In **Studio settings**, upload a PNG/JPEG/WebP logo (up to 2 MB) and edit the studio name. Workspace chrome is fixed to Warm grayscale, editorial style and serif titles. Personal colors apply to avatars and comments. **Project style** controls presentation colors, typography and light/dark backgrounds; these settings also appear on the project tile alongside its cover photo and palette swatches.
 
 Use **Studio users** to view members. Studio admins can add, edit and remove studio memberships; this role does not bypass project access. A single account can belong to several studios, selected in the top-left menu. Existing accounts and projects migrate into their own studio automatically. Removing a member revokes that studio's access without deleting the account or its other studios; projects must retain a team member and studios must retain an admin.
 
@@ -180,17 +180,21 @@ Project tiles use the same selected cover image as the project overview and show
 
 Upload an avatar in **User profile**. Project members and their avatars also appear on the client-facing **Your project team** slide, together with additional non-client project contacts.
 
-**Studio settings** offers classic/modern/minimal/editorial workspace styles and serif/sans heading fonts, with previews of the background, text, button and palette colors. These settings do not change project typography. Checkboxes, radios and upload buttons use the current palette; uploads show the selected filename and size.
+Workspace typography and palette are fixed. Checkboxes, navigation and upload controls use Warm grayscale. The project style picker retains its font, palette and background choices with a live preview.
 
 `python3 tests/test_project_story.py` checks metadata validation, image access, shared section immutability, floorplan labels, team avatars and studio font persistence with isolated data.
 
 ### Editor controls, custom groups and legal documents
 
 - **Project style** places a live sample on the left of a wide dialog, with font buttons, a light/dark toggle and five color choices for each mode. Light and dark selections are saved separately. Changes are saved only when applied.
-- In the **Presentation** editor, **Add group** creates a reusable group for this iteration. Group labels filter the list; **All slides** resets the filter. Drag a handle onto a highlighted group label to assign it, or between slides to reorder. Groups carry forward into new iterations. Their handles support mouse/touch dragging with an insertion ghost, or Space, arrow keys and Enter for keyboard ordering. The saved order is used by the presentation index and Arrange by section. During slide dragging, all groups light up as dashed targets with a drop hint.
+- In the **Presentation** editor, **Add group** creates a reusable group for this iteration. Group labels filter the list; **All slides** resets the filter. Drag a handle onto a highlighted group label to assign it, or between slides to reorder. Groups carry forward into new iterations. Their handles support mouse/touch dragging with an insertion ghost, or Space, arrow keys and Enter for keyboard ordering. The saved order is used by the presentation index and Arrange by section. During slide dragging, group outlines fade in without changing layout. A cloned slide thumbnail follows the pointer, the source keeps its space, and an overlay marker identifies the drop position.
 - The editor preview bar provides title, type and situation fields for extracted visual slides, plus show/hide and confirmed deletion. Clients never see these editing controls. Photorealistic processing uses sparkles and honors reduced-motion preferences.
 - Admins can permanently delete accessible projects from **Project settings** (or the project header for a public project they cannot edit). Deletion requires a warning step, the exact project name, an explicit acknowledgment and a short-lived server confirmation. Active processing or email delivery must finish first. This deletes all iterations, files, image variants, comments and sharing links from the app; it does not erase separately retained backups.
 - Use **Files → Add legal document**, or change a file’s category to **Legal & scope** to queue full text extraction. PDF/PowerPoint pages are retained individually, including OCR for scans; these documents do not create visual slides or change the project palette. Source text remains available in the expanded file explorer.
 - **Budget & scope questions** searches the current iteration’s legal text and budget. Answers can cite individual pages, which open the extracted text and offer the original file. Larger documents use ranked, overlapping excerpts with paint/waste terminology in English and Dutch. Missing matches are not evidence of exclusion, and extraction warnings or incomplete evidence should be reviewed against originals. AI is required for free-form interpretation; without it, the helper shows matching excerpts.
 
 Focused checks: `python3 tests/test_project_deletion.py`, `python3 tests/test_legal_documents.py`, and `node tests/test_slide_order.mjs`. Integration checks require the PHP/document dependencies in the Docker image and use temporary databases with no real email or AI calls.
+
+### Fullscreen presentation
+
+Use **Show fullscreen** in the presentation footer to enter browser fullscreen. The editor bar and editing actions are hidden, while slide navigation remains available. **Exit fullscreen** or Escape restores the editor at the current slide. Browsers without the Fullscreen API use an app-level presentation view with the same hidden editor controls.
