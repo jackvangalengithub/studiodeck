@@ -1,8 +1,9 @@
+import {tr} from './i18n.js';
 export const imagePresets={
- photorealistic:{label:'Make photorealistic',prompt:'Render the original image as an ultra-photorealistic architectural photograph, indistinguishable from a real photo taken with a professional camera. Use physically plausible lighting, realistic exposure and white balance, natural lens perspective, fine material grain, fabric fibres, reflections, contact shadows and subtle surface imperfections. Remove the synthetic CGI look, plastic surfaces and artificial glow. Preserve the original design, geometry, layout, furniture, finishes, colours, framing and camera position.'},
- viewpoint:{label:'Change the viewpoint',prompt:'Show the same space from a different, plausible camera position: move the camera a few steps to the right and turn it back toward the main area. Preserve the original room layout, architecture, proportions, furniture, materials and colours. Keep the result realistic and consistent with the visible design. Avoid adding new architectural features. Treat unseen areas as a visual interpretation.'},
- clutter:{label:'Add some daily clutter',prompt:'Add some daily small clutter to the original image: a few subtle, believable everyday items appropriate to this room, such as a book, a cup or a casually placed throw. Keep the room thoughtfully styled and lived-in. Preserve the original furniture, architecture, materials, colours, camera position and composition.'},
- evening:{label:'Visualize in the evening',prompt:'Visualize the original space in the evening, with soft dusk outside the windows and warm, realistic illumination from the existing light fixtures. Use natural exposure, plausible shadows and reflections. Preserve the original architecture, furniture, materials, colours, camera position and composition. Do not add or replace light fixtures.'},
- custom:{label:'Custom…',prompt:''}
+ photorealistic:{get label(){return tr("studio_make_photorealistic");},get prompt(){return tr("studio_render_the_original_image_as_an_ultra_photorealistic_architectural_photograph_indistinguishable_from");}},
+ viewpoint:{get label(){return tr("studio_change_the_viewpoint");},get prompt(){return tr("studio_show_the_same_space_from_a_different_plausible_camera_position_move_the_camera_a_few_steps_to_the_ri");}},
+ clutter:{get label(){return tr("studio_add_some_daily_clutter");},get prompt(){return tr("studio_add_some_daily_small_clutter_to_the_original_image_a_few_subtle_believable_everyday_items_appropriat");}},
+ evening:{get label(){return tr("studio_visualize_in_the_evening");},get prompt(){return tr("studio_visualize_the_original_space_in_the_evening_with_soft_dusk_outside_the_windows_and_warm_realistic_il");}},
+ custom:{get label(){return tr("studio_custom");},prompt:''}
 };
-export const customImagePlaceholder='Describe what you would like to change in the original image. For example: “Change only the kitchen cabinet fronts to dark walnut.”';
+export const customImagePlaceholder=()=>tr("studio_describe_what_you_would_like_to_change_in_the_original_image_for_example_change_only_the_kitchen_cab");

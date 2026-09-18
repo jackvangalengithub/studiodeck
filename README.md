@@ -31,15 +31,17 @@ cp .env.example .env   # set HOST_PORT and APP_URL to the same port
 docker compose up -d --build
 ```
 
+The local `docker-compose.override.yml` mounts `app/`, `public/`, and `scripts/` read-only from your workspace, so local edits appear without rebuilding and older images cannot hide newer code. To run only the files packaged in the image, use `docker compose -f docker-compose.yml up -d --build`.
+
 This runs two containers from one image: `web` (PHP server) and `worker` (background processing). Both share `./storage`, so the database and `storage/mail.log` are on your machine. Use `docker compose logs -f` to follow output and `docker compose down` to stop. The PHP built-in web server is for development and demonstrations; deploy `public/` with your usual PHP web server and HTTPS for client use.
 
 A single container (`docker build -t studiodeck . && docker run --rm -p 8080:8080 --env-file .env -v studiodeck-data:/app/storage studiodeck`) also works; `scripts/start.sh` then starts both processes.
 
 ## Workspace URLs
 
-Workspace paths include the studio ID: `/{studioId}/projects`, `/{studioId}/projects/{projectId}`, and `/{studioId}/slide/{slideId}`. Query parameters preserve the selected iteration, tab, and slide's project. Refreshing, copying a workspace URL, and browser Back/Forward restore that view; recipients still need studio and project access. Switching studios changes the URL prefix. Search and archive filters are also preserved. Existing client-share and login links remain supported.
+Workspace paths include the studio ID: `/{studioId}/projects`, `/{studioId}/projects/{projectId}`, and `/{studioId}/slide/{slideId}`. Query parameters preserve the selected iteration, tab, and slide's project. Refreshing, copying a workspace URL, and browser Back/Forward restore that view; recipients still need studio and project access. Switching studios changes the URL prefix. Search and archive filters are also preserved. Existing login links remain supported. Old bearer presentation links now require signing in with the invited email address.
 
-The included PHP router serves these application paths. If using another web server, route the studio workspace paths to `public/index.html`, keep `/api.php` routed to PHP, and serve `/assets/` normally.
+The included PHP router authenticates pages and assets and authorizes project routes. In production, route **all requests, including `/assets/` and existing files**, through `public/router.php`. See [security and deployment requirements](docs/security-review.md) and the [Nginx configuration](docs/nginx-security.conf); Apache rewrite rules are included in `public/.htaccess`.
 
 ## One-time studio setup
 
@@ -53,7 +55,7 @@ The included PHP router serves these application paths. If using another web ser
 ## What works
 
 - Designer passwordless sign-in: a 15-minute, single-use token; a 14-day HttpOnly session; Secure cookies with an HTTPS `APP_URL`; CSRF tokens for designer writes; request throttling.
-- Two-step project setup: enter project details, then select design files. Processing opens the project overview automatically when finished; upload retries reuse the created project. You can also add files later.
+- Three-step project setup: a short introduction to the benefits, project details, then design files. Processing opens the project overview automatically when finished; upload retries reuse the created project. You can also add files later.
 - Project contacts, drag-and-drop uploads, content/type checks, and a background processing queue. Up to 20 files per batch, 100 MB per file and 120 MB total per batch; configure a 128 MB request limit. Oversized files are explained before uploading, with matching server checks.
 - Automatic file categorization using filename, type and extracted text; optional AI classification and visual style detection. Categories and the deck palette/font can be corrected by the designer.
 - The presentation has an introduction, an individual slide for each extracted image, and changes, budget, contacts and downloads. Moodboard, photo, render and drawing slide types can repeat as often as needed. Each visual has its own source page/crop reference and feedback identifier. Collages and moodboards are retained as one composed visual instead of duplicated component slides. All original files remain downloadable.
@@ -63,9 +65,20 @@ The included PHP router serves these application paths. If using another web ser
 - The **Presentation** editor opens in list view with thumbnails, slide types, descriptions and source file/page references; **Grid** offers a larger preview layout. Drag the handle to reorder; a ghost marks the insertion position. Keyboard users can press Space, choose a position with arrow keys, then Enter. **Hide** skips a slide in client previews while keeping it editable; **Show** brings it back. **Delete** removes a slide from that iteration’s presentation and retains its source file. These controls also apply to introduction, budget and other project sections. Order, visibility and deletion are copied into new iterations; previously shared iterations remain unchanged.
 - **Change with AI** is available on visual slides, including photos and crops from PDF or PowerPoint. Presets fill an editable prompt for photorealism, a different viewpoint, daily clutter or evening light; Custom starts empty. Every variation starts from the original upload or extracted crop and saves an immutable image version for that slide. **Compare original** switches between the generated result and the original crop. Earlier shared iterations retain their own selected image versions. Standalone file edits also use the image-edit API and create a new version of the same logical file. The previous bytes are retained. AI edits are designer actions in a draft; clients leave suggestions for the designer to review. Image API errors are surfaced, and potentially paid requests are not blindly retried.
 - Each iteration is a snapshot of file-version references, budget rows and theme. Creating another iteration copies references, not file blobs. Only replacements create file versions. Original filenames that match a current file replace that asset; **Replace file** supports a renamed replacement. Exact duplicate content is not uploaded again to the same asset.
-- Client bearer links are recipient-labelled, revocable, valid for 90 days and restricted to one iteration. Link tokens are hashed at rest and live in the URL fragment, keeping them out of ordinary request URLs and referrers. Possession of the link grants access; this is not identity verification and a forwarded link can be used by its holder. Audit attribution identifies the link used, not independently verified identity.
-- Publication freezes the draft. Processing must finish before sharing. Older links keep their old file/budget snapshot and cannot read later versions. Designers preview using their existing session.
+- Client grants are recipient-specific, revocable, valid for 90 days and restricted to one shared iteration. Every request requires a signed-in account matching the invited email. Private email sign-in links work once and expire in 15 minutes; copyable presentation URLs contain no account credential. Client invitations do not create studio privileges.
+- Sharing keeps the iteration editable; existing client links show subsequent edits to that iteration. Studio admins on the project team can use the small **Lock iteration** button beside the iteration selector to freeze its content and budget choices, then **Unlock iteration** to allow edits again. Processing must finish before sharing or locking. Unlock the iteration or create a new iteration to make further changes; older links stay attached to their original iteration. Designers preview using their existing session.
+- Project **Activity** shows 20 events per page with **Prev**/**Next** controls. **Manage links** sits beside the iteration selector.
 - Activity records cover uploads, replacements, processing, iteration creation, previews/client opens, file downloads, feedback, sends, generated links and revocations. Preview/client-open events are requested by the browser, so this is a useful project history, not tamper-proof compliance logging.
+
+## Open questions
+
+The **Open questions** slide has its own **Open questions** entry in presentation navigation and in the Presentation editor. Its default position follows the budget. After the last uploaded document is processed, the worker prepares up to six project-specific suggestions from extracted text, page summaries, design captions, budget choices and recent conversations. Existing projects can use **Suggest questions** on the slide.
+
+Suggestions are private drafts. Designers can review sources, edit the question, add an answer, and select **Include in the client presentation**. The three states are **Answer available**, **Needs clarification** and **Your preference**. AI answers require matching quotes from current source documents; missing or invalid citations leave the question unanswered. Without AI, the helper suggests questions about unknown or optional costs.
+
+Clients can read answers, discuss individual questions and add their own. Replies appear in project activity. Designers can dismiss, restore, resolve or reopen questions. Refreshing suggestions preserves published questions, edits, dismissals and conversations. Unresolved questions and their replies are copied into new iterations; earlier iterations retain their own conversation history. A change to project evidence flags existing questions for review and hides their saved answer until reviewed. Locked iterations permit conversations but prevent designer edits and generation.
+
+Run `python3 tests/test_open_questions.py -v` with PHP and SQLite available. Tests use isolated databases and mocked AI, covering publication, citations, access controls, replies, worker processing and iteration snapshots.
 
 ## Import behaviour and review
 
@@ -86,7 +99,7 @@ Use **Studio users** to view members. Studio admins can add, edit and remove stu
 
 **Project settings** controls visibility and team membership. Team-only projects are private to their assigned users. Public projects are viewable by everyone in the selected studio, with editing restricted to the project team. Client access still requires a separate presentation link. The project list supports search, personal pins, archiving, and processing indicators. Archived projects remain accessible through **Show archived**.
 
-The main **Activity** and **Comments** pages cover accessible projects in the selected studio. Comments are ordered newest first and link to the original iteration and slide. A slide's comment-count button opens its discussion. Project comments include earlier iterations.
+The main **Activity** and **Comments** pages cover accessible projects in the selected studio. Comments and replies default to newest first. Use **Sort** in any comment view to switch between newest and oldest first. Choose **Reply** on an original comment to add a reply in its one-level thread. Anyone with access to the presentation can toggle **Answered** on a top-level comment; answered threads are hidden by default, and **Show answered** includes them. These controls appear in the studio feed, project feed, and slide discussion. A slide's comment-count button opens its discussion. Project comments include earlier iterations, and loading more comments keeps each thread together.
 
 Expand a source document in **Files** to browse its derived JPEG images, page previews and UTF-8 text files. Each entry has a stable filename and source-page reference; extracted images show their detected classification and can be relabelled. Preview or download each derived file independently. Originals and previously shared versions stay intact.
 
@@ -152,7 +165,7 @@ When upgrading an existing installation, `php scripts/initialize-slides.php` ini
 
 - Open **User profile** from the sidebar to set your display name, upload/remove an avatar, choose a personal workspace accent, and opt in or out of comment emails. The accent does not change project presentation colors. Clients have a **Your profile** button in their presentation with the same identity and email preference controls.
 - Comments show a thumbnail of their source slide and an **Unread** marker. Opening a discussion marks its comments as read. Read status is stored in SQLite per person, including client recipients, and survives refreshes and other devices. Listing comments does not mark them read.
-- New comments queue emails for the other project team members and recipients of active links to that iteration. The author is excluded. Preferences, project membership and share validity are rechecked before delivery. Notification links remain tied to the original share, including its expiry and revocation.
+- New comments and replies queue emails for the other project team members and recipients of active links to that iteration. The author is excluded. Preferences, project membership and share validity are rechecked before delivery. Notification links remain tied to the original share, including its expiry and revocation.
 - The existing worker drains `email_outbox`. Failed transport calls retry with a five-minute delay, up to four attempts; delivery can be inspected through `status` and `error`. An interrupted send may be retried, so the transport does not promise exactly-once delivery.
 - **Send to clients** includes an editable message. Presentation and comment emails use the studio's selected palette, a plain-text alternative and **Presented by studiodeck** attribution. Profile preferences currently cover comment notifications; explicitly sent presentation invitations remain separate.
 - `MAIL_TRANSPORT=log` does **not** deliver email. Rendered messages are written to `MAIL_LOG_PATH.messages.jsonl` (default `storage/mail.log.messages.jsonl`) for local review. Production delivery uses the existing `MAIL_TRANSPORT=mail` / `MAIL_FROM` configuration and requires a working PHP mail transport.
@@ -190,7 +203,7 @@ Workspace typography and palette are fixed. Checkboxes, navigation and upload co
 - **Project style** places a live sample on the left of a wide dialog, with font buttons, a light/dark toggle and five color choices for each mode. Light and dark selections are saved separately. Changes are saved only when applied.
 - In the **Presentation** editor, **Add group** creates a reusable group for this iteration. Group labels filter the list; **All slides** resets the filter. Drag a handle onto a highlighted group label to assign it, or between slides to reorder. Groups carry forward into new iterations. Their handles support mouse/touch dragging with an insertion ghost, or Space, arrow keys and Enter for keyboard ordering. The saved order is used by the presentation index and Arrange by section. During slide dragging, group outlines fade in without changing layout. A cloned slide thumbnail follows the pointer, the source keeps its space, and an overlay marker identifies the drop position.
 - The editor preview bar provides title, type and situation fields for extracted visual slides, plus show/hide and confirmed deletion. Clients never see these editing controls. Photorealistic processing uses sparkles and honors reduced-motion preferences.
-- Admins can permanently delete accessible projects from **Project settings** (or the project header for a public project they cannot edit). Deletion requires a warning step, the exact project name, an explicit acknowledgment and a short-lived server confirmation. Active processing or email delivery must finish first. This deletes all iterations, files, image variants, comments and sharing links from the app; it does not erase separately retained backups.
+- Admins can permanently delete projects they belong to from **Project settings**. Admin status alone does not grant project editing or deletion. Deletion requires a warning step, the exact project name, an explicit acknowledgment and a short-lived server confirmation. Active processing or email delivery must finish first. This deletes all iterations, files, image variants, comments and sharing links from the app; it does not erase separately retained backups.
 - Use **Files → Add legal document**, or change a file’s category to **Legal & scope** to queue full text extraction. PDF/PowerPoint pages are retained individually, including OCR for scans; these documents do not create visual slides or change the project palette. Source text remains available in the expanded file explorer.
 - **Budget & scope questions** searches the current iteration’s legal text and budget. Answers can cite individual pages, which open the extracted text and offer the original file. Larger documents use ranked, overlapping excerpts with paint/waste terminology in English and Dutch. Missing matches are not evidence of exclusion, and extraction warnings or incomplete evidence should be reviewed against originals. AI is required for free-form interpretation; without it, the helper shows matching excerpts.
 
@@ -207,3 +220,52 @@ Budget rows support fixed prices, a lower/upper price range, optional status, an
 Spreadsheet imports accept `label`, `amount`, `min_amount`, `max_amount`, `optional`, `kind`, `parent`, `included`, and `note` columns. Dutch `Omschrijving` and `Bandbreedte laag` / `Bandbreedte hoog` headers are also supported. AI extraction preserves ranges and distinguishes optional rows from subquotes already included in a parent. VAT-exclusive/inclusive columns are not treated as price ranges.
 
 For earlier extracted budgets whose ranges were stored only in notes, preview explicit recoverable values with `php scripts/repair-budget-properties.php --project=PROJECT_ID`. Add `--apply` to repair draft source rows after backing up the database. This does not modify shared iterations or invent missing prices.
+
+### Automatic subquote matching
+
+After each quote/budget file finishes processing, the worker checks relationships across the current draft's uploaded budget sources. It can attach a newly uploaded subcontractor quote to an existing main quote, or attach an existing subquote when its main quote arrives later. Non-budget uploads do not trigger extra matching calls. The Budget view also has **Check subquotes** to check existing files without reimporting them.
+
+The matcher uses the configured text AI and supplies cost labels, vendor names, source notes and document excerpts. High-confidence matches require verifiable source excerpts and an explicit inclusion/additional-cost statement naming the vendor or a shared reference before they can change the hierarchy and included flag. Amount similarity alone is insufficient. If a parent document has several costs, automatic linking also requires evidence identifying the particular parent row. Conflicting or uncertain matches appear under **Possible subquotes**, with source evidence and actions to mark the cost included, additional or separate. Low-confidence or fabricated evidence is ignored. Prices and optional flags are not rewritten.
+
+Automatic links are labelled and can be undone from the cost details. Manual edits, accepted suggestions and undone links are protected from future automatic matching. Dismissed suggestions are remembered. Revised imports preserve cost identities when source keys or unique labels match, preserving manual cross-file links and budget choices; removed parents release their child costs instead of leaving them excluded from totals. Automatic links affected by source replacement are rechecked. Shared iterations are immutable, and model results are discarded if the budget changed during the request.
+
+Matching uses at most 2,000 cost rows per iteration and bounded document excerpts; partial or unavailable checks are surfaced in the Budget view. It does not infer certainty from omitted text. Matching failure does not discard imported costs, and **Check subquotes** can retry it separately. This is a text-AI operation and does not consume image-enhancement allowances.
+
+Tests: `php tests/test_subquotes.php`, `python3 tests/test_subquotes_api.py` and `node tests/test_subquotes.cjs`. The PHP/Python checks use temporary databases and injected AI results. To run the browser check, export the Python fixture using `STUDIODECK_TEST_EXPORT=/tmp/subquotes.json`, serve the current `public/` assets, and pass the export path plus `STUDIODECK_TEST_URL`, `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` to the browser test. No paid AI calls are made by these tests.
+
+### Image-enhancement allowances and saved variations
+
+Image alterations share one server-enforced allowance across a project's files, slides, users and iterations: **10 total for a Project Pass**, or **10 per calendar month (UTC) for monthly projects**. Queued/running edits reserve a slot, successful edits consume it, and failed edits release it. Monthly usage is attributed to the month an edit was requested; unused slots do not roll over. Viewing, comparing or selecting a saved version consumes no allowance. No credits, top-ups or upsells are implemented.
+
+Original images and all successful slide variations remain stored. The **AI-enhanced version** dropdown lists short summaries of the requested changes, including legacy variants. Designers can choose **Use this version** to save an older image as the draft's default. Client links can browse the versions present when that iteration was shared; newer draft versions do not leak into shared snapshots.
+
+New projects derive image allowances from verified billing coverage. The command below only controls the image policy of migration-exempt legacy projects; it does not grant paid access:
+
+```sh
+php scripts/set-project-enhancement-plan.php PROJECT_ID project_pass
+php scripts/set-project-enhancement-plan.php PROJECT_ID monthly
+```
+
+Changing a policy does not erase usage or images. The Project Pass policy counts historical image-edit jobs across the project's lifetime. The 150-day access period is enforced separately by the billing entitlement checks. Focused tests: `python3 tests/test_enhancements.py`; run with the PHP extensions supplied in the Docker image. Tests use temporary data and simulated image results, without paid AI calls. For the browser check, export a fixture with `STUDIODECK_TEST_EXPORT=/tmp/enhancements.json python3 tests/test_enhancements.py`, serve `public/` locally, then run `tests/test_enhancements.cjs` with the same export path plus `STUDIODECK_TEST_URL`, `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` as needed. The browser test mocks API responses; the Python test exercises the real API.
+
+### Studio starting packs
+
+Admins can open **Studio settings → Manage starting pack** to maintain reusable welcome, text, contact and image slides, plus client reference PDFs. New projects select the default items in the creation wizard and receive independent copies. Existing projects keep their copies unchanged. **Add slide → Add from studio template** offers only missing slides and preserves customised welcome and contact text. Shared iterations keep their exact copies. **Project documents** in the client presentation provides downloads and a document-question assistant with page citations.
+
+See [the setup and usage guide](docs/starting-packs.md) for placeholders, optional items and updates. Tests: `python3 tests/test_starting_pack.py` uses a temporary database with no external email or AI. `tests/test_starting_pack.cjs` exercises the real UI on desktop and mobile; its header lists the required isolated fixture environment variables.
+
+### Google Drive imports
+
+**Upload files** now opens a dialog with **From my computer** (browse or drag/drop) and **From Google Drive** tabs. Users connect their own account within their studio, browse or paste a folder link, select individual files and import copies through the existing processing pipeline. Folders cannot be selected. Google Docs, Slides and Sheets export to PDF, PPTX and XLSX. The new-project wizard supports the same Drive selection.
+
+Configure `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET` and `GOOGLE_DRIVE_TOKEN_KEY` before enabling real connections. The custom browser uses Google's restricted read-only Drive scope; the [setup guide](docs/google-drive.md) covers OAuth configuration, verification requirements, limits and usage. Tests: `python3 tests/test_drive.py` and `node tests/test_drive.cjs`, with fake Google responses and no real external requests.
+
+## Signup and Stripe billing
+
+New studios receive a verified 7-day trial. Studio admins manage monthly packages, project-specific 150-day passes, €15 extensions and Stripe invoices in **Studio settings → Billing**. Existing studios retain explicit migration access. All project writes, client access and worker jobs enforce coverage server-side.
+
+See [billing deployment and operations](docs/billing.md) for Stripe setup, test commands, migration, refunds, notifications and staged retention cleanup. Checkout requires server-side Stripe keys and price IDs; secrets are not included in the repository.
+
+### First-project welcome
+
+Studios with no projects, including archived projects, see a welcome page with a captioned one-minute tour, an isolated tour through the actual app and a path into project creation starting at **How it works**. The first project gets a dismissible checklist, and **Getting started** keeps both tours available later. See [onboarding behavior, video generation and checks](docs/onboarding.md).

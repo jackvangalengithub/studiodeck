@@ -3,10 +3,15 @@ if($action==='project_settings'){
     $u=owner(true);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();
     if($multipart&&isset($b['tags'])&&is_string($b['tags']))$b['tags']=preg_split('/[,;\r\n]+/',$b['tags']);
     transaction(function()use($u,$b){
-        $p=owned_project(text_field($b['project_id']??''),$u);$visibility=$b['visibility']??$p['visibility'];if(!in_array($visibility,['team','public'],true))fail('Choose public or team members only.');
+        $pid=text_field($b['project_id']??'');$p=owned_project($pid,$u,false);if(!project_member($pid,$u['user_id']))fail('Only project team members can edit this project.',403);
+        $archiveOnly=empty($_FILES)&&count(array_diff(array_keys($b),['project_id','archived']))===0&&array_key_exists('archived',$b);
+        if(!$archiveOnly)billing_require_project($pid,$u['user_id']);
+        if($archiveOnly&&!empty($p['archived'])&&empty($b['archived']))billing_restore($p);
+        $visibility=$b['visibility']??$p['visibility'];if(!in_array($visibility,['team','public'],true))fail('Choose public or team members only.');
         $archived=array_key_exists('archived',$b)?(!empty($b['archived'])?1:0):(int)$p['archived'];
         $location=array_key_exists('location',$b)?text_field($b['location'],160):$p['location'];
-        query('UPDATE projects SET visibility=?,archived=?,location=? WHERE id=?',[$visibility,$archived,$location,$p['id']]);
+        $language=array_key_exists('language',$b)?language_field($b['language']):$p['language'];
+        query('UPDATE projects SET visibility=?,archived=?,location=?,language=? WHERE id=?',[$visibility,$archived,$location,$language,$p['id']]);
         $logo=$_FILES['logo']??null;
         if($logo&&$logo['error']!==UPLOAD_ERR_NO_FILE){$image=normalized_upload('logo');query('DELETE FROM project_logos WHERE project_id=?',[$p['id']]);insert('project_logos',['project_id'=>$p['id'],'data'=>$image,'mime'=>'image/png']);}
         elseif(!empty($b['remove_logo']))query('DELETE FROM project_logos WHERE project_id=?',[$p['id']]);
@@ -24,9 +29,12 @@ if($action==='pin_project'){
 if($action==='activity_feed'||$action==='comments_feed'){
     $u=owner();$offset=max(0,(int)($_GET['offset']??0));$params=[$u['studio_id'],$u['user_id']];$where=$action==='comments_feed'?project_team_sql():project_access_sql();
     if(!empty($_GET['project_id'])){$where.=' AND p.id=?';$params[]=text_field($_GET['project_id']);}
-    if($action==='activity_feed')$items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
-    else $items=rows("SELECT c.*,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,s.title AS slide_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide WHERE ".$where.' ORDER BY c.created_at DESC,c.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
-    $more=count($items)>100;if($action==='activity_feed')$items=activity_with_questions($items);if($action==='comments_feed')$items=decorate_comments($items,person_key($u['email'],true));json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
+    if($action==='comments_feed'){
+        $sort=text_field($_GET['sort']??'newest',10);if(!in_array($sort,['newest','oldest'],true))fail('Choose newest or oldest first.');
+        json_response(comment_feed_page($where,$params,$offset,person_key($u['email'],true),$sort,($_GET['show_answered']??'0')==='1')+['unread_count'=>unread_comment_count($u)]);
+    }
+    $items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
+    $more=count($items)>100;$items=activity_with_questions($items);json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
 }
 
 if($action==='resolve_slide'){
@@ -44,7 +52,8 @@ if(in_array($action,['prepare_delete_project','delete_project'],true)){
     $u=owner(true);$b=input();
     $result=transaction(function()use($u,$b,$action){
         if(!one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']]))fail('Only studio admins can permanently delete projects.',403);
-        $p=owned_project(text_field($b['project_id']??''),$u,false);$pid=$p['id'];
+        $p=owned_project(text_field($b['project_id']??''),$u,false);$pid=$p['id'];if(!project_member($pid,$u['user_id']))fail('Only project team members can delete a project.',403);
+        if(one("SELECT 1 FROM billing_orders WHERE project_id=? AND status='pending'",[$pid]))fail('Cancel the pending checkout before deleting this project.',409);
         if(one("SELECT 1 FROM jobs WHERE project_id=? AND status IN ('queued','running')",[$pid])||one("SELECT 1 FROM email_outbox WHERE comment_id IN (SELECT c.id FROM comments c JOIN iterations i ON i.id=c.iteration_id WHERE i.project_id=?) AND status='sending'",[$pid]))fail('Wait for processing and email delivery to finish before deleting this project.',409);
         if($action==='prepare_delete_project'){
             query('DELETE FROM project_delete_confirmations WHERE expires_at<? OR (project_id=? AND user_id=?)',[time(),$pid,$u['user_id']]);
@@ -54,16 +63,6 @@ if(in_array($action,['prepare_delete_project','delete_project'],true)){
         $confirmation=one('SELECT 1 FROM project_delete_confirmations WHERE token_hash=? AND project_id=? AND user_id=? AND expires_at>?',[hash_token(text_field($b['confirmation']??'',128)),$pid,$u['user_id'],time()]);
         if(!$confirmation)fail('Start the deletion confirmation again. It expires after 10 minutes.',409);
         if(($b['name']??null)!==$p['name']||($b['acknowledged']??null)!==true)fail('Type the exact project name and confirm that deletion is permanent.');
-        $iterations='SELECT id FROM iterations WHERE project_id=?';$versions='SELECT v.id FROM file_versions v JOIN assets a ON a.id=v.asset_id WHERE a.project_id=?';
-        query("DELETE FROM email_outbox WHERE comment_id IN (SELECT id FROM comments WHERE iteration_id IN ($iterations))",[$pid]);
-        query("DELETE FROM share_aliases WHERE share_id IN (SELECT id FROM shares WHERE iteration_id IN ($iterations))",[$pid]);
-        foreach(['comments','shares','slide_sections','slide_groups','slide_layout','slide_content','presentation_slides','iteration_files'] as $table)query("DELETE FROM $table WHERE iteration_id IN ($iterations)",[$pid]);
-        query("UPDATE budget_items SET parent_id=NULL WHERE iteration_id IN ($iterations)",[$pid]);query("DELETE FROM budget_items WHERE iteration_id IN ($iterations)",[$pid]);
-        query('DELETE FROM jobs WHERE project_id=?',[$pid]);
-        query("UPDATE slide_image_versions SET parent_id=NULL WHERE source_version_id IN ($versions)",[$pid]);query("DELETE FROM slide_image_versions WHERE source_version_id IN ($versions)",[$pid]);
-        query("DELETE FROM document_pages WHERE version_id IN ($versions)",[$pid]);
-        query("UPDATE file_versions SET parent_id=NULL WHERE id IN ($versions)",[$pid]);query("DELETE FROM file_versions WHERE id IN ($versions)",[$pid]);
-        foreach(['assets','contacts','events','project_members','project_pins','project_logos','project_details','iterations'] as $table)query("DELETE FROM $table WHERE project_id=?",[$pid]);
-        query('DELETE FROM projects WHERE id=?',[$pid]);return ['ok'=>true];
+        delete_project_records($pid);return ['ok'=>true];
     });json_response($result);
 }

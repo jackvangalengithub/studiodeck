@@ -15,9 +15,9 @@ The static site uses these proposed EUR prices, excluding VAT:
 | Studio | €199 | Monthly | Up to 5 | 15 |
 | Practice | €399 | Monthly | 15 included | 50 |
 
-All subscriptions are monthly only, at the displayed prices. Studio is capped at 5 people. Practice includes 15 people; additional people cost €20 each per month, without increasing included project capacity. For example, 18 people costs €459/month for 50 active projects. Lead with the €19.00 Project Pass as the easiest first purchase: one payment, one project, 150 days of access, no subscription. It appears in the hero and above the monthly plans. The Project Pass access period is limited to 150 days. Define activation timing, extensions and post-expiry file retention before paid launch.
+All subscriptions are monthly only, at the displayed prices. Studio is capped at 5 people. Practice includes 15 people; additional people cost €20 each per month, without increasing included project capacity. For example, 18 people costs €459/month for 50 active projects. Lead with the €19.00 Project Pass as the easiest first purchase: one payment, one project, 150 days of access, no subscription. It appears in the hero and above the monthly plans. The Project Pass access period is limited to 150 days. Buy the pass first; its 150-day access period begins when it is redeemed to create a project. A €15 extension adds 150 days without resetting AI usage; private read-only retention lasts at least 90 days after notice.
 
-These are hypotheses for customer testing. The application currently supports the underlying workflow and studio memberships, but active-project and seat quotas, subscriptions and payment flows are not implemented. Image-enhancement limits are enforced in the app, with server-assigned project policies. The website identifies the plans as proposed and does not collect payment.
+These prices remain commercial hypotheses to validate with customers. The application now implements Stripe checkout, recurring billing, access gates, project/seat quotas and a 7-day trial. See [billing deployment](../docs/billing.md) for activation and operational requirements.
 
 ## Included project capacity and add-ons
 
@@ -35,7 +35,7 @@ The €19 Project Pass is for one designer, one project and 150 days of access. 
 - **Solo:** a complete product for one professional; do not weaken presentation quality to force an upgrade.
 - **Studio:** the natural team bundle. Up to five people share 15 active projects for €199/month. A sixth person requires the Practice tier. The current product already supports memberships, project teams and access controls.
 - **Practice:** 15 included people and 50 active projects for €399/month, with extra people at €20/month each, using the existing project/team model. Do not claim SSO, dedicated hosting, SLAs, native CAD/BIM editing, formal client approvals, procurement, accounting integrations or unlimited storage.
-- **Project Pass:** the primary entry offer, at €19.00 for one project, one designer and 150 days of access. No recurring subscription. Define extension and post-expiry file-retention terms before paid launch, and keep those separate from the expiry of individual share links.
+- **Project Pass:** the primary entry offer, at €19.00 for one project, one designer and 150 days of access. No recurring subscription. Extensions cost €15 for another 150 days. Post-expiry private downloads remain available for at least 90 days after notice. Individual share-link expiry remains separate.
 
 Branding currently supports project/studio logos, palettes and typography; presentations retain “Presented by studiodeck.” Do not sell full white labelling or custom domains until those exist.
 
@@ -68,7 +68,7 @@ For an **illustrative 80% gross-margin target**, a €39/month Solo subscription
 - **A client-view demo:** already included in the site. Buyers can experience the presentation, budget context and feedback before making an account.
 - **Discipline-specific examples:** already included. Garden designers should see planting/landscape context; architects should see drawings and revisions; interior designers should see material and room stories.
 - **One-project onboarding:** once signup exists, help customers import one real project and preview a deck before asking them to set up an entire studio.
-- **A trial with limits:** consider 14 days and one active project, with AI included, with a clear path to export originals. A trial and its lifecycle need backend implementation before they can be advertised as available.
+- **A trial with limits:** 7 days, one designer, one active project, no card; 3 image enhancements, bounded uploads and question usage. Original files and a project export remain available after expiry during retention.
 - **An optional first-deck service:** charge a clear one-time fee only when you can provide a defined human onboarding service.
 - **Proof over generic praise:** publish permissioned customer examples, before/after workflows and real case studies when available. The site deliberately avoids invented customer counts, ratings, time savings or testimonials. Its sample feedback is explicitly fictional.
 

@@ -31,9 +31,9 @@ The demo intentionally uses fictional project data. Its comments only exist in p
 
 ## Commercial decisions
 
-See [PRICING.md](PRICING.md) for the recommended packages, alternatives, economics and launch decisions. The prices and limits on the website are proposals, not existing subscription entitlements. The app enforces image-enhancement allowances using server-assigned project policies; checkout, subscriptions and active-project/seat limits remain unimplemented.
+See [PRICING.md](PRICING.md) for the recommended packages, alternatives, economics and launch decisions. The app implements these packages, Stripe checkout, trials, project/seat limits and image allowances. Actual purchasing requires the deployment’s Stripe configuration.
 
-Before enabling purchasing, confirm the actual commercial terms and connect the plan buttons to a real checkout/account flow. The present plan dialog is deliberately a proposal preview. Replace it once checkout is available; do not simply remove the launch explanation.
+Before enabling purchasing, configure the application origin, Stripe products, tax handling and production billing terms. Plan dialogs link into signup; payment happens in the authenticated app.
 
 Plan amounts are in `script.js` and the static HTML in `index.html`; keep those in sync when editing. Plan features are in `index.html`. Exact app color tokens and base styling are in `styles.css`; the editorial layout is in `luxury.css`. Photograph and font provenance is in [assets/SOURCES.md](assets/SOURCES.md).
 
@@ -42,3 +42,7 @@ Plan amounts are in `script.js` and the static HTML in `index.html`; keep those 
 Checked in Chromium at 320, 375, 390, 768, 1024, 1440 and 1920 CSS pixels. Browser checks cover resource loading, horizontal overflow, the mobile menu, monthly prices, plan selection, downloaded summaries, keyboard tabs, budget source disclosure, safe text-only sample comments, expanded images, FAQ and privacy dialogs.
 
 No changes or tests are required in the separate PHP application for this static site.
+
+## Signup connection
+
+Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`). Empty uses the marketing page’s origin. The trial CTA and plan dialog link to `/login`; payment is handled inside the PHP app through Stripe. For separate local preview servers, set this to the PHP server origin. See [billing setup](../docs/billing.md).

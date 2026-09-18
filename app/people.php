@@ -2,13 +2,13 @@
 declare(strict_types=1);
 function person_key(string $email,bool $owner): string {return ($owner?'user:':'client:').strtolower($email);}
 function profile_for(string $key,string $fallback=''): array {
-    $p=one('SELECT name,color,email_comments,avatar FROM person_profiles WHERE person_key=?',[$key])?:['name'=>'','color'=>'','email_comments'=>1,'avatar'=>null];
+    $p=one('SELECT name,color,email_comments,avatar,language FROM person_profiles WHERE person_key=?',[$key])?:['name'=>'','color'=>'','email_comments'=>1,'avatar'=>null,'language'=>''];
     $p['color']='';$p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
 }
 function profile_identity(bool $write=false): array {
-    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client ')){access_iteration('', $write);$u=owner($write);return [person_key($u['email'],true),$u['email'],$u['name']];}
-    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Bearer ')){[$i,$email]=access_iteration();$session=current_session();if($session&&$session['email']===$email){if($write)owner(true);return [person_key($email,true),$email,$session['name']];}return [person_key($email,false),$email,explode('@',$email)[0]];}
-    $u=owner($write);return [person_key($u['email'],true),$u['email'],$u['name']];
+    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client ')){access_iteration('', $write);$u=authenticated_user($write);return [person_key($u['email'],true),$u['email'],$u['name']];}
+    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Bearer '))fail('Sign in to access your profile.',401);
+    $u=authenticated_user($write);return [person_key($u['email'],true),$u['email'],$u['name']];
 }
 function normalized_upload(string $field,int $size=640): string {
     $f=$_FILES[$field]??null;if(!$f||$f['error']!==UPLOAD_ERR_OK||!is_uploaded_file($f['tmp_name']))fail('Choose an image.');
@@ -38,6 +38,7 @@ function builtin_comment_thumbnail(array $c,array $i): GdImage {
     $font='/usr/share/fonts/truetype/dejavu/DejaVu'.(($theme['font']??'serif')==='serif'?'Serif':'Sans').'.ttf';
     $text=function(string $value,int $x,int $y,int $size=20)use($im,$ink,$font){if(is_file($font)&&function_exists('imagettftext'))imagettftext($im,$size,0,$x,$y,$ink,$font,preview_text($value,42));else { $value=substr($value,0,42);$layer=imagecreatetruecolor(max(1,strlen($value)*9),16);$color=imagecolorsforindex($im,imagecolorat($im,0,0));$background=imagecolorallocate($layer,$color['red'],$color['green'],$color['blue']);imagefill($layer,0,0,$background);$fg=imagecolorsforindex($im,$ink);$foreground=imagecolorallocate($layer,$fg['red'],$fg['green'],$fg['blue']);imagestring($layer,5,0,0,$value,$foreground);$scale=$size/12;imagecopyresampled($im,$layer,$x,$y-(int)(16*$scale),0,0,(int)(imagesx($layer)*$scale),(int)(16*$scale),imagesx($layer),16);imagedestroy($layer); }};
     $text('CONCEPT '.str_pad((string)$i['number'],2,'0',STR_PAD_LEFT),24,35,10);
+    $c['slide']=system_slide_type($i['id'],$c['slide'])??$c['slide'];
     $custom=str_starts_with($c['slide'],'visual-')?current_slide($i['id'],substr($c['slide'],7)):one('SELECT title,description FROM slide_content WHERE iteration_id=? AND slide_id=?',[$i['id'],$c['slide']]);
     if($custom){$text($custom['title'],24,95,23);$text(preview_text($custom['description'],44),24,155,12);return $im;}
     if($c['slide']==='intro'){
@@ -46,7 +47,7 @@ function builtin_comment_thumbnail(array $c,array $i): GdImage {
         $slide=one("SELECT * FROM presentation_slides WHERE iteration_id=? AND type IN ('render','photo','moodboard') ORDER BY CASE type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,position LIMIT 1",[$i['id']]);
         if($slide){try{$source=slide_image_source($slide);$photo=@imagecreatefromstring($source['data']);if($photo){$scale=min(191/imagesx($photo),198/imagesy($photo));$w=(int)(imagesx($photo)*$scale);$h=(int)(imagesy($photo)*$scale);imagecopyresampled($im,$photo,265+(int)((191-$w)/2),60+(int)((198-$h)/2),0,0,$w,$h,imagesx($photo),imagesy($photo));imagedestroy($photo);}}catch(Throwable $e){}}
     }else{
-        $titles=['budget'=>'The investment.','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
+        $titles=['budget'=>'The investment.','open-questions'=>'Open questions','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
         if(in_array($c['slide'],['budget','summary'],true)){$total=budget_total(budget_rows($i['id']));$text('€ '.number_format($total/100,0,'.',','),24,155,29);foreach([270,220,165] as $n=>$w)imagefilledrectangle($im,24,182+$n*22,$w,192+$n*22,$soft);}
         elseif($c['slide']==='contacts'){$people=rows("SELECT name FROM contacts WHERE project_id=? AND role<>'Client' LIMIT 3",[$i['project_id']]);foreach($people as $n=>$person){$x=45+$n*145;imagefilledellipse($im,$x+18,145,44,44,$soft);$text(preview_text($person['name'],12),$x-18,195,11);}}
         else{$text(preview_text($p['name'],36),24,148,15);imagefilledrectangle($im,24,178,365,186,$soft);imagefilledrectangle($im,24,202,305,210,$soft);}

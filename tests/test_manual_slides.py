@@ -83,6 +83,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-manual-') as temp:
         link=admin.call('share',{'iteration':iid,'emails':['client@example.test']})['links'][0];client=Client(base);client.bearer=link['url'].split('/#/view/')[1]
         shared=client.call('deck');check(len(shared['slides'])==3 and shared['slide_content'][0]['title']=='Our introduction','Clients receive saved manual slides and built-in edits')
         client.call('save_slide',{'iteration':iid,'type':'text','title':'Forbidden'},expected=401)
+        admin.call('lock_iteration',{'iteration':iid})
         admin.call('save_slide',{'iteration':iid,'slide_id':text[7:],'type':'text','title':'Shared'},expected=409)
         newer=admin.call('new_iteration',{'iteration':iid},expected=201)['id']
         admin.call('save_slide',{'iteration':newer,'slide_id':text[7:],'type':'text','title':'New story'})

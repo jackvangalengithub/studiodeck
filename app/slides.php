@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 const VISUAL_TYPES=['moodboard','photo','render','drawing','floorplan','other','fullphoto'];
 const VISUAL_SITUATIONS=['before','concept','after','reference','unknown'];
+// Product capabilities belong to the slide type, never to saved slide settings.
+const SLIDE_TYPE_CAPABILITIES=[
+    'moodboard'=>['ai_edit'=>false], 'photo'=>['ai_edit'=>true],
+    'render'=>['ai_edit'=>true], 'drawing'=>['ai_edit'=>true],
+    'floorplan'=>['ai_edit'=>false], 'other'=>['ai_edit'=>true],
+    'fullphoto'=>['ai_edit'=>true],
+];
+function slide_type_can_ai_edit(string $type): bool {
+    return SLIDE_TYPE_CAPABILITIES[$type]['ai_edit']??false;
+}
 function clean_visual_label(array $value,array $fallback=[]): array {
     $type=in_array($value['type']??'',VISUAL_TYPES,true)?$value['type']:($fallback['type']??'other');
     $situation=in_array($value['situation']??'',VISUAL_SITUATIONS,true)?$value['situation']:($fallback['situation']??'unknown');
@@ -111,7 +121,7 @@ function save_visual_slides(string $iid,array $v,array $visuals): void {
 }
 function project_slides(string $iid): array {
     $slides=rows('SELECT s.*,v.name AS source_name,v.mime AS source_mime FROM presentation_slides s LEFT JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id LEFT JOIN file_versions v ON v.id=s.source_version_id WHERE (s.manual=1 OR f.category!="legal") AND s.iteration_id=? ORDER BY s.position,s.page_number,s.image_number,s.id',[$iid]);
-    foreach($slides as &$s)$s['metadata']=json_decode($s['metadata'],true)?:[];
+    foreach($slides as &$s){$s['metadata']=json_decode($s['metadata'],true)?:[];$s['image_variants']=slide_image_variants($s);}
     return $slides;
 }
 function current_slide(string $iid,string $sid): ?array {
@@ -133,9 +143,12 @@ function slide_image_source(array $slide,bool $original=false): array {
 function save_slide_image_result(array $job,array $rawSlide,array $payload,string $raw): string {
     return transaction(function()use($job,$rawSlide,$payload,$raw){
         $i=one('SELECT * FROM iterations WHERE id=?',[$job['iteration_id']]);$current=current_slide($i['id'],$rawSlide['id']);
-        if($i['status']!=='draft'||!$current||$current['image_version_id']!==($payload['expected_image_version_id']??null)||$current['source_version_id']!==$job['version_id']||($payload['mode']==='photorealistic'&&$current['type']!=='render'))throw new RuntimeException('The slide changed while editing. Its current image was preserved.');
+        if(!empty($i['locked'])||!$current||!slide_type_can_ai_edit($current['type'])||$current['image_version_id']!==($payload['expected_image_version_id']??null)||$current['source_version_id']!==$job['version_id']||($payload['mode']==='photorealistic'&&$current['type']!=='render'))throw new RuntimeException('The slide changed while editing. Its current image was preserved.');
+        copy_slide_image_history($current,$current);
         $vid=id();insert('slide_image_versions',['id'=>$vid,'parent_id'=>$current['image_version_id'],'source_version_id'=>$job['version_id'],'mime'=>'image/png','data'=>$raw,'metadata'=>json_encode(['prompt'=>$payload['prompt'],'mode'=>$payload['mode'],'generated'=>true,'review_required'=>true]),'created_at'=>now()]);
+        remember_slide_image($current,$vid);
         query('UPDATE presentation_slides SET image_version_id=? WHERE iteration_id=? AND id=?',[$vid,$i['id'],$current['id']]);
+        query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
         audit($i['project_id'],$i['id'],'Studiodeck','slide_image_created',$current['title']);return $vid;
     });
 }
@@ -153,6 +166,12 @@ function ensure_iteration_slides(string $iid): void {
     }
 }
 
+const SYSTEM_SLIDE_TYPES=['intro','changes','budget','open-questions','contacts','summary'];
+function system_slide_type(string $iid,string $sid): ?string {
+    if(in_array($sid,SYSTEM_SLIDE_TYPES,true))return $sid;
+    return one('SELECT type FROM system_slides WHERE iteration_id=? AND id=?',[$iid,$sid])['type']??null;
+}
+
 // Includes generated section slides and legacy source pages, so every editor row is manageable.
 function editor_slide_ids(string $iid): array {
     $slides=project_slides($iid);$ids=['intro'];$covered=[];
@@ -165,7 +184,21 @@ function editor_slide_ids(string $iid): array {
         $pages=array_filter($pages,fn($p)=>(json_decode($p['metadata'],true)['include_in_presentation']??true)!==false);
         foreach($pages?:($hasPages?[]:[['number'=>0]]) as $p)$ids[]='source-'.$f['id'].'-'.$p['number'];
     }
-    return [...$ids,'changes','budget','contacts','summary'];
+    return [...$ids,'changes','budget','open-questions','contacts','summary',...array_column(rows('SELECT id FROM system_slides WHERE iteration_id=? ORDER BY rowid',[$iid]),'id')];
+}
+
+// Match presentationSlides/defaultSlideSection, including implicit and hidden slides.
+function editor_slide_sections(string $iid): array {
+    $groups=slide_groups($iid);$sections=[];
+    foreach(editor_slide_ids($iid) as $sid)$sections[$sid]=str_starts_with($sid,'source-')?'designs':match($sid){'budget'=>'budget','open-questions'=>'questions',default=>'story'};
+    foreach(rows('SELECT id,type FROM system_slides WHERE iteration_id=?',[$iid]) as $slide)$sections[$slide['id']]=match($slide['type']){'budget'=>'budget','open-questions'=>'questions',default=>'story'};
+    $slides=project_slides($iid);
+    foreach($slides as $slide)$sections['visual-'.$slide['id']]=in_array($slide['type'],['fullphoto','text','video'],true)?'story':($slide['situation']==='before'?'current':($slide['type']==='moodboard'?'moodboards':'designs'));
+    if(!$slides)foreach(rows("SELECT v.id,v.mime,f.category FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=?",[$iid]) as $file)if(str_starts_with($file['mime'],'image/'))$sections['visual-legacy-'.$file['id']]=$file['category']==='moodboard'?'moodboards':'designs';
+    foreach($sections as &$section)if(!isset($groups[$section]))$section=array_key_first($groups);
+    unset($section);
+    foreach(rows('SELECT slide_id,section FROM slide_sections WHERE iteration_id=?',[$iid]) as $row)if(isset($groups[$row['section']]))$sections[$row['slide_id']]=$row['section'];
+    return $sections;
 }
 
 // Follow generated variants back to the uploaded image; stop at a manual replacement.

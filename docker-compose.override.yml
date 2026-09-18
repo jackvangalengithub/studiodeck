@@ -1,0 +1,36 @@
+# Local development: use the current workspace even when an older image is rebuilt.
+services:
+  web:
+    volumes:
+      - ./app:/app/app:ro
+      - ./public:/app/public:ro
+      - ./scripts:/app/scripts:ro
+  worker:
+    volumes:
+      - ./app:/app/app:ro
+      - ./scripts:/app/scripts:ro
+  fakestripe:
+    build: ./fakestripe
+    image: studiodeck-fakestripe
+    environment:
+      FAKESTRIPE_PUBLIC_URL: ${FAKESTRIPE_PUBLIC_URL:-http://localhost:8299}
+      FAKESTRIPE_API_KEY: sk_test_fakestripe
+      FAKESTRIPE_WEBHOOK_SECRET: whsec_fakestripe_local
+      FAKESTRIPE_WEBHOOK_URL: http://web:8080/stripe-webhook.php
+      FAKESTRIPE_APP_URL: ${APP_URL:-http://localhost:8080}
+      FAKESTRIPE_STATE_PATH: /data/state.json
+    ports:
+      - "127.0.0.1:${FAKESTRIPE_PORT:-8299}:8200"
+    volumes:
+      - fakestripe-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8200/health') === false ? 1 : 0);"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  fakestripe-data:
+    # Keep the existing store when renaming the service.
+    name: studiodeck_fakestrip-data

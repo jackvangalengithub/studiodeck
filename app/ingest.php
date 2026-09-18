@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__.'/bootstrap.php';
+require_once __DIR__.'/uploads.php';
+require_once __DIR__.'/drive.php';
 require_once __DIR__.'/documents.php';
 require_once __DIR__.'/slides.php';
 
@@ -108,25 +110,38 @@ function table_budget(array $table): array {
     }return $items;
 }
 function replace_source_budget(string $iid,string $vid,array $items): void {
-    // Delete only this asset's previous imported rows in the editable snapshot.
     $asset=one('SELECT asset_id FROM file_versions WHERE id=?',[$vid]);
-    $old=rows('SELECT b.id,b.label FROM budget_items b JOIN file_versions v ON v.id=b.source_version_id WHERE b.iteration_id=? AND v.asset_id=?',[$iid,$asset['asset_id']]);
-    $oldChoices=[];foreach($old as $r){$choice=one('SELECT * FROM budget_choices WHERE budget_item_id=?',[$r['id']]);$oldChoices[$r['label']][]=$choice;}
-    foreach($old as $r)query('UPDATE budget_items SET parent_id=NULL WHERE parent_id=?',[$r['id']]);
-    foreach($old as $r)query('DELETE FROM budget_items WHERE id=?',[$r['id']]);
-    $map=[]; foreach(array_slice($items,0,300) as $n=>$item) { $key=(string)($item['key']??$n); if(isset($map[$key]))throw new RuntimeException('Duplicate budget reference. Please review the source.'); $map[$key]=id(); }
-    foreach(array_slice($items,0,300) as $n=>$item) {
-        $key=(string)($item['key']??$n); $parent=$map[(string)($item['parent']??'')]??null;
-        $properties=budget_evidence_properties($item);
-        insert('budget_items',['id'=>$map[$key],'iteration_id'=>$iid,'parent_id'=>null,'source_version_id'=>$vid,'label'=>substr((string)($item['label']??'Unnamed item'),0,300),'vendor'=>substr((string)($item['vendor']??''),0,200),'amount_cents'=>$properties['min_amount_cents']!==null?null:(isset($item['amount_cents'])?(int)$item['amount_cents']:null),'kind'=>in_array($item['kind']??'',['quote','estimate','unknown'],true)?$item['kind']:'estimate','included'=>$parent&&!empty($item['included'])?1:0,'note'=>substr((string)($item['note']??''),0,2000),...$properties]);
-        $choices=$oldChoices[$item['label']??'']??[];if(count($choices)===1&&$choices[0]){$choice=$choices[0];$choice['budget_item_id']=$map[$key];insert('budget_choices',$choice);}
+    $old=rows('SELECT b.* FROM budget_items b JOIN file_versions v ON v.id=b.source_version_id WHERE b.iteration_id=? AND v.asset_id=?',[$iid,$asset['asset_id']]);
+    $keys=[];$labels=[];foreach($old as $row){if($row['source_key']!=='')$keys[$row['source_key']][]=$row;$labels[$row['label']][]=$row;}
+    $map=[];$reuse=[];$used=[];$items=array_slice($items,0,300);
+    foreach($items as $n=>$item){
+        $key=(string)($item['key']??$n);if(isset($map[$key]))throw new RuntimeException('Duplicate budget reference. Please review the source.');
+        $matches=$keys[$key]??($labels[$item['label']??'']??[]);$prior=count($matches)===1?$matches[0]:null;
+        if($prior&&isset($used[$prior['id']]))$prior=null;
+        $map[$key]=$prior['id']??id();if($prior){$reuse[$key]=$prior;$used[$prior['id']]=true;}
     }
-    foreach(array_slice($items,0,300) as $n=>$item) {
-        $key=(string)($item['key']??$n); $p=(string)($item['parent']??'');
-        if(!isset($map[$p]) || $p===$key)continue;
-        $seen=[$key=>true]; $cursor=$p;
-        while($cursor!=='' && isset($map[$cursor])) { if(isset($seen[$cursor]))throw new RuntimeException('Circular subquote references. Please review the source.'); $seen[$cursor]=true; $next=''; foreach($items as $j=>$candidate)if((string)($candidate['key']??$j)===$cursor)$next=(string)($candidate['parent']??''); $cursor=$next; }
-        query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$p],$map[$key]]);
+    // A replaced parent retains its identity when its source key/label is stable.
+    // Recheck automatic external links; preserve relationships chosen by people.
+    foreach($old as $row){
+        query("DELETE FROM budget_link_suggestions WHERE (child_id=? OR parent_id=?) AND status='pending'",[$row['id'],$row['id']]);
+        query("UPDATE budget_items SET parent_id=NULL,included=0,relationship_origin='source',relationship_evidence='' WHERE parent_id=? AND relationship_origin='auto' AND relationship_locked=0",[$row['id']]);
+        if(!isset($used[$row['id']])){
+            query("UPDATE budget_items SET parent_id=NULL,included=0,relationship_evidence='The parent cost was removed from its source. Review this relationship.' WHERE parent_id=?",[$row['id']]);
+            query('DELETE FROM budget_items WHERE id=?',[$row['id']]);
+        }
+    }
+    foreach($items as $n=>$item){
+        $key=(string)($item['key']??$n);$prior=$reuse[$key]??null;$parent=$map[(string)($item['parent']??'')]??null;$properties=budget_evidence_properties($item);
+        $data=['source_version_id'=>$vid,'source_key'=>$key,'label'=>substr((string)($item['label']??'Unnamed item'),0,300),'vendor'=>substr((string)($item['vendor']??''),0,200),'amount_cents'=>$properties['min_amount_cents']!==null?null:(isset($item['amount_cents'])?(int)$item['amount_cents']:null),'kind'=>in_array($item['kind']??'',['quote','estimate','unknown'],true)?$item['kind']:'estimate','note'=>substr((string)($item['note']??''),0,2000),...$properties];
+        if(!$prior||!$prior['relationship_locked'])$data=[...$data,'parent_id'=>null,'included'=>$parent&&!empty($item['included'])?1:0,'relationship_origin'=>'source','relationship_evidence'=>'','relationship_locked'=>0];
+        if($prior)query('UPDATE budget_items SET '.implode(',',array_map(fn($k)=>$k.'=?',array_keys($data))).' WHERE id=?',[...array_values($data),$prior['id']]);
+        else insert('budget_items',['id'=>$map[$key],'iteration_id'=>$iid,...$data]);
+    }
+    foreach($items as $n=>$item){
+        $key=(string)($item['key']??$n);$parent=(string)($item['parent']??'');
+        if(!empty($reuse[$key]['relationship_locked'])||!isset($map[$parent]))continue;
+        if(subquote_would_cycle(rows('SELECT id,parent_id FROM budget_items WHERE iteration_id=?',[$iid]),$map[$key],$map[$parent]))throw new RuntimeException('Circular subquote references. Please review the source.');
+        query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$parent],$map[$key]]);
     }
 }
 function extract_version(array $v,bool $legal=false): array {

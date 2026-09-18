@@ -1,6 +1,9 @@
 'use strict';
 
-// Static marketing preview: no network requests, checkout, analytics or storage.
+// Marketing previews remain local. Signup opens the configured application.
+const appBase=(document.querySelector('meta[name="studiodeck-app-url"]')?.content||location.origin).replace(/\/$/,'');
+const signupUrl=plan=>appBase+'/login'+(plan?'?plan='+encodeURIComponent(plan):'');
+document.querySelectorAll('[data-signup]').forEach(el=>el.addEventListener('click',()=>location.assign(signupUrl())));
 const plans = {
   solo: { name: 'Solo', monthly: 39, designers: 1, projects: 3, description: 'A considered workspace for your independent practice.' },
   studio: { name: 'Studio', monthly: 199, designers: 5, projects: 15, description: 'A shared home for your creative team and its next great ideas.' },
@@ -130,6 +133,7 @@ document.querySelector('#privacy-button').addEventListener('click', () => openDi
 document.querySelectorAll('[data-plan]').forEach(button => {
   button.addEventListener('click', () => {
     selectedPlan = button.dataset.plan;
+    document.querySelector('#signup-plan').href=signupUrl(selectedPlan);
     const plan = plans[selectedPlan];
     const pass = selectedPlan === 'pass';
     document.querySelector('#plan-dialog-title').textContent = pass ? 'One project. All the care.' : `Your ${plan.name} plan.`;
@@ -149,7 +153,7 @@ document.querySelector('#download-plan').addEventListener('click', () => {
   const plan = plans[selectedPlan];
   const details = [
     `STUDIODECK — ${plan.name.toUpperCase()}`,
-    'Proposed launch plan · pricing and terms are not final.', '',
+    'Studiodeck package details · complete your purchase in the application.', '',
     plan.description, '',
     document.querySelector('#summary-plan').textContent,
     document.querySelector('#summary-price').textContent,
@@ -159,7 +163,7 @@ document.querySelector('#download-plan').addEventListener('click', () => {
     'All AI features are included in this plan.',
     document.querySelector('#summary-enhancements').textContent,
     'Originals and saved enhancements remain available when the allowance is used up.',
-    selectedPlan === 'pass' ? `One payment for one project and ${plan.durationDays} days of access. No recurring subscription. Extension and post-expiry file-retention terms are to be confirmed before launch.` : 'Client access and project archives included; retention terms are to be confirmed.', '',
+    selectedPlan === 'pass' ? `One payment for one project and ${plan.durationDays} days of access. No recurring subscription. Extend the same project for another 150 days for €15 excluding VAT, without resetting its image allowance. After expiry, private downloads remain available for at least 90 days after notice.` : 'Archived projects are read-only. At the end of paid access, private downloads remain available for at least 90 days after notice.', '',
     'This is a saved plan preview, not an order, invoice or subscription. No payment has been taken.'
   ].join('\n');
   const url = URL.createObjectURL(new Blob([details], { type: 'text/plain;charset=utf-8' }));

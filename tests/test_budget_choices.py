@@ -81,6 +81,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-budget-') as temp:
         client.call('budget_choice',{'iteration':iid,'id':ranged,'range_percent':100})
         check(deck()['total_cents']==235000,'Clients can save budget preferences on shared presentations')
         check('choice_updated_by' not in client.call('deck')['budget'][0],'Client payload does not expose other clients’ email addresses')
+        owner.call('lock_iteration',{'iteration':iid})
         owner.call('save_budget',{'iteration':iid,'id':fixed,'label':'Changed quote','amount':'999'},expected=409)
         check(next(x for x in deck()['budget'] if x['id']==ranged)['min_amount_cents']==100000,'Interactive preferences preserve immutable source range endpoints')
         check(any(e['type']=='budget_choice_updated' and e['actor']=='client@example.test' for e in deck()['events']),'Designers can see who changed budget choices in activity')

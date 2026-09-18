@@ -12,7 +12,7 @@ def check(value,message):
     print('PASS',message)
 class Client:
     def __init__(self,base):
-        self.base=base; self.csrf=''; self.bearer=''; self.studio_context=None
+        self.base=base; self.csrf=''; self.bearer=''; self.client_share=''; self.studio_context=None
         self.cookies=http.cookiejar.CookieJar()
         self.opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
     def call(self,action,data=None,query='',files=None,expected=200,csrf=True,raw=False,file_field='files[]'):
@@ -20,6 +20,7 @@ class Client:
         if self.studio_context:headers['X-Studio-ID']=self.studio_context
         if self.csrf and csrf: headers['X-CSRF-Token']=self.csrf
         if self.bearer: headers['Authorization']='Bearer '+self.bearer
+        if self.client_share: headers['Authorization']='Client '+self.client_share
         if files:
             boundary='studiodeck-test-boundary';parts=[]
             for k,v in data.items():parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
@@ -38,6 +39,9 @@ class Client:
         tok=log.read_text().strip().splitlines()[-1].split('/#/login/')[1]
         self.call('consume_login',{'token':tok})
         self.csrf=self.call('session')['csrf']
+        # This suite exercises existing-studio deletion, independently of new signup billing.
+        with sqlite3.connect(log.parent/'test.sqlite') as db:
+            db.execute('UPDATE studio_billing SET legacy_exempt=1,onboarded_at=1 WHERE studio_id IN (SELECT m.studio_id FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?)',(email,))
         return tok
 
 with tempfile.TemporaryDirectory(prefix='studiodeck-editor-') as temp:
@@ -66,12 +70,35 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-editor-') as temp:
         viewer.call('add_slide_group',{'iteration':iid,'label':'Denied'},expected=403)
         viewer.call('prepare_delete_project',{'project_id':pid},expected=403)
         viewer.call('delete_project',{'project_id':pid},expected=403)
+        # Promoting an existing member grants deletion; demotion must take effect
+        # immediately, even with a confirmation issued before the role changed.
+        member_project=viewer.call('create_project',{'name':'Role change deletion check'},expected=201)
+        member_pid=member_project['project_id']
+        viewer.call('prepare_delete_project',{'project_id':member_pid},expected=403)
+        viewer.call('save_studio_user',{'email':'viewer@example.test','name':'Viewer','role':'admin'},expected=403)
+        viewer_id=viewer.call('session')['user']['id']
+        role_payload={'id':viewer_id,'email':'viewer@example.test','name':'Viewer','role':'admin'}
+        admin.call('save_studio_user',role_payload)
+        check(viewer.call('session')['studio']['role']=='admin','Promotion updates the existing member session without signing in again')
+        role_confirmation=viewer.call('prepare_delete_project',{'project_id':member_pid})['confirmation']
+        role_delete={'project_id':member_pid,'confirmation':role_confirmation,'name':'Role change deletion check','acknowledged':True}
+        admin.call('save_studio_user',{**role_payload,'role':'member'})
+        viewer.call('prepare_delete_project',{'project_id':member_pid},expected=403)
+        viewer.call('delete_project',role_delete,expected=403)
+        check(viewer.call('project',query='&id='+member_pid)['project']['id']==member_pid,'Demotion blocks a previously authorized deletion and preserves the project')
+        admin.call('save_studio_user',role_payload)
+        role_delete['confirmation']=viewer.call('prepare_delete_project',{'project_id':member_pid})['confirmation']
+        viewer.call('delete_project',role_delete)
+        viewer.call('project',query='&id='+member_pid,expected=404)
+        admin.call('save_studio_user',{**role_payload,'role':'member'})
+        check(admin.call('project',query='&id='+pid)['project']['id']==pid,'A promoted admin can delete an accessible project without affecting another project')
         stranger=Client(base);stranger.login('other@example.test',log)
         stranger.call('prepare_delete_project',{'project_id':pid},expected=404)
         other=admin.call('create_project',{'name':'Another project'},expected=201)
         link=admin.call('share',{'iteration':iid,'emails':['client@example.test']})['links'][0]
-        client=Client(base);client.bearer=link['url'].split('/#/view/')[1]
-        client.call('add_slide_group',{'iteration':iid,'label':'Denied'},expected=401)
+        client=Client(base);client.login('client@example.test',log);client.client_share=link['id']
+        client.call('add_slide_group',{'iteration':iid,'label':'Denied'},expected=403)
+        admin.call('lock_iteration',{'iteration':iid})
         admin.call('add_slide_group',{'iteration':iid,'label':'Frozen'},expected=409)
         newer=admin.call('new_iteration',{'iteration':iid},expected=201)['id']
         check(admin.call('project',query='&id='+pid+'&iteration='+newer)['slide_groups']==deck['slide_groups'],'Custom group definitions carry forward into new iterations')
@@ -80,6 +107,11 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-editor-') as temp:
         from test_extraction import png
         admin.call('upload',{'iteration':newer},files=[('concept-render.png','image/png',png('#778899'))],expected=201)
         subprocess.run([PHP,str(ROOT/'scripts/worker.php'),'--once'],env=env,check=True,capture_output=True)
+        # Ingestion also queues question suggestions; deletion waits for all project work.
+        for _ in range(20):
+            with sqlite3.connect(tmp/'test.sqlite') as db: pending=db.execute("SELECT COUNT(*) FROM jobs WHERE project_id=? AND status IN ('queued','running')",(pid,)).fetchone()[0]
+            if not pending: break
+            subprocess.run([PHP,str(ROOT/'scripts/worker.php'),'--once'],env=env,check=True,capture_output=True)
         d=admin.call('project',query='&id='+pid+'&iteration='+newer);source=next(f['id'] for f in d['files'] if f['name']=='concept-render.png')
         with sqlite3.connect(tmp/'test.sqlite') as db:
             db.execute("INSERT INTO document_pages VALUES(?,1,'Source text','{}',NULL)",(source,))
@@ -97,7 +129,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-editor-') as temp:
         admin.call('delete_project',{'project_id':pid,'confirmation':confirmation,'name':'Keep / Delete carefully','acknowledged':True},csrf=False,expected=403)
         admin.call('delete_project',{'project_id':pid,'confirmation':confirmation,'name':'Keep / Delete carefully','acknowledged':True})
         admin.call('project',query='&id='+pid,expected=404)
-        client.call('deck',expected=403)
+        client.call('deck',expected=404)
         check(admin.call('project',query='&id='+other['project_id'])['project']['name']=='Another project','Deletion preserves unrelated projects and revokes client access')
         with sqlite3.connect(tmp/'test.sqlite') as db:
             check(not db.execute('PRAGMA foreign_key_check').fetchall(),'Permanent deletion leaves no broken foreign keys')

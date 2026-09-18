@@ -24,8 +24,8 @@ function save_designed_slide(array $i,array $b,array $u): array {
     $title=text_field($b['title']??'',160);$description=text_field($b['description']??($slide['description']??''),1600);
     if(!$title)fail('Give the slide a title.');
     $section=text_field($b['section']??'',40);if($section&&!isset(slide_groups($i['id'])[$section]))fail('Choose a valid group.');
-    if(in_array($sid,['intro','changes','budget','contacts','summary'],true)){
-        query('INSERT INTO slide_content(iteration_id,slide_id,title,description) VALUES(?,?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET title=excluded.title,description=excluded.description',[$i['id'],$sid,$title,$description]);
+    if($systemType=system_slide_type($i['id'],$sid)){
+        query('INSERT INTO slide_content(iteration_id,slide_id,title,description) VALUES(?,?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET title=excluded.title,description=excluded.description',[$i['id'],$systemType,$title,$description]);
         if($section)query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);
         audit($i['project_id'],$i['id'],$u['email'],'slide_updated',$title);return ['id'=>$sid];
     }
@@ -48,6 +48,7 @@ function save_designed_slide(array $i,array $b,array $u): array {
             $name=basename(str_replace('\\','/',text_field($upload['name'],240)));$mime=validate_upload($name,$upload['tmp_name']);
             if(!in_array($mime,['image/jpeg','image/png','image/webp'],true))fail('Choose a JPG, PNG or WebP photo.');
             $raw=file_get_contents($upload['tmp_name']);$preview=png_preview($raw);if(!$preview)fail('This photo could not be opened. Please try another image.');
+            billing_reserve_usage($i['project_id'],'uploads');billing_reserve_usage($i['project_id'],'upload_bytes',strlen($raw));billing_trial_storage($u['studio_id'],strlen($raw));
             $asset=id();$vid=id();insert('assets',['id'=>$asset,'project_id'=>$i['project_id'],'category'=>'renders','created_at'=>now()]);
             insert('file_versions',['id'=>$vid,'asset_id'=>$asset,'number'=>1,'name'=>$name,'mime'=>$mime,'size'=>strlen($raw),'sha256'=>hash('sha256',$raw),'data'=>$raw,'preview'=>$preview,'metadata'=>'{"manual":true}','created_at'=>now()]);
             insert('iteration_files',['iteration_id'=>$i['id'],'asset_id'=>$asset,'version_id'=>$vid,'category'=>'renders']);
@@ -73,6 +74,7 @@ function save_designed_slide(array $i,array $b,array $u): array {
     $fields=['source_version_id'=>$source['source_version_id'],'page_number'=>$source['page_number'],'image_number'=>$source['image_number'],'image_version_id'=>$source['image_version_id'],'type'=>$type,'situation'=>$situation,'title'=>$title,'description'=>$description,'metadata'=>json_encode($meta),'manual'=>(int)$manual];
     if($slide)query('UPDATE presentation_slides SET '.implode(',',array_map(fn($key)=>$key.'=?',array_keys($fields))).' WHERE iteration_id=? AND id=?',[...array_values($fields),$i['id'],$sid]);
     else insert('presentation_slides',['id'=>$sid,'iteration_id'=>$i['id'],...$fields,'position'=>(int)(one('SELECT MAX(position) AS n FROM presentation_slides WHERE iteration_id=?',[$i['id']])['n']??0)+1]);
+    if(!empty($source['id'])&&$source['source_version_id'])copy_slide_image_history($source,['id'=>$sid,'iteration_id'=>$i['id'],...$fields]);
     if($section)query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],'visual-'.$sid,$section]);
     audit($i['project_id'],$i['id'],$u['email'],$slide?'slide_updated':'slide_created',$title);
     return ['id'=>'visual-'.$sid];

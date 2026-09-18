@@ -10,13 +10,15 @@ function activity_with_questions(array $events): array {
 function question_slide_title(string $iid,string $slide): string {
     require_once __DIR__.'/slides.php';
     if(!in_array($slide,editor_slide_ids($iid),true))fail('This slide was not found in the presentation.',404);
-    $titles=['intro'=>'Welcome home','changes'=>'What’s new','budget'=>'The investment','contacts'=>'Your project team','summary'=>'Everything, together'];
+    $titles=['intro'=>'Welcome home','changes'=>'What’s new','budget'=>'The investment','open-questions'=>'Open questions','contacts'=>'Your project team','summary'=>'Everything, together'];
+    $slide=system_slide_type($iid,$slide)??$slide;
     $custom=one('SELECT title FROM slide_content WHERE iteration_id=? AND slide_id=?',[$iid,$slide]);if($custom)return $custom['title'];
     if(isset($titles[$slide]))return $titles[$slide];
     foreach(project_slides($iid) as $record)if('visual-'.$record['id']===$slide)return $record['title'];
     return 'Source slide';
 }
 function answer_with_activity(array $i,string $actor,string $slide,string $question,callable $answerer): array {
+    transaction(fn()=>billing_reserve_usage($i['project_id'],'questions'));
     $title=question_slide_title($i['id'],$slide);$eventId=id();
     transaction(function()use($eventId,$i,$actor,$slide,$title,$question){
         insert('events',['id'=>$eventId,'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'actor'=>$actor,'type'=>'question_asked','detail'=>$question,'created_at'=>now()]);

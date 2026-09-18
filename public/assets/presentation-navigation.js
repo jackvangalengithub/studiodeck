@@ -1,7 +1,7 @@
 let observer;
 export function syncPresentationNavigation(){
  observer?.disconnect();
- const presentation=document.querySelector('.presentation'),chrome=presentation?.querySelector('.presentation-chrome-top'),rail=chrome?.querySelector('.presentation-section-index');
+ const presentation=document.querySelector('.presentation'),chrome=presentation?.querySelector('.presentation-chrome-top')||document.querySelector('.editor-section-index'),rail=chrome?.querySelector('.presentation-section-index,.editor-group-list');
  if(!rail)return;
  const back=chrome.querySelector('[data-group-scroll="-1"]'),forward=chrome.querySelector('[data-group-scroll="1"]');
  const update=()=>{
@@ -9,11 +9,11 @@ export function syncPresentationNavigation(){
   // Absolute arrows reserve no space, so their appearance cannot move the groups.
   back.hidden=!overflow||rail.scrollLeft<=2;
   forward.hidden=!overflow||rail.scrollLeft+rail.clientWidth>=rail.scrollWidth-2;
-  presentation.style.setProperty('--presentation-toolbar-height',`${chrome.offsetHeight}px`);
+  presentation?.style.setProperty('--presentation-toolbar-height',`${chrome.offsetHeight}px`);
  };
  const revealActive=()=>{
   const selected=rail.querySelector('[aria-current="true"]');if(!selected)return;
-  const target=selected.closest('.section-split')||selected,r=rail.getBoundingClientRect(),b=target.getBoundingClientRect();
+  const target=selected.closest('.section-split,.slide-group')||selected,r=rail.getBoundingClientRect(),b=target.getBoundingClientRect();
   if(b.left<r.left+22)rail.scrollLeft-=r.left+22-b.left;
   else if(b.right>r.right-22)rail.scrollLeft+=b.right-(r.right-22);
  };

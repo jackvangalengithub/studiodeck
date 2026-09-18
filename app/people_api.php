@@ -3,7 +3,7 @@ if(in_array($action,['profile','save_profile','upload_avatar','remove_avatar'],t
     [$key,$email,$name]=profile_identity($action!=='profile');
     if($action!=='profile'){
         query('INSERT OR IGNORE INTO person_profiles(person_key) VALUES(?)',[$key]);
-        if($action==='save_profile'){$b=input();$name=text_field($b['name']??'',100);if(!$name)fail('Enter your name.');$color='';query('UPDATE person_profiles SET name=?,color=?,email_comments=? WHERE person_key=?',[$name,$color,!empty($b['email_comments'])?1:0,$key]);if(str_starts_with($key,'user:'))query('UPDATE users SET name=? WHERE email=?',[$name,$email]);}
+        if($action==='save_profile'){$b=input();$name=text_field($b['name']??'',100);if(!$name)fail('Enter your name.');$color='';$language=array_key_exists('language',$b)?language_field($b['language']):profile_for($key)['language'];query('UPDATE person_profiles SET name=?,color=?,email_comments=?,language=? WHERE person_key=?',[$name,$color,!empty($b['email_comments'])?1:0,$language,$key]);if(str_starts_with($key,'user:'))query('UPDATE users SET name=? WHERE email=?',[$name,$email]);}
         elseif($action==='remove_avatar')query('UPDATE person_profiles SET avatar=NULL WHERE person_key=?',[$key]);
         else {$data=normalized_upload('avatar',160);$q=db()->prepare('UPDATE person_profiles SET avatar=? WHERE person_key=?');$q->bindValue(1,$data,PDO::PARAM_LOB);$q->bindValue(2,$key);$q->execute();}
     }

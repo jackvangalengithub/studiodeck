@@ -1,3 +1,4 @@
+import {tr} from './i18n.js';
 const positions=new Map();
 export const comparisonPosition=id=>positions.get(id)??50;
 export const resetComparisonPosition=id=>positions.delete(id);
@@ -9,7 +10,7 @@ export function installComparisonControls(){
         document.querySelectorAll('[data-comparison]').forEach(root=>{
             if(root.dataset.comparison!==id)return;
             root.style.setProperty('--comparison',value+'%');
-            const range=root.querySelector('input');range.value=value;range.setAttribute('aria-valuetext',`${value}% original, ${100-value}% generated`);
+            const range=root.querySelector('input');range.value=value;range.setAttribute('aria-valuetext',tr('comparison_value',{original:value,generated:100-value}));
         });
     });
 }

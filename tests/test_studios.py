@@ -47,7 +47,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
     legacy.executescript((ROOT/'app/schema.sql').read_text().split('CREATE TABLE IF NOT EXISTS studios ')[0])
     legacy.execute('INSERT INTO users VALUES(?,?,?,?)',('legacy-admin','admin@example.test','Admin','2026-01-01'))
     legacy.execute('INSERT INTO projects VALUES(?,?,?,?,?,?,?)',('legacy-project','legacy-admin','Existing project','','','{}','2026-01-01'))
-    legacy.execute('INSERT INTO iterations VALUES(?,?,?,?,?,?,?)',('legacy-iteration','legacy-project',1,'First concept','draft','{}','2026-01-01'))
+    legacy.execute('INSERT INTO iterations(id,project_id,number,title,status,theme,created_at) VALUES(?,?,?,?,?,?,?)',('legacy-iteration','legacy-project',1,'First concept','draft','{}','2026-01-01'))
     legacy.execute('INSERT INTO studio_preferences VALUES(?,?)',('legacy-admin','{"palette":"clay","style":"classic"}'))
     legacy.commit();legacy.close()
     output=open(tmp/'server.log','w')
@@ -161,6 +161,8 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         admin.call('remove_studio_user',{'id':mid},expected=409)
         member.call('project_members',{'project_id':own['project_id'],'user_ids':[mid,aid]})
         other=admin.call('create_studio',{'name':'Second studio'},expected=201)['studio']['id']
+        # Membership regression fixture: grant this additional studio legacy migration access.
+        with sqlite3.connect(tmp/'test.sqlite') as db: db.execute('UPDATE studio_billing SET legacy_exempt=1,onboarded_at=1 WHERE studio_id=?',(other,))
         check(admin.call('projects')['projects']==[],'Selected studio scopes the project list')
         check(admin.call('comments_feed')['items']==[] and admin.call('activity_feed')['items']==[],'Feeds are isolated to the selected studio')
         admin.call('project',query='&id='+pid,expected=404)

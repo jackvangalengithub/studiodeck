@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS projects (id TEXT PRIMARY KEY, user_id TEXT NOT NULL 
 CREATE INDEX IF NOT EXISTS idx_projects_user ON projects(user_id);
 CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), name TEXT NOT NULL, role TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '');
 CREATE INDEX IF NOT EXISTS idx_contacts_project ON contacts(project_id);
-CREATE TABLE IF NOT EXISTS iterations (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), number INTEGER NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', theme TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, UNIQUE(project_id, number));
+CREATE TABLE IF NOT EXISTS iterations (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), number INTEGER NOT NULL, title TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', locked INTEGER NOT NULL DEFAULT 0, theme TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, UNIQUE(project_id, number));
 CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), category TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_assets_project ON assets(project_id);
 CREATE TABLE IF NOT EXISTS file_versions (id TEXT PRIMARY KEY, asset_id TEXT NOT NULL REFERENCES assets(id), parent_id TEXT REFERENCES file_versions(id), number INTEGER NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, sha256 TEXT NOT NULL, data BLOB NOT NULL, preview BLOB, extracted_text TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL, UNIQUE(asset_id, number));
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS budget_items (id TEXT PRIMARY KEY, iteration_id TEXT 
 CREATE INDEX IF NOT EXISTS idx_budget_iteration ON budget_items(iteration_id);
 CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, iteration_id TEXT NOT NULL REFERENCES iterations(id), token_hash TEXT NOT NULL UNIQUE, email TEXT NOT NULL, expires_at INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_shares_iteration ON shares(iteration_id);
-CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, iteration_id TEXT NOT NULL REFERENCES iterations(id), slide TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, answered INTEGER NOT NULL DEFAULT 0 CHECK(answered IN (0,1)), iteration_id TEXT NOT NULL REFERENCES iterations(id), slide TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_comments_iteration ON comments(iteration_id);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT, actor TEXT NOT NULL, type TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_events_project_time ON events(project_id,created_at);
@@ -27,10 +27,12 @@ CREATE TABLE IF NOT EXISTS slide_image_versions (id TEXT PRIMARY KEY, parent_id 
 CREATE TABLE IF NOT EXISTS presentation_slides (id TEXT NOT NULL, iteration_id TEXT NOT NULL REFERENCES iterations(id), source_version_id TEXT NOT NULL REFERENCES file_versions(id), page_number INTEGER NOT NULL DEFAULT 0, image_number INTEGER NOT NULL DEFAULT 0, type TEXT NOT NULL, situation TEXT NOT NULL DEFAULT 'unknown', title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', metadata TEXT NOT NULL DEFAULT '{}', position INTEGER NOT NULL, image_version_id TEXT REFERENCES slide_image_versions(id), PRIMARY KEY(iteration_id,id), UNIQUE(iteration_id,source_version_id,page_number,image_number));
 CREATE INDEX IF NOT EXISTS idx_slides_source ON presentation_slides(iteration_id,source_version_id);
 CREATE TABLE IF NOT EXISTS slide_layout (iteration_id TEXT NOT NULL REFERENCES iterations(id), slide_id TEXT NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, deleted INTEGER NOT NULL DEFAULT 0, position INTEGER, PRIMARY KEY(iteration_id,slide_id));
+CREATE TABLE IF NOT EXISTS system_slides (iteration_id TEXT NOT NULL REFERENCES iterations(id), id TEXT NOT NULL, type TEXT NOT NULL CHECK(type IN ('intro','changes','budget','open-questions','contacts','summary')), PRIMARY KEY(iteration_id,id));
 CREATE TABLE IF NOT EXISTS studio_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id), theme TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS studios (id TEXT PRIMARY KEY,name TEXT NOT NULL,theme TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS studio_members (studio_id TEXT NOT NULL REFERENCES studios(id),user_id TEXT NOT NULL REFERENCES users(id),display_name TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin','member')),PRIMARY KEY(studio_id,user_id));
 CREATE TABLE IF NOT EXISTS project_members (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
+CREATE TABLE IF NOT EXISTS project_client_members (project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,email TEXT NOT NULL COLLATE NOCASE,name TEXT NOT NULL,created_at TEXT NOT NULL,PRIMARY KEY(project_id,email));
 CREATE TABLE IF NOT EXISTS project_pins (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
 CREATE TABLE IF NOT EXISTS studio_logos (studio_id TEXT PRIMARY KEY REFERENCES studios(id),data BLOB NOT NULL,mime TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS person_profiles (person_key TEXT PRIMARY KEY,name TEXT NOT NULL DEFAULT '',color TEXT NOT NULL DEFAULT '',avatar BLOB,email_comments INTEGER NOT NULL DEFAULT 1);
@@ -41,11 +43,33 @@ CREATE TABLE IF NOT EXISTS email_outbox (id TEXT PRIMARY KEY,comment_id TEXT NOT
 CREATE TABLE IF NOT EXISTS project_details (project_id TEXT PRIMARY KEY REFERENCES projects(id),tags TEXT NOT NULL DEFAULT '[]',deadline TEXT NOT NULL DEFAULT '');
 CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,section TEXT NOT NULL,PRIMARY KEY(iteration_id,slide_id));
 
-CREATE TABLE IF NOT EXISTS slide_groups (iteration_id TEXT NOT NULL REFERENCES iterations(id),id TEXT NOT NULL,label TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(iteration_id,id));
+CREATE TABLE IF NOT EXISTS slide_groups (iteration_id TEXT NOT NULL REFERENCES iterations(id),id TEXT NOT NULL,label TEXT NOT NULL,position INTEGER NOT NULL,deleted INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(iteration_id,id));
 CREATE TABLE IF NOT EXISTS project_delete_confirmations (token_hash TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL);
 
 CREATE TABLE IF NOT EXISTS budget_choices (budget_item_id TEXT PRIMARY KEY REFERENCES budget_items(id) ON DELETE CASCADE, selected INTEGER NOT NULL DEFAULT 0, range_percent INTEGER NOT NULL DEFAULT 0 CHECK(range_percent BETWEEN 0 AND 100), updated_by TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS budget_link_suggestions (id TEXT PRIMARY KEY,iteration_id TEXT NOT NULL REFERENCES iterations(id),child_id TEXT NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE,parent_id TEXT NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE,included INTEGER CHECK(included IN (0,1)),evidence TEXT NOT NULL,confidence TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','dismissed')),created_at TEXT NOT NULL,UNIQUE(iteration_id,child_id,parent_id));
+CREATE TABLE IF NOT EXISTS budget_match_checks (iteration_id TEXT PRIMARY KEY REFERENCES iterations(id) ON DELETE CASCADE,result TEXT NOT NULL,warning TEXT NOT NULL DEFAULT '',checked_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS event_questions (event_id TEXT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE, slide TEXT NOT NULL, slide_title TEXT NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', answer_meta TEXT NOT NULL DEFAULT '{}', answered_at TEXT);
 CREATE TABLE IF NOT EXISTS slide_content (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',PRIMARY KEY(iteration_id,slide_id));
 
+CREATE TABLE IF NOT EXISTS project_enhancement_plans (project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,plan_type TEXT NOT NULL CHECK(plan_type IN ('project_pass','monthly')));
+CREATE INDEX IF NOT EXISTS idx_jobs_enhancements ON jobs(project_id,type,created_at,status);
+CREATE TABLE IF NOT EXISTS slide_image_history (iteration_id TEXT NOT NULL,slide_id TEXT NOT NULL,image_version_id TEXT NOT NULL REFERENCES slide_image_versions(id) ON DELETE CASCADE,page_number INTEGER NOT NULL DEFAULT 0,image_number INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(iteration_id,slide_id,image_version_id),FOREIGN KEY(iteration_id,slide_id) REFERENCES presentation_slides(iteration_id,id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS studio_pack_items (id TEXT PRIMARY KEY,studio_id TEXT NOT NULL REFERENCES studios(id),kind TEXT NOT NULL CHECK(kind IN ('slide','document')),slide_type TEXT NOT NULL DEFAULT 'text',default_enabled INTEGER NOT NULL DEFAULT 1,position INTEGER NOT NULL DEFAULT 0,archived INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS studio_pack_versions (id TEXT PRIMARY KEY,item_id TEXT NOT NULL REFERENCES studio_pack_items(id),revision INTEGER NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL DEFAULT '',name TEXT NOT NULL DEFAULT '',mime TEXT NOT NULL DEFAULT '',data BLOB,created_at TEXT NOT NULL,UNIQUE(item_id,revision));
+CREATE TABLE IF NOT EXISTS iteration_pack_items (iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE,item_id TEXT NOT NULL REFERENCES studio_pack_items(id),version_id TEXT NOT NULL REFERENCES studio_pack_versions(id),asset_id TEXT REFERENCES assets(id),slide_id TEXT,excluded INTEGER NOT NULL DEFAULT 0,fingerprint TEXT NOT NULL DEFAULT '',PRIMARY KEY(iteration_id,item_id));
+
+CREATE TABLE IF NOT EXISTS drive_connections (user_id TEXT NOT NULL,studio_id TEXT NOT NULL,access_token TEXT NOT NULL,refresh_token TEXT NOT NULL,expires_at INTEGER NOT NULL,email TEXT NOT NULL DEFAULT '',generation TEXT NOT NULL,PRIMARY KEY(user_id,studio_id),FOREIGN KEY(studio_id,user_id) REFERENCES studio_members(studio_id,user_id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS drive_oauth_states (state_hash TEXT PRIMARY KEY,user_id TEXT NOT NULL,studio_id TEXT NOT NULL,session_hash TEXT NOT NULL,verifier TEXT NOT NULL,expires_at INTEGER NOT NULL,FOREIGN KEY(studio_id,user_id) REFERENCES studio_members(studio_id,user_id) ON DELETE CASCADE);
+
 CREATE TABLE IF NOT EXISTS project_team_contacts (project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',role TEXT NOT NULL DEFAULT '',PRIMARY KEY(project_id,user_id));
+
+-- Login credentials and project grants have separate lifetimes. Revoking or
+-- deleting a grant is checked again before a pending login can be consumed.
+-- Keep the share binding after deletion: cascading it away would incorrectly
+-- turn the remaining login token into an unrestricted account-login token.
+CREATE TABLE IF NOT EXISTS client_login_grants (token_hash TEXT PRIMARY KEY REFERENCES login_tokens(token_hash) ON DELETE CASCADE,share_id TEXT NOT NULL);
+
+CREATE TABLE IF NOT EXISTS open_questions (id TEXT NOT NULL,iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE,question TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'clarification' CHECK(kind IN ('answered','clarification','preference')),reason TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',citations TEXT NOT NULL DEFAULT '[]',origin TEXT NOT NULL DEFAULT 'designer',published INTEGER NOT NULL DEFAULT 0,dismissed INTEGER NOT NULL DEFAULT 0,resolved INTEGER NOT NULL DEFAULT 0,edited INTEGER NOT NULL DEFAULT 0,fingerprint TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,PRIMARY KEY(iteration_id,id));
+CREATE TABLE IF NOT EXISTS open_question_replies (id TEXT PRIMARY KEY,iteration_id TEXT NOT NULL,question_id TEXT NOT NULL,author TEXT NOT NULL,body TEXT NOT NULL,created_at TEXT NOT NULL,FOREIGN KEY(iteration_id,question_id) REFERENCES open_questions(iteration_id,id) ON DELETE CASCADE);

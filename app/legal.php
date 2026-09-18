@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 // Search only the exact source versions attached to the authorized iteration.
 function legal_evidence(string $iid,string $question): array {
-    $files=rows("SELECT v.id,v.name,v.metadata FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND f.category='legal' ORDER BY v.id",[$iid]);
+    $files=rows("SELECT v.id,v.name,v.metadata,f.category FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND f.category IN ('legal','budget','presentation','other') ORDER BY v.id",[$iid]);
     $terms=preg_split('/[^\pL\pN]+/u',strtolower($question),-1,PREG_SPLIT_NO_EMPTY);
     $stop=['does','it','include','includes','included','the','and','are','this','that','what','with','for','from','can','you','is','of','in','a','to','het','de','een','en','zit','er','bij'];
     $terms=array_values(array_filter($terms,fn($t)=>strlen($t)>2&&!in_array($t,$stop,true)));
@@ -21,12 +21,14 @@ function legal_evidence(string $iid,string $question): array {
             for($offset=0;$offset<count($characters);$offset+=2600){
                 $excerpt=implode('',array_slice($characters,$offset,3000));$total++;$score=0;$lower=strtolower($excerpt);
                 foreach($terms as $term)if(str_contains($lower,$term))$score+=1+min(3,substr_count($lower,$term))*.1;
-                $chunks[]=['version_id'=>$file['id'],'name'=>$file['name'],'page'=>(int)$page['number'],'text'=>$excerpt,'score'=>$score,'offset'=>$offset];
+                $chunks[]=['version_id'=>$file['id'],'name'=>$file['name'],'page'=>(int)$page['number'],'text'=>$excerpt,'source_kind'=>!empty($meta['studio_reference'])?'studio_reference':$file['category'],'library_revision'=>$meta['library_revision']??null,'score'=>$score,'offset'=>$offset];
             }
         }
     }
     usort($chunks,fn($a,$b)=>($b['score']<=>$a['score'])?:strcmp($a['version_id'],$b['version_id'])?:($a['page']<=>$b['page'])?:($a['offset']<=>$b['offset']));
-    $selected=array_slice(array_values(array_filter($chunks,fn($c)=>$c['score']>0)),0,16);
+    $ranked=array_values(array_filter($chunks,fn($c)=>$c['score']>0));$selected=[];$seen=[];
+    foreach($ranked as $key=>$chunk)if(!isset($seen[$chunk['version_id']])&&count($selected)<16){$selected[]=$chunk;$seen[$chunk['version_id']]=true;unset($ranked[$key]);}
+    $selected=array_merge($selected,array_slice(array_values($ranked),0,16-count($selected)));
     // Small sources can be read in full even if wording differs from the question.
     if(count($chunks)<=16)$selected=$chunks;
     foreach($selected as &$chunk){$chunk['citation']=$chunk['version_id'].':'.$chunk['page'];unset($chunk['score'],$chunk['offset']);}unset($chunk);

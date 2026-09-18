@@ -20,6 +20,12 @@ function project_cover(string $iid): ?array {
 }
 
 function migrate_slide_groups(PDO $db): void {
+    $hasDeleted=fn()=>in_array('deleted',array_column($db->query('PRAGMA table_info(slide_groups)')->fetchAll(),'name'),true);
+    if(!$hasDeleted()){
+        $db->exec('BEGIN IMMEDIATE');
+        try{if(!$hasDeleted())$db->exec('ALTER TABLE slide_groups ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0');$db->exec('COMMIT');}
+        catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+    }
     if(!str_contains((string)$db->query("SELECT sql FROM sqlite_master WHERE name='slide_sections'")->fetchColumn(),'CHECK'))return;
     $db->exec('BEGIN IMMEDIATE');
     try {
@@ -33,8 +39,8 @@ function migrate_slide_groups(PDO $db): void {
     } catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
 }
 function slide_groups(string $iid): array {
-    $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget'];
-    $ordered=[];foreach(rows('SELECT id,label FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group)$ordered[$group['id']]=$group['label'];
+    $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget','questions'=>'Open questions'];
+    $ordered=[];$deleted=[];foreach(rows('SELECT id,label,deleted FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group){$ordered[$group['id']]=$group['label'];if($group['deleted'])$deleted[$group['id']]=true;}
     // Existing custom-only records follow the default groups until an order is explicitly saved.
-    return isset($ordered['story'])?$ordered+$defaults:$defaults+$ordered;
+    return array_diff_key(isset($ordered['story'])?$ordered+$defaults:$defaults+$ordered,$deleted);
 }

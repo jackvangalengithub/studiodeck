@@ -91,6 +91,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         viewer.call('slide_layout',{'iteration':iid,'slide_id':'intro','operation':'section','section':'budget'},expected=403)
         link=admin.call('share',{'iteration':iid,'emails':['client@example.test']})['links'][0];client=Client(base);client.bearer=link['url'].split('/#/view/')[1]
         shared=client.call('deck');check(shared['team'][0]['profile']['avatar'] and 'email_comments' not in shared['team'][0]['profile'],'Client team slide receives avatars without private notification preferences')
+        admin.call('lock_iteration',{'iteration':iid})
         admin.call('slide_layout',{'iteration':iid,'slide_id':'intro','operation':'section','section':'budget'},expected=409)
         admin.call('reorder_slide_groups',{'iteration':iid,'order':group_order},expected=409)
         newer=admin.call('new_iteration',{'iteration':iid},expected=201)['id']

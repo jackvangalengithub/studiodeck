@@ -1,3 +1,4 @@
+import {tr} from './i18n.js';
 let fallback=false,lastExit=0,wasActive=false,hideTimer;
 const delay=2200;
 export const isPresentationFullscreen=()=>!!document.fullscreenElement||fallback;
@@ -21,7 +22,7 @@ function reveal(){
 }
 export function syncPresentationFullscreen(){
  const active=isPresentationFullscreen();document.body.classList.toggle('presentation-fullscreen',active);
- document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?'Exit fullscreen':'Show fullscreen');button.setAttribute('title',active?'Exit fullscreen':'Show fullscreen');button.setAttribute('aria-pressed',String(active));});
+ document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('title',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('aria-pressed',String(active));});
  if(active&&!wasActive)reveal();
  else if(!active){clearTimeout(hideTimer);setHidden(false);}
  else setHidden(document.body.classList.contains('presentation-controls-hidden'));

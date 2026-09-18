@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {projectAccessUi} from '../public/assets/project-access.js';
+import {billingUi} from '../public/assets/billing.js';
+const storage=new Map();globalThis.sessionStorage={getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)};
+const state={user:{id:'u'},studio:{id:'s',role:'admin'}};const opened=[];
+let decision={reason:'uncovered',admin:true,can_manage:true,can_buy_pass:true,archive_candidates:[],summary:{available_passes:0,usage:{projects:0},limits:{projects:1}}};
+const access=projectAccessUi({state,api:async()=>decision,esc:String,button:()=>'',openModal(){},closeModal(){},newProject:async(...args)=>opened.push(args)});
+access.purchaseStarted({plan:'pass'});assert(access.hasIntent());await access.resume();assert.equal(opened.length,0);
+decision={...decision,reason:'ready',summary:{...decision.summary,available_passes:1}};await access.resume();
+assert.deepEqual(opened,[['','pass']]);assert(!access.hasIntent());
+const catalog=Object.fromEntries(['solo','studio','practice','pass'].map(name=>[name,{name,cents:1900,seats:1,projects:1,available:true}]));
+const ui=billingUi({state,api:async a=>a==='billing'?{summary:{available_passes:1,usage:{},limits:{}},catalog,projects:[],orders:[],changes:[]}: {invoices:[]},esc:String,button:()=>'',closeModal(){},createProject:async intent=>opened.push(intent)});
+await ui.load();const html=ui.page();assert(html.includes('Or buy a project pass'));assert(html.includes('1 unused pass available'));assert(!html.includes('Project coverage'));
+await ui.action('billing-use-pass');assert.equal(opened.at(-1),'pass');
+console.log('PASS prepaid purchase resumes project creation only after a pass becomes available.');

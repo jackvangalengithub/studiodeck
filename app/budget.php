@@ -5,7 +5,8 @@ function migrate_budget(PDO $db): void {
     $db->exec('BEGIN IMMEDIATE');
     try{
         $columns=array_column($db->query('PRAGMA table_info(budget_items)')->fetchAll(),'name');
-        foreach(['min_amount_cents'=>'INTEGER','max_amount_cents'=>'INTEGER','is_optional'=>'INTEGER NOT NULL DEFAULT 0'] as $name=>$type)if(!in_array($name,$columns,true))$db->exec("ALTER TABLE budget_items ADD COLUMN $name $type");
+        foreach(['min_amount_cents'=>'INTEGER','max_amount_cents'=>'INTEGER','is_optional'=>'INTEGER NOT NULL DEFAULT 0','source_key'=>"TEXT NOT NULL DEFAULT ''",'relationship_origin'=>"TEXT NOT NULL DEFAULT 'legacy'",'relationship_evidence'=>"TEXT NOT NULL DEFAULT ''",'relationship_locked'=>'INTEGER NOT NULL DEFAULT 0'] as $name=>$type)if(!in_array($name,$columns,true))$db->exec("ALTER TABLE budget_items ADD COLUMN $name $type");
+        if(!in_array('relationship_locked',$columns,true))$db->exec("UPDATE budget_items SET relationship_locked=1,relationship_origin='manual' WHERE source_version_id IS NULL OR EXISTS(SELECT 1 FROM budget_items p WHERE p.id=budget_items.parent_id AND p.source_version_id IS NOT budget_items.source_version_id)");
         $db->exec('COMMIT');
     }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
 }
@@ -29,7 +30,7 @@ function budget_rows(string $iid): array {
 }
 function budget_payload(string $iid,bool $designer=true): array {
     $items=budget_rows($iid);if(!$designer)foreach($items as &$item)unset($item['choice_updated_by']);unset($item);
-    return ['budget'=>$items,'total_cents'=>budget_total($items),'budget_min_cents'=>budget_total($items,0),'budget_max_cents'=>budget_total($items,100)];
+    return ['budget'=>$items,'total_cents'=>budget_total($items),'budget_min_cents'=>budget_total($items,0),'budget_max_cents'=>budget_total($items,100),...($designer?['subquote_check'=>one('SELECT result,warning,checked_at FROM budget_match_checks WHERE iteration_id=?',[$iid]),'subquote_suggestions'=>rows("SELECT s.*,c.label AS child_label,p.label AS parent_label FROM budget_link_suggestions s JOIN budget_items c ON c.id=s.child_id JOIN budget_items p ON p.id=s.parent_id WHERE s.iteration_id=? AND s.status='pending' AND c.parent_id IS NULL AND c.relationship_locked=0 ORDER BY s.created_at,s.id",[$iid])]:[])];
 }
 // Recover only explicit old extraction evidence; never infer prices from descriptive text.
 function budget_evidence_properties(array $item): array {

@@ -83,8 +83,9 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         shared=client.call('deck')
         check('events' not in shared and 'shares' not in shared,'Client payload excludes studio activity and other client links')
         check('studio_theme' not in shared and shared['project']['theme']!={'palette':'clay','style':'classic'},'Client presentations do not receive studio appearance settings')
+        owner.call('lock_iteration',{'iteration':iid})
         owner.call('save_budget',{'iteration':iid,'label':'Changed after share','amount':'123'},expected=409)
-        check(True,'Shared iterations reject edits')
+        check(True,'Locked iterations reject edits')
         second=owner.call('new_iteration',{'iteration':iid,'title':'Second concept'},expected=201)['id']
         carried=owner.call('project',query='&id='+pid+'&iteration='+second)
         check([f['id'] for f in d['files']]==[f['id'] for f in carried['files']],'A new iteration carries all unchanged file versions forward')
@@ -200,6 +201,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         shared_page=owner.call('share',{'iteration':page_iid,'emails':['pages@example.test']})['links'][0]
         viewer=Client(base);viewer.bearer=shared_page['url'].split('/#/view/')[1]
         check(viewer.call('document_page',query=f'&id={version}&page=2&image=1',raw=True)==image,'Shared links can view their own extracted images')
+        owner.call('lock_iteration',{'iteration':page_iid})
         owner.call('reprocess',{'iteration':page_iid,'version_id':version},expected=409)
         next_iid=owner.call('new_iteration',{'iteration':page_iid,'title':'Re-extracted'},expected=201)['id']
         slide_copy=owner.call('project',query=f'&id={page_pid}&iteration={next_iid}')['slides']
