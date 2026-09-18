@@ -6,7 +6,7 @@ if(!base||!mailLog)throw Error('Set STUDIODECK_TEST_URL and STUDIODECK_TEST_MAIL
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE,headless:false,args:['--no-sandbox','--headless=new']});try{
  const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.locator('input[name=email]').fill(`ordering-${Date.now()}@example.test`);await page.getByRole('button',{name:'Email me a sign-in link'}).click();await page.waitForSelector('.login .notice');
- const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Open my studio'}).click();await page.waitForSelector('#project-search');
+ const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Continue'}).click();await page.waitForSelector('#project-search');
  const made=await page.evaluate(async()=>{
   const s=await(await fetch('/api.php?action=session')).json();
   const post=async(action,body)=>{const r=await fetch('/api.php?action='+action,{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:JSON.stringify(body)});if(!r.ok)throw Error(await r.text());return r.json();};

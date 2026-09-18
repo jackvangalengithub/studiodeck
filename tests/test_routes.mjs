@@ -9,4 +9,5 @@ assert.equal(parse('/200/projects?archived=1').archived,true);
 for(const [view,path] of [['studio-users','users'],['all-comments','comments'],['all-activity','activity'],['settings','settings']])assert.equal(parse(workspaceUrl({studioId:'200',view})).view,view);
 assert.equal(parse('/'),null);assert.equal(parse('/assets/app.js'),null);
 assert.equal(parse('/200/projects/p123?tab=invalid').tab,'overview');
+assert.equal(parse('/client/projects/p123'),null);
 console.log('PASS Studio-scoped URLs preserve projects, tabs, iterations, slides, feeds, search and archive filters.');

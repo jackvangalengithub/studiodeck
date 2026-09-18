@@ -6,7 +6,7 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE,headless:true,args:['--no-sandbox']});let page;try{
  page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.locator('input[name=email]').fill(`budget-${Date.now()}@example.test`);await page.getByRole('button',{name:'Email me a sign-in link'}).click();await page.waitForSelector('.login .notice');
- const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Open my studio'}).click();await page.waitForSelector('#project-search');
+ const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Continue'}).click();await page.waitForSelector('#project-search');
  const call=(action,data)=>page.evaluate(async({action,data})=>{const s=await(await fetch('/api.php?action=session')).json();const r=await fetch('/api.php?action='+action,{method:data?'POST':'GET',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:data?JSON.stringify(data):undefined});return {status:r.status,data:await r.json()};},{action,data});
  const session=(await call('session')).data,made=(await call('create_project',{name:'Budget interactions'})).data,iid=made.iteration_id;
  const project=`${base}/${session.studio.id}/projects/${made.project_id}`;

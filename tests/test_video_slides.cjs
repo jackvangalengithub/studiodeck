@@ -7,7 +7,7 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
  page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[],embeds=[];page.on('pageerror',e=>errors.push(e.message));
  await page.route('https://www.youtube-nocookie.com/**',route=>{embeds.push(route.request().url());return route.fulfill({contentType:'text/html',body:'<!doctype html><title>YouTube player fixture</title><button>Pause</button>'});});
  await page.goto(base);await page.locator('input[name=email]').fill(`video-${Date.now()}@example.test`);await page.getByRole('button',{name:'Email me a sign-in link'}).click();await page.waitForSelector('.login .notice');
- const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Open my studio'}).click();await page.waitForSelector('#project-search');
+ const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Continue'}).click();await page.waitForSelector('#project-search');
  const call=(action,data)=>page.evaluate(async({action,data})=>{const s=await(await fetch('/api.php?action=session')).json();const r=await fetch('/api.php?action='+action,{method:data?'POST':'GET',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:data?JSON.stringify(data):undefined});return {status:r.status,data:await r.json()};},{action,data});
  const session=(await call('session')).data,made=(await call('create_project',{name:'Video presentation'})).data,iid=made.iteration_id;
  const project=`${base}/${session.studio.id}/projects/${made.project_id}`;

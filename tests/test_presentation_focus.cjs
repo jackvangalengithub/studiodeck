@@ -6,7 +6,7 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
 (async()=>{const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE,headless:true,args:['--no-sandbox']});let page;try{
  page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];if(process.env.STUDIODECK_TEST_WORKSPACE_ASSETS)for(const name of ['app.js','app.css'])await page.route('**/assets/'+name,route=>route.fulfill({path:process.env.STUDIODECK_TEST_WORKSPACE_ASSETS+'/'+name}));page.on('pageerror',e=>errors.push(e.message));
  await page.goto(base);await page.locator('input[name=email]').fill(`focus-${Date.now()}@example.test`);await page.getByRole('button',{name:'Email me a sign-in link'}).click();await page.waitForSelector('.login .notice');
- const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Open my studio'}).click();await page.waitForSelector('#project-search');
+ const token=fs.readFileSync(mailLog,'utf8').trim().split('\n').at(-1).split('/#/login/')[1];await page.goto(base+'/#/login/'+token);await page.reload();await page.getByRole('button',{name:'Continue'}).click();await page.waitForSelector('#project-search');
  const made=await page.evaluate(async()=>{
   const s=await(await fetch('/api.php?action=session')).json(),headers={'Content-Type':'application/json','X-CSRF-Token':s.csrf};
   const post=async(action,body)=>{const r=await fetch('/api.php?action='+action,{method:'POST',headers,body:JSON.stringify(body)});if(!r.ok)throw Error(await r.text());return r.json();};

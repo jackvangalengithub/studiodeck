@@ -2,7 +2,7 @@ const tabs=new Set(['overview','slides','files','budget','comments','activity'])
 const viewPaths={'studio-users':'users','all-activity':'activity','all-comments':'comments',settings:'settings',profile:'profile'};
 export function readWorkspaceRoute(location){
     const parts=location.pathname.split('/').filter(Boolean).map(decodeURIComponent),q=new URLSearchParams(location.search);
-    if(parts.length<2)return null;
+    if(parts.length<2||parts[0]==='client')return null;
     const [studioId,section,key]=parts;
     if(section==='projects'&&parts.length<=3)return {studioId,view:key?'project':'projects',projectId:key||null,iteration:q.get('iteration'),tab:tabs.has(q.get('tab'))?q.get('tab'):'overview',search:q.get('search')||'',archived:q.get('archived')==='1'};
     if(section==='slide'&&parts.length===3)return {studioId,view:'slide',slide:key,projectId:q.get('project'),iteration:q.get('iteration')};
