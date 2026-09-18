@@ -1,0 +1,4 @@
+export const budgetIsRange=item=>item.min_amount_cents!=null&&item.max_amount_cents!=null;
+export function budgetAmount(item,percent=null){if(budgetIsRange(item))return Number(item.min_amount_cents)+Math.round((Number(item.max_amount_cents)-Number(item.min_amount_cents))*Math.max(0,Math.min(100,percent??Number(item.range_percent||0)))/100);return item.amount_cents==null?null:Number(item.amount_cents);}
+export function budgetEnabled(item,items){const seen=new Set();while(item){if(Number(item.is_optional)&&!item.selected)return false;const parent=item.parent_id;if(!parent)return true;if(seen.has(parent))return false;seen.add(parent);item=items.find(row=>row.id===parent);}return true;}
+export const budgetTotal=(items,percent=null)=>items.reduce((sum,item)=>sum+(!Number(item.included)&&budgetEnabled(item,items)?budgetAmount(item,percent)??0:0),0);

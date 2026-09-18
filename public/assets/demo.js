@@ -1,3 +1,4 @@
+import {budgetAmount,budgetIsRange,budgetTotal} from './budget.js';
 import {uploadSelectionError} from './upload-limits.js';
 // In-memory, fictional pitch content. No client records or production credentials.
 export const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
@@ -18,7 +19,7 @@ const current={project,iteration:{id:'it-2',project_id:project.id,number:2,title
 const previous=structuredClone(current);previous.iteration={...previous.iteration,id:'it-1',number:1,title:'First concept',status:'shared',created_at:'2026-09-14T10:00:00Z'};previous.budget.find(x=>x.id==='b4').amount_cents-=365000;previous.files[0].id='v-living-1';previous.files[0].number=1;previous.files[0].name='Living room — concept 01.webp';previous.files[0].history=[previous.files[0].history[1]];previous.files[3].id='v-budget-1';previous.files[3].number=1;previous.files[3].url='assets/example-budget-v1.csv';previous.files[3].history=[previous.files[3].history[1]];previous.changes=[];previous.previous_total_cents=null;
 const decks=new Map([['it-2',current],['it-1',previous]]);
 let selected='it-2',studioTheme={palette:'sage',style:'modern'};
-const total=items=>items.reduce((sum,x)=>sum+(!Number(x.included)?Number(x.amount_cents??0):0),0);
+const total=budgetTotal;
 function enrich(d){d.total_cents=total(d.budget);d.iterations=[...decks.values()].filter(x=>x.project.id===d.project.id).map(x=>x.iteration).sort((a,b)=>b.number-a.number);return structuredClone(d);}
 export function demoFile(id){for(const d of decks.values())for(const file of d.files){if(file.id===id)return file;const h=file.history.find(v=>v.id===id);if(h)return h;}return null;}
 export async function demoRequest(action,body={}) {
@@ -48,13 +49,14 @@ export async function demoRequest(action,body={}) {
   if(action==='studio_theme'){studioTheme=body.theme;return {studio_theme:studioTheme};}
   if(action==='category'){d.files.find(x=>x.asset_id===body.asset_id).category=body.category;return {ok:true};}
   if(action==='theme'){d.project.theme=body.theme;d.iteration.theme=JSON.stringify(body.theme);return {ok:true};}
-  if(action==='save_budget'){const row={...body,id:body.id||uid(),amount_cents:body.kind==='unknown'||body.amount===''?null:Math.round(Number(body.amount)*100),included:body.parent_id&&body.included?1:0,parent_id:body.parent_id||null,source_version_id:null};const old=d.budget.find(x=>x.id===row.id);if(old)Object.assign(old,row);else d.budget.push(row);return {ok:true};}
+  if(action==='budget_choice'){const row=d.budget.find(x=>x.id===body.id);if(!row)throw Error('Budget item not found.');if('selected' in body)row.selected=body.selected;if('range_percent' in body)row.range_percent=body.range_percent;return {budget:structuredClone(d.budget),total_cents:total(d.budget)};}
+  if(action==='save_budget'){const row={...body,id:body.id||uid(),amount_cents:body.price_type==='range'||body.price_type==='unknown'||body.kind==='unknown'||body.amount===''?null:Math.round(Number(body.amount)*100),min_amount_cents:body.price_type==='range'?Math.round(Number(body.min_amount)*100):null,max_amount_cents:body.price_type==='range'?Math.round(Number(body.max_amount)*100):null,is_optional:body.is_optional?1:0,included:body.parent_id&&body.included?1:0,parent_id:body.parent_id||null,source_version_id:null};const old=d.budget.find(x=>x.id===row.id);if(old)Object.assign(old,row);else d.budget.push(row);return {ok:true};}
   if(action==='save_contact'){d.contacts.push({...body,id:uid()});return {ok:true};}
   if(action==='comment'){d.comments.push({id:uid(),slide:body.slide,body:body.body,author:'Demo viewer',created_at:stamp()});d.events.unshift({id:uid(),actor:'Demo viewer',type:'change_requested',detail:body.body,created_at:stamp()});return {ok:true};}
   if(action==='view_event')return {ok:true};
   if(action==='share'){d.iteration.status='shared';return {links:body.emails.map(email=>({email,sent:false,url:location.origin+location.pathname+'#/view/demo',id:uid()}))};}
   if(action==='budget_chat'){
-    const q=body.question.toLowerCase(),unknown=d.budget.filter(x=>x.amount_cents===null),included=d.budget.filter(x=>Number(x.included));let answer;
+    const q=body.question.toLowerCase(),unknown=d.budget.filter(x=>budgetAmount(x)===null),included=d.budget.filter(x=>Number(x.included));let answer;
     if(/unknown|unspecified|missing|tbd|not included/.test(q))answer=unknown.length?'Still to be specified: '+unknown.map(x=>x.label).join(' and ')+'. These are excluded from the known total. Their final prices may change the project total; amounts already included in a parent quote are not added again.':'There are no recorded unknown costs. Check the source quotes for exclusions.';
     else if(/subquote|included|double|vendor|contractor/.test(q))answer=included.length?included.map(x=>x.label+' (€'+(x.amount_cents/100).toLocaleString('en-IE')+')').join(' and ')+' are already included in their parent quote. They are shown for transparency and are not added twice.':'No included subquotes are recorded.';
     else if(/kitchen/.test(q)){const k=d.budget.find(x=>/kitchen/i.test(x.label));answer=k?`${k.label} is €${(k.amount_cents/100).toLocaleString('en-IE')}, quoted by ${k.vendor}. ${k.note}`:'No separate kitchen cost is recorded.';}

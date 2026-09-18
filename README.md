@@ -199,3 +199,11 @@ Focused checks: `python3 tests/test_project_deletion.py`, `python3 tests/test_le
 ### Fullscreen presentation
 
 Use **Show fullscreen** in the presentation footer to enter browser fullscreen. The editor bar and editing actions are hidden, while slide navigation remains available. **Exit fullscreen** or Escape restores the editor at the current slide. Browsers without the Fullscreen API use an app-level presentation view with the same hidden editor controls.
+
+### Interactive budget choices
+
+Budget rows support fixed prices, a lower/upper price range, optional status, and unspecified amounts. The presentation has an option toggle and a Budget–Luxury slider for each applicable row. Options start unselected; ranges start at the lower amount. Choices are shared within an iteration, saved on the server, and recorded in project activity. Project team members and valid client links can change choices; studio viewers cannot. Source prices remain fixed after sharing. New iterations copy choices independently.
+
+Spreadsheet imports accept `label`, `amount`, `min_amount`, `max_amount`, `optional`, `kind`, `parent`, `included`, and `note` columns. Dutch `Omschrijving` and `Bandbreedte laag` / `Bandbreedte hoog` headers are also supported. AI extraction preserves ranges and distinguishes optional rows from subquotes already included in a parent. VAT-exclusive/inclusive columns are not treated as price ranges.
+
+For earlier extracted budgets whose ranges were stored only in notes, preview explicit recoverable values with `php scripts/repair-budget-properties.php --project=PROJECT_ID`. Add `--apply` to repair draft source rows after backing up the database. This does not modify shared iterations or invent missing prices.
