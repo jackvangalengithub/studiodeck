@@ -3,7 +3,7 @@ declare(strict_types=1);
 function person_key(string $email,bool $owner): string {return ($owner?'user:':'client:').strtolower($email);}
 function profile_for(string $key,string $fallback=''): array {
     $p=one('SELECT name,color,email_comments,avatar FROM person_profiles WHERE person_key=?',[$key])?:['name'=>'','color'=>'','email_comments'=>1,'avatar'=>null];
-    $p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
+    $p['color']='';$p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
 }
 function profile_identity(bool $write=false): array {
     if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Bearer ')){[$i,$email]=access_iteration();return [person_key($email,false),$email,explode('@',$email)[0]];}

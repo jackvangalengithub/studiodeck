@@ -209,3 +209,8 @@ html:has(body.presenting){scrollbar-gutter:auto;overflow:hidden}.presentation .s
 .budget-interactive-notice{position:fixed;z-index:35;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 32px);padding:13px 22px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 6px 24px #0002;font-size:14px;text-align:center;pointer-events:none;animation:budget-interactive-notice 3s ease both}
 @keyframes budget-interactive-notice{0%,100%{opacity:0}8%,85%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.budget-interactive-notice{animation:none}}
+
+/* Shared image dropzones and consistently circular avatars. */
+.dropzone.project-logo-dropzone{border:1px dashed var(--green);border-radius:14px;overflow:hidden}
+.profile-avatar-editor{display:block}.profile-avatar-editor [data-image-upload-preview]>.avatar{width:80px;height:80px;font-size:24px}.profile-avatar-editor .row{flex-wrap:wrap}.profile-avatar-editor small{margin:0}.studio-logo-settings small{margin:0}.studio-logo-settings{padding:0;background:transparent}.studio-logo-settings [data-image-upload-status]{margin:10px 0}
+.avatar,.person-avatar{border:1px solid var(--line);border-radius:50%;aspect-ratio:1;overflow:hidden}.avatar>img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
