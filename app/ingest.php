@@ -140,7 +140,7 @@ function extract_version(array $v,bool $legal=false): array {
             if(!is_file($path))throw new RuntimeException('Legacy Office conversion is unavailable.');
         }
         if(in_array($ext,['pdf','ppt','pptx'],true)||($legal&&str_starts_with($v['mime'],'image/'))) {
-            $document=extract_document($path,$dir,$legal);$pages=$document['pages'];$pageCount=$document['page_count'];$warnings=$document['warnings'];
+            $document=extract_document($path,$dir,$legal);$legal=$legal||!empty($document['legal']);$pages=$document['pages'];$pageCount=$document['page_count'];$warnings=$document['warnings'];
             $text=implode("\n\n",array_map(fn($p)=>'--- Page '.$p['number']." ---\n".$p['text'],$pages));
             foreach($pages as $p) { if(!$preview&&$p['preview'])$preview=png_preview($p['preview']);foreach($p['warnings'] as $w)$warnings[]='Page '.$p['number'].': '.$w; }
             if(!$pages)$warnings[]='No pages could be extracted. Review the original or try exporting it as a PDF.';
@@ -154,7 +154,7 @@ function extract_version(array $v,bool $legal=false): array {
     } catch(Throwable $e) { $warnings[]=$e->getMessage(); }
     finally { remove_temp_dir($dir); }
     if($legal&&!$pages&&trim($text))$pages=[['number'=>1,'text'=>$text,'preview'=>null,'images'=>[],'palette'=>[],'warnings'=>[],'include_in_presentation'=>false,'analysis'=>['category'=>'legal']]];
-    return ['text'=>$text,'preview'=>$preview,'items'=>table_budget($table),'warnings'=>$warnings,'pages'=>$pages,'page_count'=>$pageCount?:count($pages)];
+    return ['legal'=>$legal,'text'=>$text,'preview'=>$preview,'items'=>table_budget($table),'warnings'=>$warnings,'pages'=>$pages,'page_count'=>$pageCount?:count($pages)];
 }
 function remove_temp_dir(string $dir): void { foreach(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir,FilesystemIterator::SKIP_DOTS),RecursiveIteratorIterator::CHILD_FIRST) as $f) { if($f->isDir())rmdir($f->getPathname());else unlink($f->getPathname()); } rmdir($dir); }
 function png_preview(string $raw): ?string {

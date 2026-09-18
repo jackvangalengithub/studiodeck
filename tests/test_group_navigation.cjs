@@ -41,6 +41,11 @@ if(!base||!mailLog)throw Error('Set STUDIODECK_TEST_URL and STUDIODECK_TEST_MAIL
  const ids=['budget','intro','changes','contacts','summary'],groups=['budget','story','story','current','designs'];
  await checkSlides(ids,groups);await checkSlides([...ids].reverse(),[...groups].reverse(),'ArrowLeft');
  await page.getByRole('button',{name:'Back to studio',exact:true}).click();await page.locator('[data-action=tab][data-tab=slides]').click();
+ assert.equal(await page.getByRole('button',{name:'Preview all',exact:true}).count(),0);
+ assert.equal(await page.locator('[data-slide-section-select]').count(),0);
+ assert.equal(await page.locator('[data-action=zoom-editor-slide]').count(),0);
+ assert.equal(await page.locator('.iteration-controls [data-action=iteration]').count(),1);
+ assert.equal((await page.locator('.editor-slide-actions').first().innerText()).trim(),'');
  assert.deepEqual(await page.locator('.slide-editor-row').evaluateAll(els=>els.map(el=>el.dataset.slideId)),ids);
  await page.locator('[data-drag-slide=changes]').focus();await page.keyboard.press('Space');await page.keyboard.press('ArrowUp');
  const saved=page.waitForResponse(r=>r.url().includes('action=slide_layout'));await page.keyboard.press('Enter');assert.equal((await saved).status(),200);

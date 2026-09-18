@@ -10,7 +10,7 @@ function processing_progress(string $stage,array $detail=[]): void {
 function extract_document(string $path,string $dir,bool $legal=false): array {
     if($legal){
         $buffer='';run_process(['python3',ROOT.'/scripts/extract_document.py',$path,$dir,'--legal-text'],7200,function($chunk)use(&$buffer){$buffer.=$chunk;while(($pos=strpos($buffer,"\n"))!==false){$line=substr($buffer,0,$pos);$buffer=substr($buffer,$pos+1);$p=json_decode($line,true);if(is_array($p)&&isset($p['stage']))processing_progress($p['stage'],array_diff_key($p,['stage'=>1]));}});
-        $result=json_decode(file_get_contents($dir.'/manifest.json'),true);if(!is_array($result))throw new RuntimeException('Legal document text could not be read.');return $result;
+        $result=json_decode(file_get_contents($dir.'/manifest.json'),true);if(!is_array($result))throw new RuntimeException('Legal document text could not be read.');$result['legal']=true;return $result;
     }
     processing_progress('reading_pages');
     $buffer='';
@@ -24,6 +24,9 @@ function extract_document(string $path,string $dir,bool $legal=false): array {
     });
     $inventory=json_decode(file_get_contents($dir.'/inventory.json'),true);
     if(!is_array($inventory))throw new RuntimeException('Document pages could not be read.');
+    // Classify text before spending time on visual crops. Legal sources retain every page.
+    $sourceText=implode("\n\n",array_column($inventory['pages']??[],'text'));
+    if(category_for(basename($path),'',$sourceText)==='legal')return extract_document($path,$dir,true);
     $plans=plan_document_pages($inventory,$dir);
     file_put_contents($dir.'/inventory.json',json_encode($inventory,JSON_INVALID_UTF8_SUBSTITUTE));
     file_put_contents($dir.'/page-plans.json',json_encode((object)$plans,JSON_INVALID_UTF8_SUBSTITUTE));

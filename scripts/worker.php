@@ -19,9 +19,10 @@ do {
         if(!$current||$current['version_id']!==$v['id'])throw new RuntimeException('This file was replaced before processing finished.');
         if($job['type']==='ingest') {
             $GLOBALS['processing_job']=$job['id'];processing_progress('reading_pages');
-            $legal=$current['category']==='legal'||category_for($v['name'],$v['mime'])==='legal';$e=extract_version($v,$legal);$cat=$legal?'legal':category_for($v['name'],$v['mime'],$e['text']);$analysis=[];
+            $legal=$current['category']==='legal'||category_for($v['name'],$v['mime'])==='legal';$e=extract_version($v,$legal);$legal=$legal||!empty($e['legal']);$cat=$legal?'legal':category_for($v['name'],$v['mime'],$e['text']);$analysis=[];
             if($cat!=='legal'&&env('OPENAI_API_KEY')!=='') { try{$analysis=analyze_file($v,$e);}catch(Throwable $ex){$e['warnings'][]=$ex->getMessage();} }
-            if(in_array($analysis['category']??'',['moodboard','renders','drawings','budget','presentation','other'],true))$cat=$analysis['category'];
+            if(in_array($analysis['category']??'',['moodboard','renders','drawings','budget','legal','presentation','other'],true))$cat=$analysis['category'];
+            if($cat==='legal'&&!$legal)$e=extract_version($v,true);
             $items=$e['items']?:($cat==='budget'?($analysis['items']??[]):[]);
             if($cat==='budget'&&!$items)$e['warnings'][]='No structured costs were found. Add costs manually or connect AI for quote extraction.';
             $visuals=$cat==='legal'?[]:classify_visuals($v,$e);

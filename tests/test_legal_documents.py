@@ -56,13 +56,14 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-legal-') as temp:
         doc=fitz.open()
         for n in range(125):
             page=doc.new_page()
-            text=('General clause. Maintain access to premises during working hours. '*28) if n<124 else 'Painting of all walls is included. Removal of garbage is excluded unless separately agreed in writing.'
+            text=('General terms and conditions. Maintain access to premises during working hours. '*28) if n<124 else 'Painting of all walls is included. Removal of garbage is excluded unless separately agreed in writing.'
             page.insert_textbox(fitz.Rect(36,36,550,810),text,fontsize=10)
         pdf=doc.tobytes();doc.close()
-        vid=admin.call('upload',{'iteration':iid,'category':'legal'},files=[('specification.pdf','application/pdf',pdf)],expected=201)['ids'][0]
+        vid=admin.call('upload',{'iteration':iid},files=[('scan.pdf','application/pdf',pdf)],expected=201)['ids'][0]
         admin.call('category',{'iteration':iid,'asset_id':admin.call('project',query='&id='+pid)['files'][0]['asset_id'],'category':'legal'},expected=409)
         subprocess.run([PHP,str(ROOT/'scripts/worker.php'),'--once'],env=env,check=True,capture_output=True)
         deck=admin.call('project',query='&id='+pid)
+        check(deck['files'][0]['category']=='legal','Normal uploads automatically classify legal content with an uninformative filename')
         check(len(deck['files'][0]['pages'])==125 and not deck['slides'],'Legal PDFs extract all 125 pages without creating visual slides')
         with sqlite3.connect(tmp/'test.sqlite') as db:
             text=db.execute('SELECT extracted_text FROM file_versions WHERE id=?',(vid,)).fetchone()[0]
@@ -72,10 +73,14 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-legal-') as temp:
         # Model output cannot cite a different document or arbitrary page.
         code="require 'app/ai.php'; $e=legal_evidence('"+iid+"','paint garbage'); $r=budget_answer('paint',[],$e,fn($s,$c)=>['answer'=>'Source summary','sources'=>['foreign'],'citations'=>['foreign:1','"+vid+":125']]); echo json_encode($r);"
         result=json.loads(subprocess.check_output([PHP,'-r',code],env=env,cwd=ROOT))
-        check(result['sources']==[] and result['citations']==[{'version_id':vid,'name':'specification.pdf','page':125}],'AI citations are restricted to retrieved source pages')
+        check(result['sources']==[] and result['citations']==[{'version_id':vid,'name':'scan.pdf','page':125}],'AI citations are restricted to retrieved source pages')
         other=admin.call('create_project',{'name':'Another project'},expected=201)
         clean=admin.call('budget_chat',{'iteration':other['iteration_id'],'question':'paint garbage'})
         check(not clean.get('citations'),'Legal retrieval cannot leak across projects')
+        shared=admin.call('share',{'iteration':iid,'emails':['client@example.test']})['links'][0]
+        client=Client(base);client.bearer=shared['url'].split('/#/view/')[1]
+        answer=client.call('budget_chat',{'iteration':iid,'question':'Does it include paint and removal of garbage?','slide':'budget'})
+        check(any(c['page']==125 for c in answer['citations']),'Shared clients can ask questions using automatically detected legal documents')
         print('PASS Complete legal text extraction, scoped retrieval and source citations')
     finally:
         server.terminate();server.wait(timeout=10);output.close()
