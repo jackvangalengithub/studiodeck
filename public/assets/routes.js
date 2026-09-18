@@ -1,4 +1,4 @@
-const tabs=new Set(['overview','slides','files','budget','comments','activity']);
+const tabs=new Set(['overview','slides','files','budget','people','comments','activity']);
 const viewPaths={'studio-users':'users','all-activity':'activity','all-comments':'comments',settings:'settings',profile:'profile'};
 export function readWorkspaceRoute(location){
     const parts=location.pathname.split('/').filter(Boolean).map(decodeURIComponent),q=new URLSearchParams(location.search);

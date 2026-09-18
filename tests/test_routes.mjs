@@ -11,3 +11,5 @@ assert.equal(parse('/'),null);assert.equal(parse('/assets/app.js'),null);
 assert.equal(parse('/200/projects/p123?tab=invalid').tab,'overview');
 assert.equal(parse('/client/projects/p123'),null);
 console.log('PASS Studio-scoped URLs preserve projects, tabs, iterations, slides, feeds, search and archive filters.');
+
+assert.equal(readWorkspaceRoute({pathname:'/studio/projects/project',search:'?tab=people'}).tab,'people');
