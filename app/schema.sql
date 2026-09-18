@@ -46,3 +46,4 @@ CREATE TABLE IF NOT EXISTS project_delete_confirmations (token_hash TEXT PRIMARY
 
 CREATE TABLE IF NOT EXISTS budget_choices (budget_item_id TEXT PRIMARY KEY REFERENCES budget_items(id) ON DELETE CASCADE, selected INTEGER NOT NULL DEFAULT 0, range_percent INTEGER NOT NULL DEFAULT 0 CHECK(range_percent BETWEEN 0 AND 100), updated_by TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS event_questions (event_id TEXT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE, slide TEXT NOT NULL, slide_title TEXT NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', answer_meta TEXT NOT NULL DEFAULT '{}', answered_at TEXT);
+CREATE TABLE IF NOT EXISTS slide_content (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',PRIMARY KEY(iteration_id,slide_id));

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {photoInk} from '../public/assets/full-photo.js';
+import {presentationSlides} from '../public/assets/slides.js';
+assert.equal(photoInk([[0,0,0],[30,35,40]]).color,'#ffffff');
+assert.equal(photoInk([[255,255,255],[220,210,200]]).color,'#171717');
+assert.equal(photoInk([[255,255,255]]).opacity,0);
+assert.equal(photoInk([[0,0,0]]).opacity,0);
+assert.ok(photoInk([[0,0,0],[255,255,255]]).opacity>0);
+const data={slides:[{id:'t',manual:1,type:'text',title:'Our story',description:'Our words'},{id:'p',manual:1,type:'fullphoto',source_version_id:'old',source_name:'Kept original.png',source_mime:'image/png',title:'Welcome'}],slide_content:[{slide_id:'intro',title:'Custom introduction',description:'Custom body'}]};
+const slides=presentationSlides(data);
+assert.equal(slides.find(s=>s.id==='intro').title,'Custom introduction');
+assert.equal(slides.find(s=>s.id==='visual-t').record.description,'Our words');
+assert.equal(slides.find(s=>s.id==='visual-p').visual.id,'old');
+assert.equal(slides.find(s=>s.id==='visual-p').section,'story');
+console.log('PASS Full-photo contrast, manual text slides, preserved sources and introduction overrides.');

@@ -74,6 +74,7 @@ try {
             insert('iterations',['id'=>$iid,'project_id'=>$base['project_id'],'number'=>$n,'title'=>text_field($b['title']??('Design development '.$n),120),'status'=>'draft','theme'=>$base['theme'],'created_at'=>now()]);
             foreach(rows('SELECT * FROM iteration_files WHERE iteration_id=?',[$base['id']]) as $r){$r['iteration_id']=$iid;insert('iteration_files',$r);}
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('presentation_slides',$slide);}
+            foreach(rows('SELECT * FROM slide_content WHERE iteration_id=?',[$base['id']]) as $content){$content['iteration_id']=$iid;insert('slide_content',$content);}
             foreach(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$base['id']]) as $layout){$layout['iteration_id']=$iid;insert('slide_layout',$layout);}
             foreach(rows('SELECT * FROM slide_sections WHERE iteration_id=?',[$base['id']]) as $section){$section['iteration_id']=$iid;insert('slide_sections',$section);}
             foreach(rows('SELECT * FROM slide_groups WHERE iteration_id=?',[$base['id']]) as $group){$group['iteration_id']=$iid;insert('slide_groups',$group);}
@@ -258,11 +259,9 @@ try {
         audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Presentation slides: '.$op);json_response(['ok'=>true]);
     }
     if($action==='save_slide') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$slide=current_slide($i['id'],text_field($b['slide_id']??''));if(!$slide)fail('Slide not found.',404);
-        if(!in_array($b['type']??'',VISUAL_TYPES,true)||!in_array($b['situation']??'',VISUAL_SITUATIONS,true))fail('Choose a valid slide type and situation.');
-        $title=text_field($b['title']??'',160);if(!$title)fail('Give the slide a title.');$meta=json_decode($slide['metadata'],true)?:[];$meta['confidence']='manual';$meta['evidence']='Classification reviewed by the designer.';
-        query('UPDATE presentation_slides SET type=?,situation=?,title=?,metadata=? WHERE iteration_id=? AND id=?',[$b['type'],$b['situation'],$title,json_encode($meta),$i['id'],$slide['id']]);
-        audit($i['project_id'],$i['id'],$u['email'],'slide_updated',$title);json_response(['ok'=>true]);
+        if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This photo is too large. Choose an image up to 100 MB.',413);
+        $u=owner(true);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        json_response(save_designed_slide($i,$b,$u));
     }
     if($action==='slide_image_edit') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$sid=text_field($b['slide_id']??'');$mode=text_field($b['mode']??'edit',30);

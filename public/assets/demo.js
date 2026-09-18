@@ -1,3 +1,4 @@
+import {visualSlides} from './slides.js';
 import {budgetAmount,budgetIsRange,budgetTotal} from './budget.js';
 import {uploadSelectionError} from './upload-limits.js';
 // In-memory, fictional pitch content. No client records or production credentials.
@@ -23,6 +24,7 @@ const total=budgetTotal;
 function enrich(d){d.total_cents=total(d.budget);d.iterations=[...decks.values()].filter(x=>x.project.id===d.project.id).map(x=>x.iteration).sort((a,b)=>b.number-a.number);return structuredClone(d);}
 export function demoFile(id){for(const d of decks.values())for(const file of d.files){if(file.id===id)return file;const h=file.history.find(v=>v.id===id);if(h)return h;}return null;}
 export async function demoRequest(action,body={}) {
+  if(action==='save_slide'&&body instanceof FormData)body=Object.fromEntries(body);
   const iid=body.iteration||selected;let d=decks.get(iid)||decks.get(selected);
   if(action==='session')return {user:{name:'Sophie de Vries',email:'sophie@example.com'},csrf:'demo',studio_theme:studioTheme,capabilities:{demo:true,ai:false,mail:false}};
   if(action==='projects'){const map=new Map();for(const d of [...decks.values()].sort((a,b)=>a.iteration.number-b.iteration.number))map.set(d.project.id,{...d.project,iteration:d.iteration,file_count:d.files.length});return {projects:[...map.values()]};}
@@ -38,6 +40,26 @@ export async function demoRequest(action,body={}) {
       const url=URL.createObjectURL(file),entry=f(uid(),old?.asset_id||uid(),file.name,category,file.type,url,(old?.number||0)+1);entry.has_preview=file.type.startsWith('image/');entry.preview_url=entry.has_preview?url:null;entry.size=file.size;entry.metadata={review_required:true,warnings:file.type.startsWith('image/')?[]:['In this demo, document contents are not extracted. The PHP app processes this file with its worker.']};entry.history=[...entry.history,...old?.history||[]];
       if(old)d.files[d.files.indexOf(old)]=entry;else d.files.push(entry);d.changes.push({type:old?'updated':'added',name:file.name});d.events.unshift({id:uid(),actor:'You',type:'file_uploaded',detail:file.name,created_at:stamp()});
     }return {message:'Files added to this demo session. Document extraction runs in the PHP app.'};
+  }
+  if(action==='save_slide'){
+    if(d.iteration.status!=='draft')throw Error('Create a new iteration to edit slides.');
+    if(!body.title?.trim())throw Error('Give the slide a title.');
+    let id=body.slide_id;
+    if(['intro','changes','budget','contacts','summary'].includes(id)){
+      d.slide_content??=[];const content={slide_id:id,title:body.title,description:body.description||''};const old=d.slide_content.find(s=>s.slide_id===id);if(old)Object.assign(old,content);else d.slide_content.push(content);
+    }else{
+      d.slides??=visualSlides(d).map(s=>s.record);const old=d.slides.find(s=>s.id===id);let source=old;
+      if(body.type!=='text'){
+        if(body.image?.size){const file=body.image,url=URL.createObjectURL(file),entry=f(uid(),uid(),file.name,'renders',file.type,url);d.files.push(entry);source={source_version_id:entry.id,page_number:0,image_number:0};}
+        else if(body.image_source?.startsWith('file:'))source={source_version_id:body.image_source.slice(5),page_number:0,image_number:0};
+        else if(body.image_source?.startsWith('slide:'))source=d.slides.find(s=>s.id===body.image_source.slice(6));
+        if(!source?.source_version_id)throw Error('Choose a project image or upload a photo.');
+      }else source={source_version_id:null,page_number:0,image_number:0};
+      id||=uid();const record={...source,id,type:body.type,title:body.title,description:body.description??old?.description??'',situation:body.situation||'unknown',manual:1,legacy:false,metadata:{confidence:'manual'}};
+      if(old)Object.assign(old,record);else d.slides.push(record);id='visual-'+id;
+    }
+    if(body.section){d.slide_sections??=[];const old=d.slide_sections.find(s=>s.slide_id===id);if(old)old.section=body.section;else d.slide_sections.push({slide_id:id,section:body.section});}
+    return {id};
   }
   if(action==='slide_layout'){
     if(d.iteration.status!=='draft')throw Error('Create a new iteration to edit slides.');

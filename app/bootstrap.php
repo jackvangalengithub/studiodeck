@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__.'/studios.php';
 require_once __DIR__.'/budget.php';
 require_once __DIR__.'/activity.php';
+require_once __DIR__.'/slide_editor.php';
 require_once __DIR__.'/people.php';
 require_once __DIR__.'/project_details.php';
 require_once __DIR__.'/communications.php';
@@ -32,6 +33,7 @@ function db(): PDO {
     migrate_studios($db);
     migrate_budget($db);
     migrate_slide_groups($db);
+    migrate_manual_slides($db);
     @chmod($path, 0600);
     return $db;
 }
@@ -161,6 +163,6 @@ function deck_payload(array $i, bool $isOwner): array {
         foreach($result['jobs'] as &$job) { $payload=json_decode($job['payload'],true)?:[];$job['progress']=$payload['progress']??null;if($job['type']==='slide_image_edit')$job['slide_id']=$payload['slide_id']??null;unset($job['payload']); }unset($job);
         $result['shares']=rows('SELECT id,email,expires_at,revoked,created_at FROM shares WHERE iteration_id=?',[$i['id']]);
     }
-    [$key,$email,$name]=profile_identity();$result['profile']=profile_for($key,$name);$result['team']=project_people($p['id']);$result['slide_groups']=slide_groups($i['id']);$result['slide_sections']=rows('SELECT slide_id,section FROM slide_sections WHERE iteration_id=?',[$i['id']]);$result['project']=array_merge($result['project'],project_details($p['id']));$cover=project_cover($i['id']);$result['cover_slide_id']=$cover?$cover['id']:null;$result['comments']=decorate_comments($result['comments'],$key);$result['branding']=presentation_branding($p['id']);
+    [$key,$email,$name]=profile_identity();$result['profile']=profile_for($key,$name);$result['team']=project_people($p['id']);$result['slide_groups']=slide_groups($i['id']);$result['slide_content']=rows('SELECT slide_id,title,description FROM slide_content WHERE iteration_id=?',[$i['id']]);$result['slide_sections']=rows('SELECT slide_id,section FROM slide_sections WHERE iteration_id=?',[$i['id']]);$result['project']=array_merge($result['project'],project_details($p['id']));$cover=project_cover($i['id']);$result['cover_slide_id']=$cover?$cover['id']:null;$result['comments']=decorate_comments($result['comments'],$key);$result['branding']=presentation_branding($p['id']);
     return $result;
 }

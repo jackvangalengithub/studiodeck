@@ -9,7 +9,7 @@ function project_people(string $pid): array {
 }
 function project_cover(string $iid): ?array {
     require_once __DIR__.'/slides.php';
-    return one("SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE f.category!='legal' AND s.iteration_id=? AND s.type IN ('render','photo','moodboard') ORDER BY CASE s.type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,s.position,s.id LIMIT 1",[$iid]);
+    return one("SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE f.category!='legal' AND s.iteration_id=? AND s.type IN ('render','photo','moodboard','fullphoto') ORDER BY CASE s.type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,s.position,s.id LIMIT 1",[$iid]);
 }
 
 function migrate_slide_groups(PDO $db): void {

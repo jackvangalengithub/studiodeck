@@ -16,7 +16,7 @@ if($action==='read_comments'){
 if($action==='comment_preview'){
     $c=one('SELECT * FROM comments WHERE id=?',[text_field($_GET['id']??'')]);if(!$c)fail('Comment not found.',404);[$i]=access_iteration($c['iteration_id']);
     require_once __DIR__.'/slides.php';$slide=str_starts_with($c['slide'],'visual-')?current_slide($i['id'],substr($c['slide'],7)):null;
-    if($slide){try{$image=slide_image_source($slide);$im=@imagecreatefromstring($image['data']);if($im){$scale=min(240/imagesx($im),160/imagesy($im));$thumb=imagescale($im,max(1,(int)(imagesx($im)*$scale)),max(1,(int)(imagesy($im)*$scale)));header('Content-Type: image/png');imagepng($thumb);exit;}}catch(Throwable $e){}}
+    if($slide&&$slide['source_version_id']){try{$image=slide_image_source($slide);$im=@imagecreatefromstring($image['data']);if($im){$scale=min(240/imagesx($im),160/imagesy($im));$thumb=imagescale($im,max(1,(int)(imagesx($im)*$scale)),max(1,(int)(imagesy($im)*$scale)));header('Content-Type: image/png');imagepng($thumb);exit;}}catch(Throwable $e){}}
     $im=builtin_comment_thumbnail($c,$i);header('Content-Type: image/png');imagepng($im);exit;
 }
 if(in_array($action,['upload_project_logo','remove_project_logo'],true)){

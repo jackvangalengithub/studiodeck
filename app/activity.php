@@ -11,6 +11,7 @@ function question_slide_title(string $iid,string $slide): string {
     require_once __DIR__.'/slides.php';
     if(!in_array($slide,editor_slide_ids($iid),true))fail('This slide was not found in the presentation.',404);
     $titles=['intro'=>'Welcome home','changes'=>'What’s new','budget'=>'The investment','contacts'=>'Your project team','summary'=>'Everything, together'];
+    $custom=one('SELECT title FROM slide_content WHERE iteration_id=? AND slide_id=?',[$iid,$slide]);if($custom)return $custom['title'];
     if(isset($titles[$slide]))return $titles[$slide];
     foreach(project_slides($iid) as $record)if('visual-'.$record['id']===$slide)return $record['title'];
     return 'Source slide';

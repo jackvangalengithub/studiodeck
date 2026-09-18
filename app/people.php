@@ -37,6 +37,8 @@ function builtin_comment_thumbnail(array $c,array $i): GdImage {
     $font='/usr/share/fonts/truetype/dejavu/DejaVu'.(($theme['font']??'serif')==='serif'?'Serif':'Sans').'.ttf';
     $text=function(string $value,int $x,int $y,int $size=20)use($im,$ink,$font){if(is_file($font)&&function_exists('imagettftext'))imagettftext($im,$size,0,$x,$y,$ink,$font,preview_text($value,42));else { $value=substr($value,0,42);$layer=imagecreatetruecolor(max(1,strlen($value)*9),16);$color=imagecolorsforindex($im,imagecolorat($im,0,0));$background=imagecolorallocate($layer,$color['red'],$color['green'],$color['blue']);imagefill($layer,0,0,$background);$fg=imagecolorsforindex($im,$ink);$foreground=imagecolorallocate($layer,$fg['red'],$fg['green'],$fg['blue']);imagestring($layer,5,0,0,$value,$foreground);$scale=$size/12;imagecopyresampled($im,$layer,$x,$y-(int)(16*$scale),0,0,(int)(imagesx($layer)*$scale),(int)(16*$scale),imagesx($layer),16);imagedestroy($layer); }};
     $text('CONCEPT '.str_pad((string)$i['number'],2,'0',STR_PAD_LEFT),24,35,10);
+    $custom=str_starts_with($c['slide'],'visual-')?current_slide($i['id'],substr($c['slide'],7)):one('SELECT title,description FROM slide_content WHERE iteration_id=? AND slide_id=?',[$i['id'],$c['slide']]);
+    if($custom){$text($custom['title'],24,95,23);$text(preview_text($custom['description'],44),24,155,12);return $im;}
     if($c['slide']==='intro'){
         $text('A place to',24,95);$text('come home to.',24,126);$text(preview_text($p['name'],24),24,170,11);
         imagefilledrectangle($im,265,60,456,258,$soft);

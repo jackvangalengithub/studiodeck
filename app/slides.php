@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
 
-const VISUAL_TYPES=['moodboard','photo','render','drawing','floorplan','other'];
+const VISUAL_TYPES=['moodboard','photo','render','drawing','floorplan','other','fullphoto'];
 const VISUAL_SITUATIONS=['before','concept','after','reference','unknown'];
 function clean_visual_label(array $value,array $fallback=[]): array {
     $type=in_array($value['type']??'',VISUAL_TYPES,true)?$value['type']:($fallback['type']??'other');
     $situation=in_array($value['situation']??'',VISUAL_SITUATIONS,true)?$value['situation']:($fallback['situation']??'unknown');
     $title=is_string($value['title']??null)?trim($value['title']):($type===($fallback['type']??'')?($fallback['title']??''):'');
-    if($title==='')$title=['moodboard'=>'Mood & materials','photo'=>'Project photograph','render'=>'Design rendering','drawing'=>'Design detail','floorplan'=>'Floorplan','other'=>'Image to review'][$type];
+    if($title==='')$title=['moodboard'=>'Mood & materials','photo'=>'Project photograph','render'=>'Design rendering','drawing'=>'Design detail','floorplan'=>'Floorplan','other'=>'Image to review','fullphoto'=>'A new perspective'][$type];
     return ['type'=>$type,'situation'=>$situation,'title'=>substr($title,0,160),
         'description'=>substr(is_string($value['description']??null)?$value['description']:($fallback['description']??''),0,1600),
         'evidence'=>substr(is_string($value['evidence']??null)?$value['evidence']:($fallback['evidence']??''),0,1200),
@@ -98,22 +98,24 @@ function classify_visuals(array $v,array &$extracted,?callable $request=null): a
     return $visuals;
 }
 function save_visual_slides(string $iid,array $v,array $visuals): void {
-    $existing=rows('SELECT s.* FROM presentation_slides s JOIN file_versions v ON v.id=s.source_version_id WHERE s.iteration_id=? AND v.asset_id=?',[$iid,$v['asset_id']]);
+    $existing=rows('SELECT s.* FROM presentation_slides s JOIN file_versions v ON v.id=s.source_version_id WHERE s.manual=0 AND s.iteration_id=? AND v.asset_id=?',[$iid,$v['asset_id']]);
     $base=$existing?min(array_column($existing,'position')):(int)(one('SELECT MAX(position) AS n FROM presentation_slides WHERE iteration_id=?',[$iid])['n']??0)+1000;
     foreach($existing as $s)query('DELETE FROM presentation_slides WHERE iteration_id=? AND id=?',[$iid,$s['id']]);
     foreach($visuals as $n=>$visual) {
+        $visualId=substr(hash('sha256',$v['id'].':'.$visual['key']),0,32);
+        if(one('SELECT 1 FROM presentation_slides WHERE iteration_id=? AND id=? AND manual=1',[$iid,$visualId]))continue;
         $label=clean_visual_label($visual);
         insert('presentation_slides',['id'=>substr(hash('sha256',$v['id'].':'.$visual['key']),0,32),'iteration_id'=>$iid,'source_version_id'=>$v['id'],'page_number'=>$visual['page_number'],'image_number'=>$visual['image_number'],
             'type'=>$label['type'],'situation'=>$label['situation'],'title'=>$label['title'],'description'=>$label['description'],'metadata'=>json_encode(['evidence'=>$label['evidence'],'confidence'=>$label['confidence'],'palette'=>$visual['palette']??[]],JSON_INVALID_UTF8_SUBSTITUTE),'position'=>$base+$n,'image_version_id'=>null]);
     }
 }
 function project_slides(string $iid): array {
-    $slides=rows('SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE f.category!="legal" AND s.iteration_id=? ORDER BY s.position,s.page_number,s.image_number,s.id',[$iid]);
+    $slides=rows('SELECT s.*,v.name AS source_name,v.mime AS source_mime FROM presentation_slides s LEFT JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id LEFT JOIN file_versions v ON v.id=s.source_version_id WHERE (s.manual=1 OR f.category!="legal") AND s.iteration_id=? ORDER BY s.position,s.page_number,s.image_number,s.id',[$iid]);
     foreach($slides as &$s)$s['metadata']=json_decode($s['metadata'],true)?:[];
     return $slides;
 }
 function current_slide(string $iid,string $sid): ?array {
-    return one('SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE s.iteration_id=? AND s.id=?',[$iid,$sid]);
+    return one("SELECT s.* FROM presentation_slides s LEFT JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE (s.manual=1 OR f.category!='legal') AND s.iteration_id=? AND s.id=?",[$iid,$sid]);
 }
 function slide_image_source(array $slide,bool $original=false): array {
     if(!$original&&$slide['image_version_id']) {
