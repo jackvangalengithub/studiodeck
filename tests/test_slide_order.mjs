@@ -12,3 +12,25 @@ assert.equal(groupSlideOrder(slides).at(-1),'summary');
 console.log('PASS Filtered reordering preserves all slide IDs, custom groups retain every slide.');
 
 assert.equal(groupSlideOrder(slides,{custom:'Materials',story:'The story',budget:'The budget'})[0],'summary');
+
+// Old saved positions can interleave groups. Every view must keep groups contiguous.
+const file={id:'file',name:'designs.pdf',mime:'application/pdf',category:'presentation'};
+const groupedData={files:[file],slides:[
+ {id:'before',source_version_id:'file',type:'photo',situation:'before'},
+ {id:'design-a',source_version_id:'file',type:'render',situation:'concept'},
+ {id:'design-b',source_version_id:'file',type:'render',situation:'concept'},
+ {id:'mood',source_version_id:'file',type:'moodboard',situation:'reference'}],
+ slide_groups:{story:'Story',current:'Current',moodboards:'Moodboards',designs:'Designs',budget:'Budget',custom:'Materials'},
+ slide_sections:[{slide_id:'summary',section:'custom'}],
+ slide_layout:['visual-design-b','budget','intro','visual-mood','visual-design-a','summary','visual-before','changes','contacts'].map((slide_id,position)=>({slide_id,position}))};
+const ordered=presentationSlides(groupedData);
+assert.deepEqual(ordered.map(s=>s.id),['intro','changes','contacts','visual-before','visual-mood','visual-design-b','visual-design-a','budget','summary']);
+assert.deepEqual([...new Set(ordered.map(s=>s.section))],Object.keys(groupedData.slide_groups));
+assert.deepEqual(presentationSlides({...groupedData,slide_groups:{custom:'Materials',designs:'Designs',budget:'Budget',story:'Story',current:'Current',moodboards:'Moodboards'}}).map(s=>s.id),['summary','visual-design-b','visual-design-a','budget','intro','changes','contacts','visual-before','visual-mood']);
+const withinGroup={...groupedData,slide_layout:movedSlide(ordered.map(s=>s.id),'visual-design-a','visual-design-b').map((slide_id,position)=>({slide_id,position}))};
+assert.deepEqual(presentationSlides(withinGroup).filter(s=>s.section==='designs').map(s=>s.id),['visual-design-a','visual-design-b']);
+const filtered={...groupedData,slide_layout:groupedData.slide_layout.map(s=>({...s,hidden:s.slide_id==='visual-design-b'?1:0,deleted:s.slide_id==='visual-mood'?1:0}))};
+assert.deepEqual(presentationSlides(filtered).map(s=>s.id),['intro','changes','contacts','visual-before','visual-design-a','budget','summary']);
+assert.deepEqual(presentationSlides(filtered,{includeHidden:true}).filter(s=>s.section==='designs').map(s=>s.id),['visual-design-b','visual-design-a']);
+assert.deepEqual(presentationSlides({...groupedData,slides:[...groupedData.slides,{id:'new',source_version_id:'file',type:'render',situation:'concept'}]}).filter(s=>s.section==='designs').map(s=>s.id),['visual-design-b','visual-design-a','visual-new']);
+console.log('PASS Group order takes priority over saved positions; within-group moves, custom groups, hidden/deleted slides and new slides stay ordered.');

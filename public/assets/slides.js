@@ -23,7 +23,9 @@ export function presentationSlides(data,{includeHidden=false}={}){
     {id:'summary',type:'summary',title:'Everything, together',icon:'download'}];
   const sections=new Map((data.slide_sections||[]).map(s=>[s.slide_id,s.section]));
   const layout=new Map((data.slide_layout||[]).map(s=>[s.slide_id,s]));
-  return all.map((s,n)=>({...s,section:({...slideSections,...data.slide_groups})[sections.get(s.id)]?sections.get(s.id):defaultSlideSection(s),hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>a.sortPosition-b.sortPosition);
+  // A saved position orders slides within their group; groups define the journey.
+  const groupOrder=new Map(Object.keys({...data.slide_groups,...slideSections}).map((section,index)=>[section,index]));
+  return all.map((s,n)=>({...s,section:groupOrder.has(sections.get(s.id))?sections.get(s.id):defaultSlideSection(s),hidden:!!Number(layout.get(s.id)?.hidden),deleted:!!Number(layout.get(s.id)?.deleted),sortPosition:layout.get(s.id)?.position??(100000+n)})).filter(s=>!s.deleted&&(includeHidden||!s.hidden)).sort((a,b)=>groupOrder.get(a.section)-groupOrder.get(b.section)||a.sortPosition-b.sortPosition);
 }
 
 export const slideSections={story:'The story',current:'The current situation',moodboards:'The moodboards',designs:'The designs',budget:'The budget'};

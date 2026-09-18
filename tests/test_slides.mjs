@@ -19,7 +19,7 @@ assert.equal(visualSlides({...data,slides:[{...data.slides[1],image_version_id:'
 console.log('PASS Repeating slide types, separate before/concept labels, exact page/crop mapping, stable feedback IDs and generated variants.');
 
 const arranged={...data,slide_layout:[{slide_id:'visual-c',position:0},{slide_id:'intro',position:1,hidden:1},{slide_id:'visual-a',position:2,deleted:1}]};
-assert.equal(presentationSlides(arranged)[0].id,'visual-c');
+assert.equal(presentationSlides(arranged).filter(s=>s.section==='designs')[0].id,'visual-c');
 assert.equal(presentationSlides(arranged).some(s=>['intro','visual-a'].includes(s.id)),false);
 assert.equal(presentationSlides(arranged,{includeHidden:true}).some(s=>s.id==='intro'&&s.hidden),true);
 assert.equal(presentationSlides(arranged,{includeHidden:true}).some(s=>s.id==='visual-a'),false);
