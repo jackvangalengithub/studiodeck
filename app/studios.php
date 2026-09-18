@@ -26,7 +26,7 @@ function user_studios(string $uid): array {return rows('SELECT s.id,s.name,s.the
 function session_details(?array $s): array {
     if(!$s)return ['user'=>null,'csrf'=>null,'studio'=>null,'studios'=>[],'studio_theme'=>null,'capabilities'=>capabilities()];
     $studios=user_studios($s['user_id']);$studio=null;foreach($studios as $v)if($v['id']===$s['studio_id'])$studio=$v;
-    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name'],'profile'=>profile_for(person_key($s['email'],true),$s['name'])],'unread_count'=>unread_comment_count($s),'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>$studio?(json_decode($studio['theme'],true)?:[]):[],'capabilities'=>capabilities()];
+    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name'],'profile'=>profile_for(person_key($s['email'],true),$s['name'])],'unread_count'=>unread_comment_count($s),'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>fixed_studio_theme(),'capabilities'=>capabilities()];
 }
 function create_studio(string $uid,string $name): string {
     $sid=id();insert('studios',['id'=>$sid,'name'=>$name,'theme'=>'{}','created_at'=>now()]);insert('studio_members',['studio_id'=>$sid,'user_id'=>$uid,'role'=>'admin']);return $sid;
@@ -35,3 +35,5 @@ function studio_members(string $sid): array {return rows("SELECT u.id,u.email,CO
 function studio_admin(array $u): void {if(!one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']]))fail('Only studio admins can manage users.',403);}
 function project_member(string $pid,string $uid): bool {return (bool)one('SELECT 1 FROM project_members WHERE project_id=? AND user_id=?',[$pid,$uid]);}
 function project_access_sql(): string {return "p.studio_id=? AND (p.visibility='public' OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?))";}
+
+function fixed_studio_theme(): array {return ['palette'=>'warmgray','style'=>'editorial','font'=>'serif'];}

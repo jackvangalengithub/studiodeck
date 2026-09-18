@@ -13,3 +13,8 @@ assert.equal(projectThemeVariables({mode:'light',light_background:'#f6f0e5',back
 assert.equal(projectThemeVariables({mode:'dark',light_background:'#f6f0e5',background:'#253128'})['--deck-bg'],'#253128');
 assert.equal(projectThemeVariables({mode:'light',light_background:'invalid'})['--deck-bg'],projectThemeVariables({mode:'light'})['--deck-bg']);
 console.log('PASS Light and dark background choices remain independent, with safe legacy defaults.');
+const {cleanStudioTheme,studioThemeVariables}=await import('../public/assets/studio.js');
+assert.deepEqual(cleanStudioTheme({palette:'ocean',style:'modern',font:'sans'}),{palette:'warmgray',style:'editorial',font:'serif'});
+assert.equal(studioThemeVariables()['--green'],'#55534f');
+assert.ok(studioThemeVariables()['--heading'].includes('Georgia'));
+console.log('PASS Workspace chrome has one fixed warm grayscale editorial theme.');

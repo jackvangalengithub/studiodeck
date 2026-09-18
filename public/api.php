@@ -156,9 +156,7 @@ try {
         query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);json_response(['ok'=>true]);
     }
     if($action==='studio_theme') {
-        $u=owner(true);$b=input();$theme=$b['theme']??[];
-        if(!in_array($theme['palette']??'',['sage','clay','slate','ink','ocean','plum','rust','forest','mustard','rose','lavender','espresso','grayscale','warmgray'],true)||!in_array($theme['style']??'modern',['classic','modern','minimal','editorial'],true))fail('Choose a studio palette and style.');
-        $theme=['palette'=>$theme['palette'],'style'=>$theme['style']??'modern','font'=>in_array($theme['font']??'',['serif','sans'],true)?$theme['font']:(in_array($theme['style']??'modern',['classic','editorial'],true)?'serif':'sans')];
+        $u=owner(true);$b=input();$theme=fixed_studio_theme();
         $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
     }

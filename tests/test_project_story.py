@@ -81,7 +81,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-story-') as temp:
         order=['summary','visual-'+sid,'intro','changes','budget','contacts'];admin.call('slide_layout',{'iteration':iid,'operation':'reorder','order':order})
         check(sorted(admin.call('project',query='&id='+pid)['slide_layout'],key=lambda s:s['position'])[0]['slide_id']=='summary','Complete slide reorder persists')
         admin.call('studio_theme',{'theme':{'palette':'warmgray','style':'classic','font':'serif'}})
-        check(admin.call('session')['studio_theme']['font']=='serif','Studio font picker persists independently')
+        check(admin.call('session')['studio_theme']=={'palette':'warmgray','style':'editorial','font':'serif'},'Studio chrome stays fixed when legacy theme choices are submitted')
         users=admin.call('save_studio_user',{'email':'viewer@example.test','name':'Viewer'})['users'];viewer=Client(base);viewer.login('viewer@example.test',log)
         viewer.call('reorder_slide_groups',{'iteration':iid,'order':group_order},expected=403)
         viewer.call('project_settings',{'project_id':pid,'deadline':'2027-01-01'},expected=403)

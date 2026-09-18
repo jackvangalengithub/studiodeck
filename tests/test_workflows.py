@@ -57,9 +57,9 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         owner.call('create_project',{'name':'Missing CSRF'},csrf=False,expected=403)
         check(True,'Designer writes require the session CSRF token')
         owner.call('studio_theme',{'theme':{'palette':'clay','style':'classic'}},csrf=False,expected=403)
-        owner.call('studio_theme',{'theme':{'palette':'invalid','style':'classic'}},expected=400)
+        owner.call('studio_theme',{'theme':{'palette':'invalid','style':'classic'}})
         owner.call('studio_theme',{'theme':{'palette':'clay','style':'classic'}})
-        check(owner.call('session')['studio_theme']=={'palette':'clay','style':'classic','font':'serif'},'Studio appearance persists independently of any project')
+        check(owner.call('session')['studio_theme']=={'palette':'warmgray','style':'editorial','font':'serif'},'Workspace appearance is fixed independently of stored studio preferences')
         made=owner.call('create_project',{'name':'Test family project','emails':['client@example.test']},expected=201)
         pid,iid=made['project_id'],made['iteration_id']
         for name,mime,blob in [('budget.csv','text/csv',(ROOT/'public/assets/example-budget.csv').read_bytes()),('living.webp','image/webp',(ROOT/'public/assets/interior.webp').read_bytes()),('floorplan.pdf','application/pdf',(ROOT/'public/assets/concept-plan.pdf').read_bytes())]:
@@ -106,7 +106,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         stranger.call('project',query='&id='+pid,expected=404)
         stranger.call('file',query='&iteration='+iid+'&id='+old['id'],expected=404)
         check(True,'A different designer cannot access another studio’s project or files')
-        check(stranger.call('session')['studio_theme']==[],'Studio preferences are isolated between designers')
+        check(stranger.call('session')['studio_theme']=={'palette':'warmgray','style':'editorial','font':'serif'},'All studios use the fixed workspace appearance')
         owner.call('revoke_share',{'id':share['id']})
         client.call('deck',expected=403)
         check(True,'Revocation immediately disables a client link')
