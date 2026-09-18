@@ -6,7 +6,8 @@ function profile_for(string $key,string $fallback=''): array {
     $p['color']='';$p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
 }
 function profile_identity(bool $write=false): array {
-    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Bearer ')){[$i,$email]=access_iteration();return [person_key($email,false),$email,explode('@',$email)[0]];}
+    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client ')){access_iteration('', $write);$u=owner($write);return [person_key($u['email'],true),$u['email'],$u['name']];}
+    if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Bearer ')){[$i,$email]=access_iteration();$session=current_session();if($session&&$session['email']===$email){if($write)owner(true);return [person_key($email,true),$email,$session['name']];}return [person_key($email,false),$email,explode('@',$email)[0]];}
     $u=owner($write);return [person_key($u['email'],true),$u['email'],$u['name']];
 }
 function normalized_upload(string $field,int $size=640): string {

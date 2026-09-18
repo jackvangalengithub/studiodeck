@@ -101,6 +101,10 @@ function owned_iteration(string $iid,array $u,bool $editable=false,bool $write=f
 }
 function access_iteration(string $iid='', bool $write=false): array {
     $auth=$_SERVER['HTTP_AUTHORIZATION']??'';
+    if(str_starts_with($auth,'Client ')) {
+        $user=owner($write);$share=account_client_share($user,'',$iid,substr($auth,7));
+        return [one('SELECT * FROM iterations WHERE id=?',[$share['iteration_id']]),$user['email'],false,$share];
+    }
     if(str_starts_with($auth,'Bearer ')) {
         $s=one('SELECT * FROM shares WHERE (token_hash=? OR id IN (SELECT share_id FROM share_aliases WHERE token_hash=?)) AND revoked=0 AND expires_at>?',[hash_token(substr($auth,7)),hash_token(substr($auth,7)),time()]);
         if(!$s || ($iid && $iid!==$s['iteration_id'])) fail('This presentation link is expired or unavailable.',403);
@@ -166,3 +170,5 @@ function deck_payload(array $i, bool $isOwner): array {
     [$key,$email,$name]=profile_identity();$result['profile']=profile_for($key,$name);$result['team']=project_people($p['id']);$result['slide_groups']=slide_groups($i['id']);$result['slide_content']=rows('SELECT slide_id,title,description FROM slide_content WHERE iteration_id=?',[$i['id']]);$result['slide_sections']=rows('SELECT slide_id,section FROM slide_sections WHERE iteration_id=?',[$i['id']]);$result['project']=array_merge($result['project'],project_details($p['id']));$cover=project_cover($i['id']);$result['cover_slide_id']=$cover?$cover['id']:null;$result['comments']=decorate_comments($result['comments'],$key);$result['branding']=presentation_branding($p['id']);
     return $result;
 }
+
+require_once __DIR__.'/destinations.php';

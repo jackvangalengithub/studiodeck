@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         admin.login('admin@example.test',log)
         session=admin.call('session');studio=session['studio']['id'];aid=session['user']['id']
         check(session['studio']['role']=='admin' and session['user']['id']=='legacy-admin','Existing account owns its migrated studio')
-        check(admin.call('project',query='&id=legacy-project')['can_edit'] and session['studio_theme']['palette']=='clay','Migration preserves legacy project access and studio preferences')
+        check(admin.call('project',query='&id=legacy-project')['can_edit'] and session['studio_theme']['palette']=='warmgray','Migration preserves legacy project access with the fixed studio palette')
         admin.call('save_studio_user',{'email':'member@example.test','name':'Member','role':'member'},csrf=False,expected=403)
         users=admin.call('save_studio_user',{'email':'member@example.test','name':'Member','role':'member'})['users']
         mid=next(u['id'] for u in users if u['email']=='member@example.test')
@@ -73,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(member.call('studio_logo',raw=True).startswith(b'\x89PNG') and member.call('session')['studio']['has_logo'],'Studio logo is shared with members as a normalized image')
         admin.call('upload_studio_logo',{},files=[('logo.svg','image/svg+xml',b'<svg onload="alert(1)"/>')],file_field='logo',expected=400)
         admin.call('studio_theme',{'name':'Shared studio','theme':{'palette':'ocean','style':'modern'}})
-        check(member.call('session')['studio_theme']['palette']=='ocean','Branding preferences belong to the studio, not one account')
+        check(member.call('session')['studio_theme']['palette']=='warmgray','All studio members receive the fixed studio palette')
 
         p=admin.call('create_project',{'name':'Private admin project','emails':[]},expected=201);pid=p['project_id'];iid=p['iteration_id']
         check(member.call('projects')['projects']==[],'Studio membership does not reveal private projects')

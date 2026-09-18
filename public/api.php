@@ -8,11 +8,12 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover'];
+    $read=['destinations','client_project','destination_cover','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','add_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
+    require __DIR__.'/../app/destinations_api.php';
     require __DIR__.'/../app/studio_api.php';
     require __DIR__.'/../app/project_api.php';
     require __DIR__.'/../app/people_api.php';
@@ -20,12 +21,12 @@ try {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
         $allowed=array_filter(array_map('trim',explode(',',env('DESIGNER_EMAILS'))));
-        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
+        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email])&&!one('SELECT 1 FROM shares WHERE email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
         $u=one('SELECT * FROM users WHERE email=?',[$email]);
         if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);create_studio($u['id'],$u['name']."’s studio"); }
         $t=token();insert('login_tokens',['token_hash'=>hash_token($t),'user_id'=>$u['id'],'expires_at'=>time()+900]);
         $url=base_url().'/#/login/'.$t;
-        $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to your studio:\n\n".$url."\n\nThis link expires in 15 minutes and works once.");
+        $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to Studiodeck:\n\n".$url."\n\nThis link expires in 15 minutes and works once.");
         if(!$sent && env('APP_ENV','production')==='local') {
             $log=env('MAIL_LOG_PATH')?:ROOT.'/storage/mail.log';file_put_contents($log,now().' '.$email.' '.$url."\n",FILE_APPEND|LOCK_EX);@chmod($log,0600);
         }
@@ -38,6 +39,7 @@ try {
             $t=one('SELECT * FROM login_tokens WHERE token_hash=? AND expires_at>?',[$hash,time()]);if(!$t)fail('This sign-in link is expired or has already been used.',403);
             query('DELETE FROM login_tokens WHERE token_hash=?',[$hash]);$session=token();$csrf=token();
             insert('sessions',['token_hash'=>hash_token($session),'user_id'=>$t['user_id'],'csrf'=>$csrf,'expires_at'=>time()+14*86400]);
+            claim_client_profile(one('SELECT email FROM users WHERE id=?',[$t['user_id']])['email']);
             return [$session,$csrf];
         });
         setcookie('studiodeck_session',$result[0],['expires'=>time()+14*86400,'path'=>'/','secure'=>str_starts_with(base_url(),'https://'),'httponly'=>true,'samesite'=>'Lax']);json_response(['ok'=>true]);
