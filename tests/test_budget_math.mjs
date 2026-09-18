@@ -7,3 +7,12 @@ assert.equal(budgetAmount(rows[4]),null);assert.equal(budgetAmount({amount_cents
 rows.push({id:'f',amount_cents:1000,parent_id:'c'});rows[2].selected=false;assert.equal(budgetTotal(rows),160000);
 assert.equal(budgetAmount({min_amount_cents:100,max_amount_cents:101,range_percent:50}),101);
 console.log('PASS fixed, optional, ranged, unspecified and nested budget calculations.');
+const {budgetLineTotal}=await import('../public/assets/budget.js');
+const nested=[{id:'parent',amount_cents:100000},{id:'included',parent_id:'parent',amount_cents:40000,included:1},{id:'option',parent_id:'parent',amount_cents:25000,is_optional:1,selected:false},{id:'extra',parent_id:'included',amount_cents:5000,is_optional:1,selected:true}];
+assert.equal(budgetLineTotal(nested[0],nested),105000);
+nested[2].selected=true;assert.equal(budgetLineTotal(nested[0],nested),130000);assert.equal(budgetTotal(nested),130000);
+nested[2].min_amount_cents=20000;nested[2].max_amount_cents=40000;nested[2].range_percent=50;assert.equal(budgetLineTotal(nested[0],nested),135000);
+assert.equal(budgetLineTotal({id:'unknown',amount_cents:null},nested),null);
+assert.equal(budgetLineTotal({id:'parent',amount_cents:null},nested),35000);
+nested[0].is_optional=1;nested[0].selected=false;assert.equal(budgetTotal(nested),0);assert.equal(budgetLineTotal(nested[0],nested),100000);
+console.log('PASS Parent totals include selected nested extras and ranges without double-counting included subquotes.');

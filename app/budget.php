@@ -24,6 +24,7 @@ function budget_total(array $items,?int $percent=null): int {
 function budget_rows(string $iid): array {
     $items=rows('SELECT b.*,c.selected AS choice_selected,c.range_percent,c.updated_at AS choice_updated_at,c.updated_by AS choice_updated_by FROM budget_items b LEFT JOIN budget_choices c ON c.budget_item_id=b.id WHERE b.iteration_id=? ORDER BY b.rowid',[$iid]);
     foreach($items as &$item){$item['selected']=empty($item['is_optional'])||!empty($item['choice_selected']);$item['range_percent']=(int)($item['range_percent']??0);$item['effective_amount_cents']=budget_amount($item);unset($item['choice_selected']);}unset($item);
+    foreach($items as &$item)$item['line_total_cents']=budget_line_total($item,$items);unset($item);
     return $items;
 }
 function budget_payload(string $iid,bool $designer=true): array {
@@ -37,4 +38,17 @@ function budget_evidence_properties(array $item): array {
     if(($low===null)!==($high===null)||($low!==null&&(!is_numeric($low)||!is_numeric($high)||$low<0||$high<$low||$high>10000000000)))throw new RuntimeException('A budget range needs valid lower and upper prices. Please review the source.');
     $optional=$item['is_optional']??(bool)preg_match('/^(?:Page\s+\d+\.\s*)?(?:Optional\b|Optioneel\b)/i',$note);
     return ['min_amount_cents'=>$low===null?null:(int)$low,'max_amount_cents'=>$high===null?null:(int)$high,'is_optional'=>in_array($optional,[true,1,'1'],true)?1:0];
+}
+
+function budget_line_total(array $item,array $items,?int $percent=null): ?int {
+    $amount=budget_amount($item,$percent);$known=$amount!==null;$amount??=0;$byId=array_column($items,null,'id');
+    foreach($items as $row){
+        if($row['id']===$item['id']||!empty($row['included'])||!budget_enabled($row,$byId))continue;
+        $parent=$row['parent_id']??null;$seen=[];
+        while($parent&&!isset($seen[$parent])){
+            if($parent===$item['id']){$value=budget_amount($row,$percent);if($value!==null){$amount+=$value;$known=true;}break;}
+            $seen[$parent]=true;$parent=$byId[$parent]['parent_id']??null;
+        }
+    }
+    return $known?$amount:null;
 }
