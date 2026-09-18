@@ -44,7 +44,7 @@ function builtin_comment_thumbnail(array $c,array $i): GdImage {
         if($slide){try{$source=slide_image_source($slide);$photo=@imagecreatefromstring($source['data']);if($photo){$scale=min(191/imagesx($photo),198/imagesy($photo));$w=(int)(imagesx($photo)*$scale);$h=(int)(imagesy($photo)*$scale);imagecopyresampled($im,$photo,265+(int)((191-$w)/2),60+(int)((198-$h)/2),0,0,$w,$h,imagesx($photo),imagesy($photo));imagedestroy($photo);}}catch(Throwable $e){}}
     }else{
         $titles=['budget'=>'The investment.','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
-        if(in_array($c['slide'],['budget','summary'],true)){$total=budget_total(rows('SELECT * FROM budget_items WHERE iteration_id=?',[$i['id']]));$text('€ '.number_format($total/100,0,'.',','),24,155,29);foreach([270,220,165] as $n=>$w)imagefilledrectangle($im,24,182+$n*22,$w,192+$n*22,$soft);}
+        if(in_array($c['slide'],['budget','summary'],true)){$total=budget_total(budget_rows($i['id']));$text('€ '.number_format($total/100,0,'.',','),24,155,29);foreach([270,220,165] as $n=>$w)imagefilledrectangle($im,24,182+$n*22,$w,192+$n*22,$soft);}
         elseif($c['slide']==='contacts'){$people=rows("SELECT name FROM contacts WHERE project_id=? AND role<>'Client' LIMIT 3",[$i['project_id']]);foreach($people as $n=>$person){$x=45+$n*145;imagefilledellipse($im,$x+18,145,44,44,$soft);$text(preview_text($person['name'],12),$x-18,195,11);}}
         else{$text(preview_text($p['name'],36),24,148,15);imagefilledrectangle($im,24,178,365,186,$soft);imagefilledrectangle($im,24,202,305,210,$soft);}
     }

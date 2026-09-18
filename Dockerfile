@@ -12,6 +12,7 @@ COPY app/ app/
 COPY public/ public/
 COPY scripts/worker.php scripts/worker.php
 COPY scripts/initialize-slides.php scripts/initialize-slides.php
+COPY scripts/repair-budget-properties.php scripts/repair-budget-properties.php
 COPY scripts/extract_document.py scripts/extract_document.py
 COPY scripts/start.sh scripts/start.sh
 RUN mkdir -p /app/storage && chmod 700 /app/storage && chmod +x /app/scripts/start.sh

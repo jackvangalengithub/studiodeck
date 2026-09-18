@@ -43,3 +43,5 @@ CREATE TABLE IF NOT EXISTS slide_sections (iteration_id TEXT NOT NULL REFERENCES
 
 CREATE TABLE IF NOT EXISTS slide_groups (iteration_id TEXT NOT NULL REFERENCES iterations(id),id TEXT NOT NULL,label TEXT NOT NULL,position INTEGER NOT NULL,PRIMARY KEY(iteration_id,id));
 CREATE TABLE IF NOT EXISTS project_delete_confirmations (token_hash TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id),expires_at INTEGER NOT NULL);
+
+CREATE TABLE IF NOT EXISTS budget_choices (budget_item_id TEXT PRIMARY KEY REFERENCES budget_items(id) ON DELETE CASCADE, selected INTEGER NOT NULL DEFAULT 0, range_percent INTEGER NOT NULL DEFAULT 0 CHECK(range_percent BETWEEN 0 AND 100), updated_by TEXT NOT NULL, updated_at TEXT NOT NULL);

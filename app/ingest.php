@@ -89,32 +89,37 @@ function money_cents(mixed $s): ?int {
     $s=preg_replace('/[^\d,.\-]/','',$s); if(!preg_match('/\d/',$s))return null;
     if(str_contains($s,',')&&str_contains($s,'.')) { $s=strrpos($s,',')>strrpos($s,'.')?str_replace(',','.',str_replace('.','',$s)):str_replace(',','',$s); }
     elseif(str_contains($s,',')) { $s=preg_match('/,\d{1,2}$/',$s)?str_replace(',','.',$s):str_replace(',','',$s); }
+    elseif(preg_match('/^[-]?\d{1,3}(?:\.\d{3})+$/',$s))$s=str_replace('.','',$s);
     if(!is_numeric($s))return null;
     $n=(float)$s; if(abs($n)>100000000)throw new RuntimeException('An amount exceeds the supported range.');
     return (int)round($n*100);
 }
 function table_budget(array $table): array {
-    $items=[]; $headers=null;
-    foreach($table as $r) {
-        $normalized=array_map(fn($v)=>strtolower(trim((string)$v)),$r);
-        if(in_array('label',$normalized,true)&&in_array('amount',$normalized,true)) { $headers=$normalized; continue; }
-        if(!$headers)continue;
-        $v=[];foreach($headers as $k=>$h)if($h!=='')$v[$h]=(string)($r[$k]??'');
-        if(empty($v['label']) || preg_match('/^(grand total|total|totaal)$/i',$v['label']))continue;
-        $items[]=['key'=>$v['key']??$v['label'],'label'=>$v['label'],'vendor'=>$v['vendor']??'','amount_cents'=>money_cents($v['amount']??''),'kind'=>in_array($v['kind']??'',['quote','estimate','unknown'],true)?$v['kind']:'estimate','parent'=>$v['parent']??'','included'=>in_array(strtolower($v['included']??''),['1','true','yes'],true),'note'=>$v['note']??''];
-    }
-    return $items;
+    $items=[];$headers=null;
+    $aliases=['omschrijving'=>'label','description'=>'label','bedrag'=>'amount','prijs'=>'amount','bandbreedte laag'=>'min_amount','bandbreedte hoog'=>'max_amount','minimum'=>'min_amount','maximum'=>'max_amount','low'=>'min_amount','high'=>'max_amount','optional'=>'is_optional','optioneel'=>'is_optional'];
+    foreach($table as $r){
+        $normalized=array_map(function($v)use($aliases){$v=strtolower(trim((string)$v));return $aliases[$v]??$v;},$r);
+        if(in_array('label',$normalized,true)&&(in_array('amount',$normalized,true)||(in_array('min_amount',$normalized,true)&&in_array('max_amount',$normalized,true)))){$headers=$normalized;continue;}
+        if(!$headers)continue;$v=[];foreach($headers as $k=>$h)if($h!=='')$v[$h]=(string)($r[$k]??'');
+        if(empty($v['label'])||preg_match('/^(grand total|total|totaal)(?:\s|$)/i',$v['label']))continue;
+        $low=money_cents($v['min_amount']??'');$high=money_cents($v['max_amount']??'');
+        if($low===null&&$high===null&&preg_match('/^\s*€?\s*([\d.,]+)\s*[–—-]\s*€?\s*([\d.,]+)\s*$/u',$v['amount']??'',$match)){$low=money_cents($match[1]);$high=money_cents($match[2]);}
+        $items[]=['key'=>$v['key']??$v['label'],'label'=>$v['label'],'vendor'=>$v['vendor']??'','amount_cents'=>$low!==null?null:money_cents($v['amount']??''),'min_amount_cents'=>$low,'max_amount_cents'=>$high,'is_optional'=>in_array(strtolower($v['is_optional']??''),['1','true','yes','ja'],true),'kind'=>in_array($v['kind']??'',['quote','estimate','unknown'],true)?$v['kind']:'estimate','parent'=>$v['parent']??'','included'=>in_array(strtolower($v['included']??''),['1','true','yes','ja'],true),'note'=>$v['note']??''];
+    }return $items;
 }
 function replace_source_budget(string $iid,string $vid,array $items): void {
     // Delete only this asset's previous imported rows in the editable snapshot.
     $asset=one('SELECT asset_id FROM file_versions WHERE id=?',[$vid]);
-    $old=rows('SELECT b.id FROM budget_items b JOIN file_versions v ON v.id=b.source_version_id WHERE b.iteration_id=? AND v.asset_id=?',[$iid,$asset['asset_id']]);
+    $old=rows('SELECT b.id,b.label FROM budget_items b JOIN file_versions v ON v.id=b.source_version_id WHERE b.iteration_id=? AND v.asset_id=?',[$iid,$asset['asset_id']]);
+    $oldChoices=[];foreach($old as $r){$choice=one('SELECT * FROM budget_choices WHERE budget_item_id=?',[$r['id']]);$oldChoices[$r['label']][]=$choice;}
     foreach($old as $r)query('UPDATE budget_items SET parent_id=NULL WHERE parent_id=?',[$r['id']]);
     foreach($old as $r)query('DELETE FROM budget_items WHERE id=?',[$r['id']]);
     $map=[]; foreach(array_slice($items,0,300) as $n=>$item) { $key=(string)($item['key']??$n); if(isset($map[$key]))throw new RuntimeException('Duplicate budget reference. Please review the source.'); $map[$key]=id(); }
     foreach(array_slice($items,0,300) as $n=>$item) {
         $key=(string)($item['key']??$n); $parent=$map[(string)($item['parent']??'')]??null;
-        insert('budget_items',['id'=>$map[$key],'iteration_id'=>$iid,'parent_id'=>null,'source_version_id'=>$vid,'label'=>substr((string)($item['label']??'Unnamed item'),0,300),'vendor'=>substr((string)($item['vendor']??''),0,200),'amount_cents'=>isset($item['amount_cents'])?(int)$item['amount_cents']:null,'kind'=>in_array($item['kind']??'',['quote','estimate','unknown'],true)?$item['kind']:'estimate','included'=>$parent&&!empty($item['included'])?1:0,'note'=>substr((string)($item['note']??''),0,2000)]);
+        $properties=budget_evidence_properties($item);
+        insert('budget_items',['id'=>$map[$key],'iteration_id'=>$iid,'parent_id'=>null,'source_version_id'=>$vid,'label'=>substr((string)($item['label']??'Unnamed item'),0,300),'vendor'=>substr((string)($item['vendor']??''),0,200),'amount_cents'=>$properties['min_amount_cents']!==null?null:(isset($item['amount_cents'])?(int)$item['amount_cents']:null),'kind'=>in_array($item['kind']??'',['quote','estimate','unknown'],true)?$item['kind']:'estimate','included'=>$parent&&!empty($item['included'])?1:0,'note'=>substr((string)($item['note']??''),0,2000),...$properties]);
+        $choices=$oldChoices[$item['label']??'']??[];if(count($choices)===1&&$choices[0]){$choice=$choices[0];$choice['budget_item_id']=$map[$key];insert('budget_choices',$choice);}
     }
     foreach(array_slice($items,0,300) as $n=>$item) {
         $key=(string)($item['key']??$n); $p=(string)($item['parent']??'');

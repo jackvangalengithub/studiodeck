@@ -80,6 +80,7 @@ try {
             ensure_iteration_slides($iid);
             $items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$base['id']]);$map=[];foreach($items as $r)$map[$r['id']]=id();
             foreach($items as $r){$r['id']=$map[$r['id']];$r['iteration_id']=$iid;$r['parent_id']=null;insert('budget_items',$r);}
+            foreach($items as $r){$choice=one('SELECT * FROM budget_choices WHERE budget_item_id=?',[$r['id']]);if($choice){$choice['budget_item_id']=$map[$r['id']];insert('budget_choices',$choice);}}
             foreach($items as $r)if($r['parent_id'])query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$r['parent_id']],$map[$r['id']]]);
             audit($base['project_id'],$iid,$u['email'],'iteration_created','Created iteration '.$n.' from iteration '.$base['number']);return ['id'=>$iid];
         });json_response($new,201);
@@ -172,14 +173,17 @@ try {
         $style=text_field($theme['style']??'Modern',40);$font=in_array($theme['font']??'',['serif','sans'],true)?$theme['font']:'serif';$colors=array_values(array_filter(array_slice($theme['colors']??[],0,5),fn($c)=>is_string($c)&&preg_match('/^#[a-f0-9]{6}$/i',$c)));
         query('UPDATE iterations SET theme=? WHERE id=?',[json_encode(['style'=>$style,'font'=>$font,'colors'=>$colors,'mode'=>($theme['mode']??'light')==='dark'?'dark':'light','background'=>is_string($theme['background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['background'])?$theme['background']:'#152235','light_background'=>is_string($theme['light_background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['light_background'])?$theme['light_background']:'','automatic'=>false]),$i['id']]);json_response(['ok'=>true]);
     }
+    require __DIR__.'/../app/budget_api.php';
     if($action==='save_budget') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',300);if(!$label)fail('Give the cost a name.');$bid=text_field($b['id']??'');
         if($bid&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$bid,$i['id']]))fail('Cost not found.',404);
         $parent=text_field($b['parent_id']??'');if($parent&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$parent,$i['id']]))fail('Parent quote not found.');
         $cursor=$parent;$seen=[];while($cursor){if($cursor===$bid||isset($seen[$cursor]))fail('A quote cannot contain itself.');$seen[$cursor]=true;$cursor=one('SELECT parent_id FROM budget_items WHERE id=?',[$cursor])['parent_id']??'';}
-        $amount=money_cents($b['amount']??'');$kind=in_array($b['kind']??'',['quote','estimate','unknown'],true)?$b['kind']:'estimate';if($kind==='unknown')$amount=null;
-        $data=['label'=>$label,'vendor'=>text_field($b['vendor']??'',200),'amount_cents'=>$amount,'kind'=>$kind,'parent_id'=>$parent?:null,'included'=>$parent&&!empty($b['included'])?1:0,'note'=>text_field($b['note']??'',2000)];
-        if($bid)query('UPDATE budget_items SET label=?,vendor=?,amount_cents=?,kind=?,parent_id=?,included=?,note=? WHERE id=?',[...array_values($data),$bid]);else insert('budget_items',['id'=>id(),'iteration_id'=>$i['id'],'source_version_id'=>null,...$data]);
+        $amount=money_cents($b['amount']??'');$kind=in_array($b['kind']??'',['quote','estimate','unknown'],true)?$b['kind']:'estimate';if(($b['price_type']??'')==='unknown')$kind='unknown';if($kind==='unknown')$amount=null;
+        if(($b['price_type']??'')==='fixed'&&$kind!=='unknown'&&$amount===null)fail('Enter the fixed price, or choose Still to be specified.');
+        $data=['label'=>$label,'vendor'=>text_field($b['vendor']??'',200),'amount_cents'=>$amount,'kind'=>$kind,'parent_id'=>$parent?:null,'included'=>$parent&&!empty($b['included'])?1:0,'note'=>text_field($b['note']??'',2000),...budget_form_properties($b)];
+        if($data['min_amount_cents']!==null){$data['amount_cents']=null;if($data['kind']==='unknown')$data['kind']='estimate';}
+        if($bid)query('UPDATE budget_items SET label=?,vendor=?,amount_cents=?,kind=?,parent_id=?,included=?,note=?,min_amount_cents=?,max_amount_cents=?,is_optional=? WHERE id=?',[...array_values($data),$bid]);else insert('budget_items',['id'=>id(),'iteration_id'=>$i['id'],'source_version_id'=>null,...$data]);
         audit($i['project_id'],$i['id'],$u['email'],'budget_updated',$label);json_response(['ok'=>true]);
     }
     if($action==='save_contact') {
@@ -206,7 +210,7 @@ try {
         json_response(['ok'=>true]);
     }
     if($action==='budget_chat') {
-        $b=input();[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$i['id']]);
+        $b=input();[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=budget_rows($i['id']);
         json_response(budget_answer($question,$items,legal_evidence($i['id'],$question)));
     }
     if($action==='retry_job') {
