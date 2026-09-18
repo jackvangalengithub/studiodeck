@@ -1,3 +1,4 @@
+import {uploadSelectionError} from './upload-limits.js';
 // In-memory, fictional pitch content. No client records or production credentials.
 export const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
 const stamp = () => new Date().toISOString();
@@ -31,7 +32,7 @@ export async function demoRequest(action,body={}) {
   if(action==='upload'){
     d=decks.get(body.get('iteration'));if(d.iteration.status!=='draft')throw Error('Create a new iteration to add files.');
     for(const file of body.getAll('files[]')){
-      const allowed=/\.(pdf|pptx?|xlsx?|csv|jpe?g|png|webp)$/i;if(!allowed.test(file.name))throw Error('Please choose PDF, PowerPoint, Excel or image files.');if(file.size>30*1024*1024)throw Error('Files can be up to 30 MB.');
+      const allowed=/\.(pdf|pptx?|xlsx?|csv|jpe?g|png|webp)$/i;if(!allowed.test(file.name))throw Error('Please choose PDF, PowerPoint, Excel or image files.');const sizeError=uploadSelectionError([file]);if(sizeError)throw Error(sizeError);
       const old=d.files.find(x=>x.asset_id===body.get('replace_asset')||x.name===file.name),name=file.name.toLowerCase();const category=/mood|material|styling/.test(name)?'moodboard':/budget|quote|offerte|\.xlsx?$|\.csv$/.test(name)?'budget':/plan|drawing|detail|tekening/.test(name)?'drawings':file.type.startsWith('image/')?'renders':/\.pptx?$/.test(name)?'presentation':'other';
       const url=URL.createObjectURL(file),entry=f(uid(),old?.asset_id||uid(),file.name,category,file.type,url,(old?.number||0)+1);entry.has_preview=file.type.startsWith('image/');entry.preview_url=entry.has_preview?url:null;entry.size=file.size;entry.metadata={review_required:true,warnings:file.type.startsWith('image/')?[]:['In this demo, document contents are not extracted. The PHP app processes this file with its worker.']};entry.history=[...entry.history,...old?.history||[]];
       if(old)d.files[d.files.indexOf(old)]=entry;else d.files.push(entry);d.changes.push({type:old?'updated':'added',name:file.name});d.events.unshift({id:uid(),actor:'You',type:'file_uploaded',detail:file.name,created_at:stamp()});

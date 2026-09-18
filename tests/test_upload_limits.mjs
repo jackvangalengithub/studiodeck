@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import {MAX_FILE_BYTES,MAX_BATCH_BYTES,uploadSelectionError} from '../public/assets/upload-limits.js';
+const file=(size,name='design.pdf')=>({name,size});
+assert.equal(uploadSelectionError([file(33*1024*1024)]),'');
+assert.equal(uploadSelectionError([file(MAX_FILE_BYTES)]),'');
+assert.match(uploadSelectionError([file(MAX_FILE_BYTES+1,'Large design.pdf')]),/Large design.pdf.*100 MB.*compress.*split/);
+assert.equal(uploadSelectionError([file(MAX_FILE_BYTES),file(MAX_BATCH_BYTES-MAX_FILE_BYTES)]),'');
+assert.match(uploadSelectionError([file(MAX_FILE_BYTES),file(MAX_BATCH_BYTES-MAX_FILE_BYTES+1)]),/120 MB.*fewer files/);
+assert.match(uploadSelectionError(Array.from({length:21},()=>file(1))),/20 files/);
+console.log('PASS upload limits: 33 MB and 100 MB accepted; oversized files and batches explain how to proceed.');

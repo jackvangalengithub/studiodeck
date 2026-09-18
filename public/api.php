@@ -85,13 +85,20 @@ try {
         });json_response($new,201);
     }
     if($action==='upload') {
+        if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This upload is too large. Please choose fewer files: up to 100 MB per file and 120 MB in one batch.',413);
         $u=owner(true);$iid=(string)($_POST['iteration']??'');$i=owned_iteration($iid,$u,true);$uploads=$_FILES['files']??null;
         if(!$uploads || !is_array($uploads['name']))fail('Choose one or more files.');if(count($uploads['name'])>20)fail('Drop up to 20 files at a time.');
-        $replace=(string)($_POST['replace_asset']??'');if($replace && count($uploads['name'])!==1)fail('Choose one replacement file.');$prepared=[];
+        $replace=(string)($_POST['replace_asset']??'');if($replace && count($uploads['name'])!==1)fail('Choose one replacement file.');$prepared=[];$totalBytes=0;
         foreach($uploads['name'] as $k=>$rawName) {
-            if($uploads['error'][$k]!==UPLOAD_ERR_OK)fail('An upload did not finish. Please try again.');$tmp=$uploads['tmp_name'][$k];
-            if(!is_uploaded_file($tmp))fail('Invalid upload.');if(filesize($tmp)>30*1024*1024)fail('Each file can be up to 30 MB.');
             $name=basename(str_replace('\\','/',text_field($rawName,240)));if(preg_match('/[\x00-\x1f]/',$name))fail('Please rename this file.');
+            $sizeMessage='“'.$name.'” is too large. Each file can be up to 100 MB. Please compress it or split it into smaller files, then try again.';
+            $error=$uploads['error'][$k];
+            if(in_array($error,[UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE],true))fail($sizeMessage,413);
+            if($error!==UPLOAD_ERR_OK)fail('“'.$name.'” did not finish uploading. Please check your connection and try again.');
+            $tmp=$uploads['tmp_name'][$k];
+            if(!is_uploaded_file($tmp))fail('Invalid upload.');$size=filesize($tmp);
+            if($size>100*1024*1024)fail($sizeMessage,413);
+            $totalBytes+=$size;if($totalBytes>120*1024*1024)fail('These files add up to more than 120 MB. Please select fewer files and upload the rest in another batch.',413);
             $prepared[]=['name'=>$name,'mime'=>validate_upload($name,$tmp),'data'=>file_get_contents($tmp)];
         }
         $uploadCategory=text_field($_POST['category']??'');if(!in_array($uploadCategory,['','legal'],true))fail('Unknown upload category.');

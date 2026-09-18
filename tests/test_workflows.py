@@ -43,7 +43,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
     tmp=Path(temp);base='http://127.0.0.1:8089';log=tmp/'mail.log'
     env={**os.environ,'APP_ENV':'local','APP_URL':base,'DATABASE_PATH':str(tmp/'test.sqlite'),'MAIL_LOG_PATH':str(log),'MAIL_TRANSPORT':'log','OPENAI_API_KEY':'','DESIGNER_EMAILS':''}
     output=open(tmp/'server.log','w')
-    server=subprocess.Popen([PHP,'-d','upload_max_filesize=30M','-d','post_max_size=128M','-S','127.0.0.1:8089','-t',str(ROOT/'public'),str(ROOT/'public/router.php')],env=env,stdout=output,stderr=output)
+    server=subprocess.Popen([PHP,'-d','display_errors=0','-d','log_errors=1','-d','memory_limit=512M','-d','upload_max_filesize=100M','-d','post_max_size=128M','-S','127.0.0.1:8089','-t',str(ROOT/'public'),str(ROOT/'public/router.php')],env=env,stdout=output,stderr=output)
     try:
         owner=Client(base)
         for _ in range(60):
@@ -228,6 +228,21 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-test-') as temp:
         viewer.call('document_page',query=f'&id={version}&page=2&image=1',expected=403)
         viewer.call('slide_image',query=f'&slide_id={render_slide["id"]}',expected=403)
         check(True,'Future and revoked page images are inaccessible')
+        # Check the actual multipart/PHP limits, not only client-side validation.
+        limit_project=owner.call('create_project',{'name':'Large upload limits'},expected=201)
+        limit_iid=limit_project['iteration_id'];mb=1024*1024
+        source=(ROOT/'public/assets/concept-plan.pdf').read_bytes()
+        def pdf_bytes(size): return source+b' '*(size-len(source))
+        for size in [33*mb,100*mb]:
+            owner.call('upload',{'iteration':limit_iid},files=[(f'design-{size}.pdf','application/pdf',pdf_bytes(size))],expected=201)
+        check(True,'Real 33 MB and 100 MB PDF uploads are accepted')
+        too_large=owner.call('upload',{'iteration':limit_iid},files=[('oversized.pdf','application/pdf',pdf_bytes(100*mb+1))],expected=413)
+        check('oversized.pdf' in too_large['error'] and '100 MB' in too_large['error'] and 'compress' in too_large['error'],'PHP size rejection names the file and explains the 100 MB limit')
+        batch=owner.call('upload',{'iteration':limit_iid},files=[('part-a.pdf','application/pdf',pdf_bytes(61*mb)),('part-b.pdf','application/pdf',pdf_bytes(60*mb))],expected=413)
+        check('120 MB' in batch['error'] and 'fewer files' in batch['error'],'Oversized batches explain how to split the upload')
+        post=owner.call('upload',{'iteration':limit_iid},files=[('part-a.pdf','application/pdf',pdf_bytes(65*mb)),('part-b.pdf','application/pdf',pdf_bytes(64*mb))],expected=413)
+        check('120 MB' in post['error'],'PHP post limit returns a friendly JSON error even when form fields are discarded')
+        check(len(owner.call('project',query='&id='+limit_project['project_id'])['files'])==2,'Rejected batches do not partially save files')
         print('\nAll workflow checks passed. No real email or AI calls were made.')
     finally:
         server.terminate();server.wait(timeout=5);output.close()
