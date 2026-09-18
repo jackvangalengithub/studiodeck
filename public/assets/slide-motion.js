@@ -9,6 +9,9 @@ export function animateSlideChange(update,direction=1){
     const originals=[previous,...previous.querySelectorAll('*')],copies=[copy,...copy.querySelectorAll('*')];
     const scrollPositions=originals.map((el,index)=>({el:copies[index],top:el.scrollTop,left:el.scrollLeft})).filter(p=>p.top||p.left);
     copy.removeAttribute('id');copy.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));copy.setAttribute('aria-hidden','true');copy.inert=true;
+    // A transition copy must never create a second playing YouTube frame.
+    copy.querySelectorAll('iframe[data-youtube-player]').forEach(frame=>frame.remove());
+    copy.querySelectorAll('[data-play-youtube]').forEach(button=>button.hidden=false);
     update();
     const next=document.querySelector('.presentation .slide-area');if(!next)return;
     Object.assign(copy.style,{position:'fixed',top:rect.top+'px',left:rect.left+'px',width:rect.width+'px',height:rect.height+'px',margin:'0',zIndex:'20',pointerEvents:'none',background});

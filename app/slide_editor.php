@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__.'/youtube.php';
 
 function migrate_manual_slides(PDO $db): void {
     $hasManual=fn()=>in_array('manual',array_column($db->query('PRAGMA table_info(presentation_slides)')->fetchAll(),'name'),true);
@@ -30,10 +31,16 @@ function save_designed_slide(array $i,array $b,array $u): array {
     }
     if($sid&&!$slide)fail('Slide not found.',404);
     $type=$b['type']??'';$situation=$b['situation']??'unknown';
-    if(!in_array($type,[...VISUAL_TYPES,'text'],true)||!in_array($situation,VISUAL_SITUATIONS,true))fail('Choose a valid slide type and situation.');
-    if($slide&&!$slide['manual']&&$type==='text')fail('Create a text slide to keep this source image available.');
+    if(!in_array($type,[...VISUAL_TYPES,'text','video'],true)||!in_array($situation,VISUAL_SITUATIONS,true))fail('Choose a valid slide type and situation.');
+    if($slide&&!$slide['manual']&&in_array($type,['text','video'],true))fail('Create a separate text or video slide to keep this source image available.');
     $meta=$slide?(json_decode($slide['metadata'],true)?:[]):[];$source=$slide;
-    if($type!=='text'){
+    unset($meta['video']);
+    if($type==='video'){
+        $video=youtube_video(text_field($b['video_url']??'',2048));
+        if(!$video)fail('Paste a valid YouTube video link, such as https://www.youtube.com/watch?v=… or https://youtu.be/…');
+        $meta=['video'=>$video];
+    }
+    if(!in_array($type,['text','video'],true)){
         $upload=$_FILES['image']??null;
         if($upload&&$upload['error']!==UPLOAD_ERR_NO_FILE){
             if(in_array($upload['error'],[UPLOAD_ERR_INI_SIZE,UPLOAD_ERR_FORM_SIZE],true)||$upload['size']>100*1024*1024)fail('This photo is too large. Choose an image up to 100 MB.',413);
@@ -48,7 +55,7 @@ function save_designed_slide(array $i,array $b,array $u): array {
         }elseif(!empty($b['image_source'])){
             $key=text_field($b['image_source']);
             if(str_starts_with($key,'slide:')){
-                $source=current_slide($i['id'],substr($key,6));if(!$source||$source['type']==='text')fail('Choose an image from this iteration.');
+                $source=current_slide($i['id'],substr($key,6));if(!$source||in_array($source['type'],['text','video'],true))fail('Choose an image from this iteration.');
                 $meta=json_decode($source['metadata'],true)?:[];
             }elseif(str_starts_with($key,'file:')){
                 $v=one("SELECT v.id FROM file_versions v JOIN iteration_files f ON f.version_id=v.id WHERE f.iteration_id=? AND v.id=? AND v.mime LIKE 'image/%' AND f.category!='legal'",[$i['id'],substr($key,5)]);

@@ -4,6 +4,7 @@ export function visualSlides(data){
   const files=new Map((data.files||[]).map(f=>[f.id,f]));
   const records=data.slides?.length?data.slides:(data.files||[]).filter(f=>f.mime.startsWith('image/')).map(f=>({id:'legacy-'+f.id,source_version_id:f.id,type:f.category==='moodboard'?'moodboard':/render|3d/i.test(f.name)?'render':'photo',situation:'unknown',title:f.name,metadata:{confidence:'low'},legacy:true}));
   return records.flatMap(s=>{
+    if(s.type==='video')return [{id:'visual-'+s.id,type:'video',title:s.title,description:s.description,icon:'play',record:s}];
     if(s.type==='text')return [{id:'visual-'+s.id,type:'text',title:s.title,description:s.description,icon:'file',record:s}];
     const f=files.get(s.source_version_id)||(Number(s.manual)&&s.source_version_id?{id:s.source_version_id,name:s.source_name||s.title,mime:s.source_mime||'image/jpeg'}:null);if(!f||f.category==='legal')return [];
     const type=visualTypes[s.type]?s.type:'other';
@@ -31,5 +32,5 @@ export function presentationSlides(data,{includeHidden=false}={}){
 }
 
 export const slideSections={story:'The story',current:'The current situation',moodboards:'The moodboards',designs:'The designs',budget:'The budget'};
-export function defaultSlideSection(slide){if(['fullphoto','text'].includes(slide.type))return 'story';if(slide.type==='budget')return 'budget';if(slide.situation==='before')return 'current';if(slide.type==='moodboard')return 'moodboards';if(slide.visual)return 'designs';return 'story';}
+export function defaultSlideSection(slide){if(['fullphoto','text','video'].includes(slide.type))return 'story';if(slide.type==='budget')return 'budget';if(slide.situation==='before')return 'current';if(slide.type==='moodboard')return 'moodboards';if(slide.visual)return 'designs';return 'story';}
 export function groupSlideOrder(slides,groups=slideSections){return [...new Set([...Object.keys(groups),...slides.map(s=>s.section)])].flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}
