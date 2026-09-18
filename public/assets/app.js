@@ -15,7 +15,7 @@ import {installSlideOrdering} from './slide-order.js';
 import {readWorkspaceRoute,workspaceUrl} from './routes.js';
 import {animateSlideChange,cancelSlideMotion} from './slide-motion.js';
 import {projectThemeVariables,projectThemeStyle,clearPresentationTheme,applyPresentationTheme} from './project-theme.js';
-import {comparisonPosition,installComparisonControls,latestSlideImageJob} from './comparison.js';
+import {comparisonPosition,resetComparisonPosition,installComparisonControls,latestSlideImageJob} from './comparison.js';
 import {extractionStages,processingSteps,extractionProgress} from './progress.js';
 import {studioPalettes,cleanStudioTheme,applyStudioTheme,studioThemeStyle} from './studio.js';
 import {demoRequest,demoFile} from './demo.js';
@@ -245,7 +245,7 @@ function individualVisualSlide(def){
     const source=state.data.files.find(x=>x.id===f.id),location=f.page_number?` · Page ${f.page_number}${f.image_number?' · Image '+f.image_number:''}`:'';
     const labels=`<span class="tag outline">${def.record?'Detected type: ':''}${esc(visualTypes[def.type]||'Document')}</span>${def.record?`<span class="tag ${def.situation==='before'?'':'outline'}">${esc(situations[def.situation])}</span>`:''}${r.image_version_id?'<span class="tag outline">AI visualization</span>':''}`;
     const job=slideImageJob(r.id),working=imageWorking(job);
-    const controls=editable()&&def.record&&!r.legacy?`${button('Edit slide','edit-slide','small',`data-id="${esc(r.id)}"`,'edit')}${button(working?'Changing image…':'Change with AI','enhance-slide','primary small',`data-id="${esc(r.id)}" ${working?'disabled':''}`,'spark')}`:'';
+    const controls=editable()&&def.record&&!r.legacy?`${button(working?'Changing image…':'Change with AI','enhance-slide','primary small',`data-id="${esc(r.id)}" ${working?'disabled':''}`,'spark')}`:'';
     const sourceControls=`${r.image_version_id?`${button(original?'Show generated image':'Show original','toggle-slide-original','small ghost',`data-id="${esc(r.id)}"`,'eye')}${button(comparingImage(def)?'Show generated image':'Compare original & generated','toggle-slide-comparison','small ghost',`data-id="${esc(r.id)}"`,'image')}`:''}${button('Source & versions','history','small ghost',`data-id="${esc(f.id)}"`,'history')}`;
     const caption=`<div class="visual-caption"><span>${esc(source?.name||f.name)}${esc(location)}</span><div class="row wrap">${sourceControls}</div></div>`;
     const evidence=editable()&&r.metadata?.confidence==='low'?'<p class="visual-review-note">Suggested labels need a quick review. You can change the type and situation with Edit labels.</p>':'';
@@ -396,7 +396,7 @@ case 'next-photo-slide':navigatePhotoLightbox(1);break;
 case 'previous-photo-slide':navigatePhotoLightbox(-1);break;
 case 'image-preset':{const preset=imagePresets[el.dataset.preset],form=el.closest('form');if(!preset||!form)break;form.querySelector('textarea[name=prompt]').value=preset.prompt;form.querySelectorAll('[data-preset]').forEach(button=>{const selected=button===el;button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));});form.querySelector('textarea').focus();break;}
 case 'enhance-slide':enhanceSlideModal(el.dataset.id);break;
-case 'toggle-slide-comparison':if(showOriginalSlides.has(el.dataset.id)||showGeneratedSlides.has(el.dataset.id)){showOriginalSlides.delete(el.dataset.id);showGeneratedSlides.delete(el.dataset.id);}else showGeneratedSlides.add(el.dataset.id);render();if(magnifiedPhoto)renderPhotoLightbox();break;
+case 'toggle-slide-comparison':if(showOriginalSlides.has(el.dataset.id)||showGeneratedSlides.has(el.dataset.id)){resetComparisonPosition(el.dataset.id);showOriginalSlides.delete(el.dataset.id);showGeneratedSlides.delete(el.dataset.id);}else showGeneratedSlides.add(el.dataset.id);render();if(magnifiedPhoto)renderPhotoLightbox();break;
 case 'toggle-slide-original':if(showOriginalSlides.has(el.dataset.id)){showOriginalSlides.delete(el.dataset.id);showGeneratedSlides.add(el.dataset.id);}else showOriginalSlides.add(el.dataset.id);render();if(magnifiedPhoto)renderPhotoLightbox();break;
 case 'reprocess':{if(!requireDraft())break;const r=await api('reprocess',{iteration:state.data.iteration.id,version_id:el.dataset.id});showProcessing(false,[r.id]);await refresh();break;}
 case 'demo-info':showInfo('demo');break;

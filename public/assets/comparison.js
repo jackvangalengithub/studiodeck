@@ -1,5 +1,6 @@
 const positions=new Map();
 export const comparisonPosition=id=>positions.get(id)??50;
+export const resetComparisonPosition=id=>positions.delete(id);
 export function installComparisonControls(){
     document.addEventListener('input',event=>{
         const input=event.target.closest('[data-comparison-range]');if(!input)return;
