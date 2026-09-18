@@ -167,6 +167,20 @@ function budgetRow(item,depth=0){
     if(depth>8)return '';const children=state.data.budget.filter(x=>x.parent_id===item.id),open=state.openCosts.has(item.id),amount=budgetLineTotal(item,state.data.budget);
     return `<div class="budget-row ${Number(item.is_optional)?'optional-budget-row':''}" data-budget-row="${esc(item.id)}"><div class="budget-line"><button class="budget-disclosure" data-action="${children.length?'toggle-cost':'cost'}" data-id="${esc(item.id)}" ${children.length?`aria-expanded="${open}"`:''}>${children.length?`<span class="budget-foldout">${icon(open?'down':'right')}</span>`:''}<div><h3>${esc(item.label)}${Number(item.included)?'<span class="tag">Included in parent</span>':''}${Number(item.is_optional)?'<span class="tag">Optional</span>':''}</h3><p>${esc(item.vendor||'Vendor to be confirmed')}${children.length?' · '+children.length+' subquotes':''}${budgetIsRange(item)?' · Price range':item.kind==='estimate'?' · Estimate':''}</p></div></button><div class="row"><span class="amount" data-budget-line-total="${esc(item.id)}">${amount===null?'To be specified':money(amount)}</span><button class="budget-source" data-action="cost" data-id="${esc(item.id)}" aria-label="View details of ${esc(item.label)}">${icon('search')}</button></div></div>${budgetChoiceControls(item)}${children.length&&open?`<div class="budget-children">${children.map(x=>budgetRow(x,depth+1)).join('')}</div>`:''}</div>`;
 }
+function toggleBudgetLine(button){
+    const id=button.dataset.id,open=!state.openCosts.has(id),area=button.closest('.slide-area'),scrollTop=area?.scrollTop;
+    if(open)state.openCosts.add(id);else state.openCosts.delete(id);
+    const children=state.data.budget.filter(item=>item.parent_id===id);
+    // Update only the disclosure and its children; keep the scroll container, focus and chat intact.
+    document.querySelectorAll(`[data-budget-row="${CSS.escape(id)}"]`).forEach(row=>{
+        row.querySelector(':scope > .budget-children')?.remove();
+        const disclosure=row.querySelector(':scope > .budget-line .budget-disclosure');
+        disclosure.setAttribute('aria-expanded',String(open));
+        disclosure.querySelector('.budget-foldout').innerHTML=icon(open?'down':'right');
+        if(open){let depth=1,parent=row.parentElement.closest('.budget-row');while(parent){depth++;parent=parent.parentElement.closest('.budget-row');}row.insertAdjacentHTML('beforeend',`<div class="budget-children">${children.map(item=>budgetRow(item,depth)).join('')}</div>`);}
+    });
+    if(area)area.scrollTop=scrollTop;
+}
 function budgetChart(){return state.data.budget.map((item,n)=>`<span style="flex:${!Number(item.included)&&budgetEnabled(item,state.data.budget)?Math.max(0,budgetAmount(item)||0):0};background:var(--green);opacity:${.4+(n%5)*.15}"></span>`).join('');}
 function budgetPage(){
     const d=state.data,items=d.budget,roots=items.filter(x=>!x.parent_id&&budgetAmount(x)!==null),base=roots.filter(x=>!Number(x.is_optional)),options=roots.filter(x=>Number(x.is_optional)),unknown=items.filter(x=>budgetAmount(x)===null),ranges=items.some(budgetIsRange),interactive=ranges||items.some(x=>Number(x.is_optional));
@@ -442,7 +456,7 @@ case 'feedback':feedbackModal();break;
 case 'add-cost':budgetModal();break;
 case 'cost':budgetModal(el.dataset.id);break;
 case 'edit-cost':editCostModal(state.data.budget.find(x=>x.id===el.dataset.id));break;
-case 'toggle-cost':state.openCosts.has(el.dataset.id)?state.openCosts.delete(el.dataset.id):state.openCosts.add(el.dataset.id);render();break;
+case 'toggle-cost':toggleBudgetLine(el);break;
 case 'ask':await askBudget(el.dataset.question);break;
 case 'legal-citation':{const p=await api('document_page',{iteration:state.data.iteration.id,id:el.dataset.version,page:el.dataset.page});const f=state.data.files.find(f=>f.id===el.dataset.version);openModal(`${f?.name||'Source'} · Page ${p.number}`,`<pre class="extracted-text">${esc(p.text)}</pre><div class="modal-footer">${button('Download original','download','small',`data-id="${esc(el.dataset.version)}"`,'download')}</div>`,true);break;}
 case 'enhance':editImageModal(el.dataset.id,true);break;
