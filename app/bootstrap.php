@@ -6,6 +6,7 @@ require_once __DIR__.'/budget.php';
 require_once __DIR__.'/activity.php';
 require_once __DIR__.'/slide_editor.php';
 require_once __DIR__.'/people.php';
+require_once __DIR__.'/project_directory.php';
 require_once __DIR__.'/project_details.php';
 require_once __DIR__.'/communications.php';
 
@@ -160,6 +161,7 @@ function deck_payload(array $i, bool $isOwner): array {
     $result=['project'=>$p,'iteration'=>$i,'files'=>$files,'slides'=>project_slides($i['id']),'slide_layout'=>rows('SELECT slide_id,hidden,deleted,position FROM slide_layout WHERE iteration_id=?',[$i['id']]),'budget'=>$items,'total_cents'=>budget_total($items),'changes'=>$changes,'previous_total_cents'=>$previous?budget_total(budget_rows($previous['id'])):null,'contacts'=>rows('SELECT * FROM contacts WHERE project_id=?'.($isOwner?'':" AND role <> 'Client'"),[$p['id']]),'comments'=>rows('SELECT * FROM comments WHERE iteration_id=? ORDER BY created_at',[$i['id']]),'capabilities'=>capabilities()];
     $result=array_merge($result,budget_payload($i['id'],$isOwner));
     if($isOwner) {
+        $result['people']=project_directory($p['id']);
         $u=current_session();$project=one('SELECT studio_id,visibility,archived FROM projects WHERE id=?',[$p['id']]);$result['project']=array_merge($result['project'],$project);$result['can_edit']=$u?project_member($p['id'],$u['user_id']):false;$result['members']=rows("SELECT u.id,COALESCE(NULLIF(sm.display_name,''),u.name) AS name,u.email FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$p['id']]);
         $result['iterations']=rows('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC',[$p['id']]);
         $result['events']=activity_with_questions(rows('SELECT * FROM events WHERE project_id=? ORDER BY created_at DESC,rowid DESC LIMIT 80',[$p['id']]));

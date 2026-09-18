@@ -5,7 +5,13 @@ function project_details(string $pid): array {
 }
 function project_people(string $pid): array {
     $people=rows("SELECT u.id,u.email,COALESCE(NULLIF(sm.display_name,''),u.name) AS name FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$pid]);
-    foreach($people as &$person){$person['profile']=array_intersect_key(profile_for(person_key($person['email'],true),$person['name']),array_flip(['name','color','avatar']));$person['name']=$person['profile']['name'];}return $people;
+    foreach($people as &$person){
+        $person['profile']=array_intersect_key(profile_for(person_key($person['email'],true),$person['name']),array_flip(['name','color','avatar']));
+        $details=one('SELECT name,phone FROM project_team_contacts WHERE project_id=? AND user_id=?',[$pid,$person['id']]);
+        $person['name']=($details['name']??'')?:$person['profile']['name'];
+        $person['phone']=$details['phone']??(one('SELECT phone FROM contacts WHERE project_id=? AND lower(email)=? ORDER BY rowid DESC LIMIT 1',[$pid,strtolower($person['email'])])['phone']??'');
+    }
+    return $people;
 }
 function project_cover(string $iid): ?array {
     require_once __DIR__.'/slides.php';

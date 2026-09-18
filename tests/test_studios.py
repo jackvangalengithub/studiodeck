@@ -83,6 +83,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(member.call('project',query='&id='+pid)['can_edit'] is False,'Public projects are read-only for non-team members')
         for action,payload in [('theme',{'iteration':iid}),('new_iteration',{'iteration':iid}),('share',{'iteration':iid,'emails':['client@example.test']}),('save_contact',{'project_id':pid}),('project_settings',{'project_id':pid,'archived':True}),('project_members',{'project_id':pid,'user_ids':[mid]})]:
             member.call(action,payload,expected=403)
+        member.call('save_project_person',{'project_id':pid,'group':'other','name':'Blocked','email':''},expected=403)
         member.call('pin_project',{'project_id':pid,'pinned':True})
         check(member.call('projects')['projects'][0]['pinned']==1,'Public projects can be pinned personally')
         check(next(p for p in admin.call('projects')['projects'] if p['id']==pid)['pinned']==0,'Pins are personal to each user')
@@ -100,6 +101,31 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         admin.call('studio_theme',{'theme':{'palette':'plum','style':'modern'}})
         t=member.call('project',query='&id='+pid)['project']['theme']
         check(t['mode']=='dark' and t['background']=='#111314' and t['colors']==['#112233'],'Studio branding changes preserve the independent project palette and dark presentation settings')
+
+        admin.call('upload_avatar',{},files=[('avatar.png','image/png',logo)],file_field='avatar')
+        admin.call('save_project_person',{'project_id':pid,'group':'team','key':aid,'name':'Project lead','email':'admin@example.test','phone':'+31 20 1234567'})
+        admin.call('project_members',{'project_id':pid,'user_ids':[aid,mid]})
+        people=admin.call('project',query='&id='+pid)['people']
+        lead=next(person for person in people['team'] if person['key']==aid)
+        check(lead['name']=='Project lead' and lead['phone']=='+31 20 1234567' and lead['profile']['avatar'].startswith('data:image/png'), 'Team contact details persist through membership updates and include known avatars')
+        admin.call('save_project_person',{'project_id':pid,'group':'team','key':aid,'name':'Wrong','email':'another@example.test'},expected=400)
+        admin.call('save_project_person',{'project_id':pid,'group':'clients','name':'Homeowner','email':'client@example.test','phone':'+31 6 12345678'})
+        admin.call('save_project_person',{'project_id':pid,'group':'other','name':'Painter','email':'','phone':'020 7654321','role':'Painting contractor'})
+        people=admin.call('project',query='&id='+pid)['people'];painter=people['other'][0]
+        check(len(people['team'])==2 and len(people['clients'])==1 and len(people['other'])==1,'People are grouped without duplicating team members as other contacts')
+        check(people['clients'][0]['phone']=='+31 6 12345678' and painter['phone']=='020 7654321','Client and subcontractor phone numbers are stored; other contacts may omit email')
+        admin.call('save_project_person',{'project_id':pid,'group':'other','key':painter['key'],'name':'Painter updated','email':'paint@example.test','phone':'020 1111111','role':'Painting contractor'})
+        admin.call('save_project_person',{'project_id':pid,'group':'other','name':'Duplicate','email':'client@example.test'},expected=400)
+        admin.call('save_project_person',{'project_id':pid,'group':'other','key':'missing','name':'Missing','email':''},expected=404)
+        admin.call('remove_project_person',{'project_id':pid,'group':'other','key':painter['key']},csrf=False,expected=403)
+        admin.call('remove_project_person',{'project_id':pid,'group':'other','key':painter['key']})
+        check(admin.call('project',query='&id='+pid)['people']['other']==[],'Removing an other contact removes only that project contact')
+        admin.call('remove_project_person',{'project_id':pid,'group':'team','key':aid},expected=400)
+        admin.call('remove_project_person',{'project_id':pid,'group':'clients','key':'client@example.test'})
+        check(admin.call('project',query='&id='+pid)['people']['clients']==[],'Removing a client clears the project directory')
+        member.call('remove_project_person',{'project_id':pid,'group':'team','key':aid})
+        check(member.call('project',query='&id='+pid)['people']['other']==[],'Removing a team person also removes their legacy contact entry')
+        member.call('project_members',{'project_id':pid,'user_ids':[aid,mid]})
 
         member.call('comment',{'iteration':iid,'slide':'intro','body':'Please review the entrance.'})
         member.call('comment',{'iteration':iid,'slide':'budget','body':'Please check the allowance.'})

@@ -17,6 +17,7 @@ try {
     require __DIR__.'/../app/studio_api.php';
     require __DIR__.'/../app/project_api.php';
     require __DIR__.'/../app/people_api.php';
+    require __DIR__.'/../app/project_directory_api.php';
     if($action==='request_login') {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
