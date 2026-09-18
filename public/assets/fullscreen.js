@@ -5,14 +5,14 @@ export const justExitedFullscreen=()=>Date.now()-lastExit<400;
 const hasPopup=()=>!!document.querySelector('.modal-backdrop,#section-slide-menu');
 function setHidden(hidden){
  document.body.classList.toggle('presentation-controls-hidden',hidden);
- document.querySelectorAll('.presentation-chrome-top,.presentation-footer').forEach(el=>{el.inert=hidden;if(hidden)el.setAttribute('aria-hidden','true');else el.removeAttribute('aria-hidden');});
+ document.querySelectorAll('.presentation-chrome-top').forEach(el=>{el.inert=hidden;if(hidden)el.setAttribute('aria-hidden','true');else el.removeAttribute('aria-hidden');});
 }
 function hide(){
  clearTimeout(hideTimer);
  if(!isPresentationFullscreen()||!document.querySelector('.presentation'))return;
  if(hasPopup()){hideTimer=setTimeout(hide,delay);return;}
  const focused=document.activeElement;
- if(focused?.closest('.presentation-chrome-top,.presentation-footer'))focused.blur();
+ if(focused?.closest('.presentation-chrome-top'))focused.blur();
  setHidden(true);
 }
 function reveal(){

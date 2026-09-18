@@ -12,6 +12,7 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
   const post=async(action,body)=>{const r=await fetch('/api.php?action='+action,{method:'POST',headers,body:JSON.stringify(body)});if(!r.ok)throw Error(await r.text());return r.json();};
   const p=await post('create_project',{name:'Presentation focus'});
   for(let n=0;n<25;n++)await post('save_budget',{iteration:p.iteration_id,label:'Cost '+n,kind:'estimate',price_type:'fixed',amount:'100'});
+  for(let n=0;n<12;n++){const group=await post('add_slide_group',{iteration:p.iteration_id,label:'Project chapter '+n});await post('save_slide',{iteration:p.iteration_id,type:'text',title:'Chapter '+n,description:'A chapter with some text.',section:group.id});}
   const canvas=document.createElement('canvas');canvas.width=800;canvas.height=600;canvas.getContext('2d').fillRect(0,0,800,600);const blob=await new Promise(r=>canvas.toBlob(r));
   const form=new FormData();Object.entries({iteration:p.iteration_id,type:'render',title:'Concept render',section:'designs',situation:'concept'}).forEach(([k,v])=>form.set(k,v));form.set('image',blob,'photo.png');
   const response=await fetch('/api.php?action=save_slide',{method:'POST',headers:{'X-CSRF-Token':s.csrf},body:form});if(!response.ok)throw Error(await response.text());const slide=await response.json();return {...p,studio:s.studio.id,slide:slide.id};
@@ -31,11 +32,14 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
   await page.locator('.slide-area:not(.slide-outgoing)').evaluate((el,y)=>el.scrollTop=y,scroll);await page.waitForTimeout(80);
   const total=await page.locator('.budget-sticky-summary').boundingBox(),chat=await page.locator('.chat-panel').boundingBox();assert.ok(chat.y>=total.y+total.height+10,'Sticky chat stays below sticky total');
  }
+ assert.equal(await page.locator('.presentation-footer').count(),0);
+ const source=await page.locator('.presentation-top [data-action=originals]').boundingBox(),comments=await page.locator('.comment-balloon').boundingBox();assert.ok(source.x+source.width<=comments.x);
+ assert.equal(await page.evaluate(()=>document.documentElement.clientWidth),1440,'No presentation gutter');
  await page.screenshot({path:'/tmp/studiodeck-focus-budget.png'});
  await page.goto(slide('intro'));await page.locator('.presentation').waitFor();await page.locator('[data-action=toggle-fullscreen]').click();await page.waitForFunction(()=>document.body.classList.contains('presentation-fullscreen'));
  const area=await page.locator('.slide-area:not(.slide-outgoing)').boundingBox();assert.ok(area.height>=990,'Fullscreen slide uses the full height');
  await page.waitForFunction(()=>document.body.classList.contains('presentation-controls-hidden'));await page.waitForTimeout(320);
- assert.equal(await page.locator('.presentation-chrome-top').isVisible(),false);assert.equal(await page.locator('.presentation-footer').isVisible(),false);
+ assert.equal(await page.locator('.presentation-chrome-top').isVisible(),false);assert.equal(await page.locator('.presentation-footer').count(),0);
  const before=page.url();await page.keyboard.press('ArrowRight');await page.waitForFunction(before=>location.href!==before,before);assert.ok(await page.locator('body').evaluate(el=>el.classList.contains('presentation-controls-hidden')));
  const afterArea=await page.locator('.slide-area:not(.slide-outgoing)').boundingBox();assert.equal(afterArea.height,area.height);
  await page.mouse.move(300,300);await page.waitForFunction(()=>!document.body.classList.contains('presentation-controls-hidden'));await page.waitForTimeout(320);assert.ok(await page.locator('.presentation-top').isVisible());
@@ -43,7 +47,23 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
  await page.evaluate(()=>document.dispatchEvent(new Event('touchstart')));await page.waitForFunction(()=>!document.body.classList.contains('presentation-controls-hidden'));
  await page.waitForTimeout(330);await page.locator('[data-action=feedback]').click();await page.waitForTimeout(2400);assert.ok(!await page.locator('body').evaluate(el=>el.classList.contains('presentation-controls-hidden')),'Open dialogs remain usable');await page.keyboard.press('Escape');
  await page.waitForFunction(()=>document.body.classList.contains('presentation-controls-hidden'));await page.keyboard.press('Tab');assert.ok(!await page.locator('body').evaluate(el=>el.classList.contains('presentation-controls-hidden')),'Tab restores keyboard access');
+ await page.mouse.move(320,310);await page.locator('[data-action=jump-section][data-section=budget]').click();await page.locator('.presentation-budget').waitFor();await page.locator('.slide-outgoing').waitFor({state:'detached'});
+ const chromeHeight=await page.locator('.presentation-chrome-top').evaluate(el=>el.offsetHeight);
+ assert.ok((await page.locator('.presentation-budget .slide-heading').boundingBox()).y>chromeHeight+16,'Fullscreen heading clears the toolbar');
+ await page.locator('.slide-area:not(.slide-outgoing)').evaluate(el=>el.scrollTop=900);
+ await page.mouse.move(350,330);await page.waitForTimeout(350);
+ const sticky=await page.locator('.budget-sticky-summary').boundingBox(),panel=await page.locator('.chat-panel').boundingBox();assert.ok(sticky.y>=chromeHeight+15,'Sticky budget clears the revealed toolbar');assert.ok(panel.y>=sticky.y+sticky.height+10,'Chat clears both sticky toolbar and total');
+ await page.screenshot({path:'/tmp/studiodeck-navigation-fullscreen.png'});
  await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.body.classList.contains('presentation-fullscreen'));assert.ok(await page.locator('.preview-bar').isVisible());
+ await page.setViewportSize({width:390,height:844});
+ const rail=page.locator('.presentation-section-index');await rail.evaluate(el=>el.scrollLeft=0);await page.waitForTimeout(100);
+ assert.ok(await page.locator('[data-group-scroll="1"]').isVisible());assert.ok(!await page.locator('[data-group-scroll="-1"]').isVisible());
+ const navBefore=await page.locator('.presentation-slide-navigation').boundingBox();await page.locator('[data-group-scroll="1"]').click();await page.waitForTimeout(500);assert.ok(await rail.evaluate(el=>el.scrollLeft>0));
+ const navAfter=await page.locator('.presentation-slide-navigation').boundingBox();assert.equal(navBefore.x,navAfter.x);assert.equal(navBefore.y,navAfter.y);assert.ok(navAfter.x+navAfter.width<=390);
+ const lines=await rail.locator(':scope > *').evaluateAll(els=>els.map(el=>Math.round(el.getBoundingClientRect().top)));assert.equal(new Set(lines).size,1,'Groups remain in one row');assert.equal(await rail.evaluate(el=>getComputedStyle(el).scrollbarWidth),'none');
+ await rail.evaluate(el=>el.scrollLeft=el.scrollWidth);await page.waitForTimeout(100);assert.ok(!await page.locator('[data-group-scroll="1"]').isVisible());assert.ok(await page.locator('[data-group-scroll="-1"]').isVisible());
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth),390);await page.screenshot({path:'/tmp/studiodeck-navigation-mobile.png'});
+ await page.setViewportSize({width:4000,height:1000});await page.waitForTimeout(100);assert.equal(await page.locator('[data-group-scroll]:visible').count(),0,'Overflow arrows disappear when all groups fit');
  await page.setViewportSize({width:390,height:844});await page.goto(project+'?tab=budget');await page.locator('#iteration-select').waitFor();assert.equal(await page.locator('.chat-panel').count(),0);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
- assert.deepEqual(errors,[]);console.log('PASS admin/viewer controls, aligned iteration picker, one-row AI presets, sticky chat, fullscreen overlays, timeout, mouse/touch/Tab reveal, keyboard slide navigation and exit.');
+ assert.deepEqual(errors,[]);console.log('PASS admin/viewer controls, aligned iteration picker, one-row AI presets, sticky chat, fullscreen overlays, timeout, mouse/touch/Tab reveal, keyboard slide navigation, fullscreen text spacing, one-row group overflow, fixed navigation and no gutter.');
 }catch(e){if(page)await page.screenshot({path:'/tmp/studiodeck-focus-failure.png'});throw e;}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});
