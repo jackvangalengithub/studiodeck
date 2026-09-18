@@ -1,10 +1,15 @@
 <?php
 if($action==='project_settings'){
-    $u=owner(true);$b=input();transaction(function()use($u,$b){
+    $u=owner(true);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();
+    if($multipart&&isset($b['tags'])&&is_string($b['tags']))$b['tags']=preg_split('/[,;\r\n]+/',$b['tags']);
+    transaction(function()use($u,$b){
         $p=owned_project(text_field($b['project_id']??''),$u);$visibility=$b['visibility']??$p['visibility'];if(!in_array($visibility,['team','public'],true))fail('Choose public or team members only.');
         $archived=array_key_exists('archived',$b)?(!empty($b['archived'])?1:0):(int)$p['archived'];
         $location=array_key_exists('location',$b)?text_field($b['location'],160):$p['location'];
         query('UPDATE projects SET visibility=?,archived=?,location=? WHERE id=?',[$visibility,$archived,$location,$p['id']]);
+        $logo=$_FILES['logo']??null;
+        if($logo&&$logo['error']!==UPLOAD_ERR_NO_FILE){$image=normalized_upload('logo');query('DELETE FROM project_logos WHERE project_id=?',[$p['id']]);insert('project_logos',['project_id'=>$p['id'],'data'=>$image,'mime'=>'image/png']);}
+        elseif(!empty($b['remove_logo']))query('DELETE FROM project_logos WHERE project_id=?',[$p['id']]);
         $details=project_details($p['id']);$tags=$b['tags']??$details['tags'];if(!is_array($tags)||count($tags)>20)fail('Use up to 20 project labels.');$tags=array_values(array_unique(array_filter(array_map(fn($tag)=>text_field($tag,40),$tags))));
         $deadline=text_field($b['deadline']??$details['deadline'],10);if($deadline){$date=DateTimeImmutable::createFromFormat('!Y-m-d',$deadline);if(!$date||$date->format('Y-m-d')!==$deadline)fail('Choose a valid deadline.');}
         query('INSERT INTO project_details(project_id,tags,deadline) VALUES(?,?,?) ON CONFLICT(project_id) DO UPDATE SET tags=excluded.tags,deadline=excluded.deadline',[$p['id'],json_encode($tags),$deadline]);
