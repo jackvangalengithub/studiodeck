@@ -9,3 +9,7 @@ assert.equal(projectThemeVariables({mode:'dark',background:'#111314'})['--deck-b
 assert.notEqual(light['--deck-bg'],dark['--deck-bg']);
 assert.equal(projectThemeVariables({colors:['invalid'],mode:'dark',background:'invalid'})['--deck-bg'],'#152235');
 console.log('PASS Fourteen studio palettes and independent, readable light/dark project themes.');
+assert.equal(projectThemeVariables({mode:'light',light_background:'#f6f0e5',background:'#111314'})['--deck-bg'],'#f6f0e5');
+assert.equal(projectThemeVariables({mode:'dark',light_background:'#f6f0e5',background:'#253128'})['--deck-bg'],'#253128');
+assert.equal(projectThemeVariables({mode:'light',light_background:'invalid'})['--deck-bg'],projectThemeVariables({mode:'light'})['--deck-bg']);
+console.log('PASS Light and dark background choices remain independent, with safe legacy defaults.');

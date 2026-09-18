@@ -5,7 +5,7 @@ const luminance=c=>rgb(c).map(v=>{v/=255;return v<=.04045?v/12.92:((v+.055)/1.05
 const contrast=(a,b)=>(Math.max(luminance(a),luminance(b))+.05)/(Math.min(luminance(a),luminance(b))+.05);
 export function projectThemeVariables(theme={}){
     const colors=(theme.colors||[]).filter(valid),sorted=[...colors].sort((a,b)=>luminance(a)-luminance(b));
-    const bg=theme.mode==='dark'?(valid(theme.background)?theme.background:'#152235'):mix(sorted.at(-1)||'#e8e3d7','#ffffff',.88);
+    const bg=theme.mode==='dark'?(valid(theme.background)?theme.background:'#152235'):(valid(theme.light_background)?theme.light_background:mix(sorted.at(-1)||'#e8e3d7','#ffffff',.88));
     const ink=luminance(bg)<.18?'#f5f5f2':'#262b26',accent=colors.find(c=>contrast(c,bg)>=4.5)||ink;
     return {'--deck-bg':bg,'--bg':bg,'--ink':ink,'--green':accent,'--on-accent':contrast(accent,'#ffffff')>=4.5?'#ffffff':'#151915','--muted':mix(ink,bg,.28),'--soft':mix(bg,ink,.07),'--surface':mix(bg,ink,.025),'--line':mix(bg,ink,.2),'--accent':accent,'--heading':theme.font==='sans'?'Arial,sans-serif':"Georgia,'Times New Roman',serif"};
 }
