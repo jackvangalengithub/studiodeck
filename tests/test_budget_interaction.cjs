@@ -21,6 +21,9 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
  },{iid,pid:made.project_id});
  const slide=`${base}/${session.studio.id}/slide/budget?project=${made.project_id}&iteration=${iid}`;
  await page.goto(slide);await page.locator('.presentation-budget').waitFor();
+ const hint=page.locator('.budget-interactive-notice');await hint.waitFor();assert.equal(await hint.innerText(),'This slide is interactive');assert.equal(await hint.getAttribute('role'),'status');
+ await page.waitForTimeout(2200);assert.equal(await hint.count(),1);await hint.waitFor({state:'detached',timeout:1500});
+
  for(const width of [1440,390])for(const full of [false,true]){
   await page.setViewportSize({width,height:900});if(full){await page.locator('[data-action=toggle-fullscreen]').click();await page.waitForFunction(()=>document.body.classList.contains('presentation-fullscreen'));}
   const area=page.locator('.slide-area:not(.slide-outgoing)'),parent=page.locator(`[data-action="toggle-cost"][data-id="${setup.parent}"]`);
@@ -33,5 +36,12 @@ if(!base||!mailLog)throw Error('Set isolated STUDIODECK_TEST_URL and STUDIODECK_
   await child.press('Enter');await parent.focus();const collapse=await area.evaluate(el=>el.scrollTop);await parent.press('Enter');await page.waitForTimeout(100);assert.equal(await area.evaluate(el=>el.scrollTop),collapse);assert.equal(await parent.getAttribute('aria-expanded'),'false');
   if(full){await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.body.classList.contains('presentation-fullscreen'));}
  }
- assert.deepEqual(errors,[]);console.log('PASS Budget expansion/collapse retains scroll, focus and question drafts, including nested rows, desktop/mobile and fullscreen.');
+ // Navigating away and back does not repeat the hint during the same presentation.
+ await page.locator('[data-action=jump-section][data-section=story]').click();await page.locator('[data-action=jump-section][data-section=budget]').click();await page.locator('.slide-outgoing').waitFor({state:'detached'});assert.equal(await hint.count(),0);
+ // Leaving preview starts a fresh presentation session next time.
+ await page.getByRole('button',{name:'Back to studio',exact:true}).click();assert.equal(await hint.count(),0);await page.getByRole('button',{name:'Preview',exact:true}).click();await page.locator('[data-action=jump-section][data-section=budget]').click();await hint.waitFor();
+ await page.locator('[data-action=jump-section][data-section=story]').click();assert.equal(await hint.count(),0);await page.locator('[data-action=jump-section][data-section=budget]').click();assert.equal(await hint.count(),0);
+ // Shared clients receive the same notice; fullscreen does not replay it.
+ const shared=(await call('share',{iteration:iid,emails:['budget-client@example.test']})).data.links[0];await page.goto(`${base}/?slide=budget#/view/${shared.url.split('/#/view/')[1]}`);await hint.waitFor();await page.locator('[data-action=toggle-fullscreen]').click();await page.waitForFunction(()=>document.body.classList.contains('presentation-fullscreen'));assert.equal(await hint.count(),1);await hint.waitFor({state:'detached',timeout:3500});
+ assert.deepEqual(errors,[]);console.log('PASS Budget expansion/collapse retains scroll, focus and question drafts, including nested rows, desktop/mobile and fullscreen; 3-second hint once per presentation for editors and clients.');
 }catch(e){if(page)await page.screenshot({path:'/tmp/studiodeck-budget-interaction-failure.png'});throw e;}finally{await browser.close();}})().catch(e=>{console.error(e);process.exit(1)});

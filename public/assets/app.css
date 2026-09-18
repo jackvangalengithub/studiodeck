@@ -204,3 +204,8 @@ html:has(body.presenting){scrollbar-gutter:auto;overflow:hidden}.presentation .s
 @keyframes slide-filter-pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 22%,transparent)}}
 @media(prefers-reduced-motion:reduce){.slide-type-filter.is-active{animation:none}}
 @media(max-width:420px){.slide-type-options{grid-template-columns:1fr}}
+
+/* A brief, non-blocking hint shown once during each presentation. */
+.budget-interactive-notice{position:fixed;z-index:35;left:50%;bottom:max(24px,env(safe-area-inset-bottom));transform:translateX(-50%);max-width:calc(100vw - 32px);padding:13px 22px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);box-shadow:0 6px 24px #0002;font-size:14px;text-align:center;pointer-events:none;animation:budget-interactive-notice 3s ease both}
+@keyframes budget-interactive-notice{0%,100%{opacity:0}8%,85%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.budget-interactive-notice{animation:none}}
