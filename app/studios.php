@@ -31,7 +31,11 @@ function session_details(?array $s): array {
 function create_studio(string $uid,string $name): string {
     $sid=id();insert('studios',['id'=>$sid,'name'=>$name,'theme'=>'{}','created_at'=>now()]);insert('studio_members',['studio_id'=>$sid,'user_id'=>$uid,'role'=>'admin']);return $sid;
 }
-function studio_members(string $sid): array {return rows("SELECT u.id,u.email,COALESCE(NULLIF(m.display_name,''),u.name) AS name,m.role FROM studio_members m JOIN users u ON u.id=m.user_id WHERE m.studio_id=? ORDER BY u.name,u.email",[$sid]);}
+function studio_members(string $sid): array {
+    $members=rows("SELECT u.id,u.email,COALESCE(NULLIF(m.display_name,''),u.name) AS name,m.role,p.avatar FROM studio_members m JOIN users u ON u.id=m.user_id LEFT JOIN person_profiles p ON p.person_key='user:'||u.email WHERE m.studio_id=? ORDER BY u.name,u.email",[$sid]);
+    foreach($members as &$member){$member['profile']=['avatar'=>$member['avatar']?'data:image/png;base64,'.base64_encode($member['avatar']):null];unset($member['avatar']);}
+    return $members;
+}
 function studio_admin(array $u): void {if(!one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']]))fail('Only studio admins can manage users.',403);}
 function project_member(string $pid,string $uid): bool {return (bool)one('SELECT 1 FROM project_members WHERE project_id=? AND user_id=?',[$pid,$uid]);}
 function project_access_sql(): string {return "p.studio_id=? AND (p.visibility='public' OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?))";}
