@@ -23,9 +23,20 @@ if(!base||!mailLog)throw Error('Set STUDIODECK_TEST_URL and STUDIODECK_TEST_MAIL
    if(n)await page.keyboard.press(direction);
    await page.waitForURL(url=>url.pathname.endsWith('/slide/'+ids[n]));
    assert.equal(await page.locator('.presentation-section-index [aria-current=true]').getAttribute('data-section'),sections[n]);
-   assert.deepEqual(await page.locator('.presentation-section-index button').evaluateAll(els=>els.map(el=>el.dataset.section)),['budget','story','current','designs']);
+   assert.deepEqual(await page.locator('.presentation-section-index [data-action=jump-section]').evaluateAll(els=>els.map(el=>el.dataset.section)),['budget','story','current','designs']);
   }
  }
+ await page.goto(slideUrl('budget'));await page.locator('.presentation').waitFor();
+ // A split group menu navigates directly, without arrow keys moving the deck behind it.
+ const trigger=page.locator('[data-section-menu=story]');
+ await trigger.click();assert.equal(await page.getByRole('menuitem').count(),2);
+ assert.match(await page.getByRole('menuitem').first().innerText(),/^02/);
+ await page.keyboard.press('ArrowDown');assert.ok(page.url().includes('/slide/budget'));
+ await page.keyboard.press('Enter');await page.waitForURL(url=>url.pathname.endsWith('/slide/changes'));
+ await trigger.click();await page.keyboard.press('Escape');assert.equal(await page.locator('#section-slide-menu').count(),0);
+ await page.setViewportSize({width:390,height:844});await trigger.click();
+ const menuBox=await page.locator('#section-slide-menu').boundingBox();assert.ok(menuBox.x>=0&&menuBox.x+menuBox.width<=390);
+ await page.keyboard.press('Escape');await page.setViewportSize({width:1440,height:1000});
  await page.goto(slideUrl('budget'));await page.locator('.presentation').waitFor();
  const ids=['budget','intro','changes','contacts','summary'],groups=['budget','story','story','current','designs'];
  await checkSlides(ids,groups);await checkSlides([...ids].reverse(),[...groups].reverse(),'ArrowLeft');

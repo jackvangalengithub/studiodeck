@@ -1,3 +1,4 @@
+import {installSectionMenus} from './section-menu.js';
 import {installFullPhotoContrast} from './full-photo.js';
 import {budgetIsRange,budgetAmount,budgetEnabled,budgetTotal,budgetLineTotal} from './budget.js';
 import {uploadSelectionError} from './upload-limits.js';
@@ -117,9 +118,11 @@ function sectionIndex(defs,presentation=true){
  const active=presentation?defs[state.slide]?.section:state.slideGroup,edit=!presentation&&editable();
  return (!presentation?`<button type="button" class="${!active?'active':''}" data-action="editor-section" data-section="">All slides<small>${defs.length}</small></button>`:'')+Object.entries(currentGroups()).filter(([key])=>!presentation||defs.some(s=>s.section===key)).map(([key,label])=>{
   const button=`<button type="button" class="${active===key?'active':''}" data-action="${presentation?'jump-section':'editor-section'}" data-section="${esc(key)}" ${active===key?'aria-current="true"':''}>${esc(label)}<small>${defs.filter(s=>s.section===key).length}</small></button>`;
+  if(presentation&&defs.filter(s=>s.section===key).length>1)return `<span class="section-split ${active===key?'active':''}" role="group" aria-label="${esc(label)}">${button}<button type="button" class="section-foldout" data-section-menu="${esc(key)}" aria-label="Slides in ${esc(label)}" aria-haspopup="menu" aria-expanded="false" aria-controls="section-slide-menu">${icon('down')}</button></span>`;
   return edit?`<span class="slide-group" data-group-id="${esc(key)}" data-drop-group="${esc(key)}"><span class="slide-group-controls"><button type="button" class="group-drag-handle" data-drag-group="${esc(key)}" aria-label="Reorder group ${esc(label)}" title="Drag group; Space for keyboard controls">⠿</button>${button}</span></span>`:button;
  }).join('')+(edit?button('Add group','add-slide-group','small','','plus'):'');
 }
+installSectionMenus({getSlides:slideDefs,onNavigate:id=>{const index=slideDefs().findIndex(s=>s.id===id);if(index>=0)moveSlide(index-state.slide);}});
 
 const expandedFiles=new Set();
 function extractedAssets(file){
