@@ -38,6 +38,7 @@ function studio_members(string $sid): array {
 }
 function studio_admin(array $u): void {if(!one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']]))fail('Only studio admins can manage users.',403);}
 function project_member(string $pid,string $uid): bool {return (bool)one('SELECT 1 FROM project_members WHERE project_id=? AND user_id=?',[$pid,$uid]);}
+function project_team_sql(): string {return "p.studio_id=? AND EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?)";}
 function project_access_sql(): string {return "p.studio_id=? AND (p.visibility='public' OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?))";}
 
 function fixed_studio_theme(): array {return ['palette'=>'warmgray','style'=>'editorial','font'=>'serif'];}

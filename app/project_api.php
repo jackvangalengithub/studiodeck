@@ -22,7 +22,7 @@ if($action==='pin_project'){
     else query('DELETE FROM project_pins WHERE project_id=? AND user_id=?',[$p['id'],$u['user_id']]);json_response(['ok'=>true]);
 }
 if($action==='activity_feed'||$action==='comments_feed'){
-    $u=owner();$offset=max(0,(int)($_GET['offset']??0));$params=[$u['studio_id'],$u['user_id']];$where=project_access_sql();
+    $u=owner();$offset=max(0,(int)($_GET['offset']??0));$params=[$u['studio_id'],$u['user_id']];$where=$action==='comments_feed'?project_team_sql():project_access_sql();
     if(!empty($_GET['project_id'])){$where.=' AND p.id=?';$params[]=text_field($_GET['project_id']);}
     if($action==='activity_feed')$items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
     else $items=rows("SELECT c.*,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,s.title AS slide_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide WHERE ".$where.' ORDER BY c.created_at DESC,c.rowid DESC LIMIT 101 OFFSET '.$offset,$params);

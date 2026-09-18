@@ -29,7 +29,7 @@ function presentation_branding(string $pid): array {
     return ['name'=>$p['name'],'source'=>$logo?$source:'studiodeck','logo'=>$logo?'data:image/png;base64,'.base64_encode($logo['data']):null,'has_project_logo'=>(bool)one('SELECT 1 FROM project_logos WHERE project_id=?',[$pid])];
 }
 function unread_comment_count(array $u): int {
-    return (int)one('SELECT COUNT(*) AS n FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id WHERE '.project_access_sql().' AND c.author<>? AND NOT EXISTS(SELECT 1 FROM comment_reads r WHERE r.comment_id=c.id AND r.person_key=?)',[$u['studio_id'],$u['user_id'],$u['email'],person_key($u['email'],true)])['n'];
+    return (int)one('SELECT COUNT(*) AS n FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id WHERE '.project_team_sql().' AND c.author<>? AND NOT EXISTS(SELECT 1 FROM comment_reads r WHERE r.comment_id=c.id AND r.person_key=?)',[$u['studio_id'],$u['user_id'],$u['email'],person_key($u['email'],true)])['n'];
 }
 function builtin_comment_thumbnail(array $c,array $i): GdImage {
     $p=one('SELECT name,theme FROM projects WHERE id=?',[$i['project_id']]);$theme=json_decode($i['theme'],true)?:json_decode($p['theme'],true)?:[];
