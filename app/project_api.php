@@ -20,7 +20,7 @@ if($action==='activity_feed'||$action==='comments_feed'){
     if(!empty($_GET['project_id'])){$where.=' AND p.id=?';$params[]=text_field($_GET['project_id']);}
     if($action==='activity_feed')$items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
     else $items=rows("SELECT c.*,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,s.title AS slide_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide WHERE ".$where.' ORDER BY c.created_at DESC,c.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
-    $more=count($items)>100;if($action==='comments_feed')$items=decorate_comments($items,person_key($u['email'],true));json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
+    $more=count($items)>100;if($action==='activity_feed')$items=activity_with_questions($items);if($action==='comments_feed')$items=decorate_comments($items,person_key($u['email'],true));json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
 }
 
 if($action==='resolve_slide'){

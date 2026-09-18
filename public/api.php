@@ -211,7 +211,9 @@ try {
     }
     if($action==='budget_chat') {
         $b=input();[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=budget_rows($i['id']);
-        json_response(budget_answer($question,$items,legal_evidence($i['id'],$question)));
+        $slide=text_field($b['slide']??'budget',100);
+        $result=answer_with_activity($i,$actor,$slide,$question,fn()=>budget_answer($question,$items,legal_evidence($i['id'],$question)));
+        access_iteration($i['id'],true);json_response($result);
     }
     if($action==='retry_job') {
         $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);

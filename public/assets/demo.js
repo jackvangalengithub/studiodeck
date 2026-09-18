@@ -62,7 +62,8 @@ export async function demoRequest(action,body={}) {
     else if(/kitchen/.test(q)){const k=d.budget.find(x=>/kitchen/i.test(x.label));answer=k?`${k.label} is €${(k.amount_cents/100).toLocaleString('en-IE')}, quoted by ${k.vendor}. ${k.note}`:'No separate kitchen cost is recorded.';}
     else if(/total|budget|cost|how much/.test(q))answer='The known total is €'+(total(d.budget)/100).toLocaleString('en-IE')+'. '+unknown.length+' costs are still unspecified. Vendor subquotes included in their parent quote are not added again.';
     else answer='This demo helper can explain the known total, kitchen quote, unknown costs and included subquotes. Connect AI in the PHP app for free-form questions grounded in your actual budget.';
-    return {answer,mode:'budget_helper',sources:d.files.filter(x=>x.category==='budget').map(x=>x.id)};
+    const event={id:uid(),project_id:d.project.id,iteration_id:d.iteration.id,actor:'Demo viewer',type:'question_answered',detail:body.question,created_at:stamp(),question_answer:{question:body.question,answer,slide:body.slide||'budget',slide_title:'The investment',status:'answered'}};d.events.unshift(event);
+    return {answer,mode:'budget_helper',sources:d.files.filter(x=>x.category==='budget').map(x=>x.id),activity_event:structuredClone(event)};
   }
   if(action==='image_edit')throw Error('Image generation needs the AI connection in the PHP app. The original will be preserved and the result saved as another version.');
   if(action==='revoke_share')return {ok:true};
