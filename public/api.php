@@ -256,7 +256,7 @@ try {
             if($mode==='photorealistic'&&$slide['type']!=='render')fail('Make photorealistic is available only for render slides.');
             if(!capabilities()['ai'])fail('Image editing needs the AI connection.',503);
             foreach(rows("SELECT payload FROM jobs WHERE iteration_id=? AND type='slide_image_edit' AND status IN ('queued','running')",[$i['id']]) as $job)if((json_decode($job['payload'],true)['slide_id']??'')===$sid)fail('This slide already has an image edit in progress.',409);
-            $source=slide_image_source($slide);if(!str_starts_with($source['mime'],'image/'))fail('This slide does not have an editable image.');
+            $source=slide_image_source($slide,true);if(!str_starts_with($source['mime'],'image/'))fail('This slide does not have an editable image.');
             $jid=id();insert('jobs',['id'=>$jid,'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$slide['source_version_id'],'type'=>'slide_image_edit','payload'=>json_encode(['slide_id'=>$sid,'mode'=>$mode,'prompt'=>$prompt,'expected_image_version_id'=>$slide['image_version_id']]),'status'=>'queued','error'=>'','created_at'=>now()]);return $jid;
         });json_response(['id'=>$jid],202);
     }

@@ -105,3 +105,4 @@ input[type=checkbox]::after{content:'';position:absolute;width:15px;height:15px;
 .project-danger-zone{margin-top:26px;padding-top:20px;border-top:1px solid var(--line)}.project-danger-zone p{font-size:13px}
 [data-project-mode] .preview-bar .slide-property-bar button{background:var(--green);color:var(--on-accent);border-radius:5px}
 @media(max-width:600px){.slide-property-bar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) auto;overflow:visible;align-items:end}.slide-property-bar label{min-width:0}.slide-property-bar label:first-of-type{grid-column:1/-1}.preview-bar .slide-property-bar button{padding:8px;font-size:11px}.slide-property-bar label select{padding-right:4px}}
+.ai-preset-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0}.ai-preset-buttons .button.active{background:var(--green);color:var(--on-accent);border-color:var(--green)}

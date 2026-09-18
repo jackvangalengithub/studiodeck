@@ -162,3 +162,14 @@ function editor_slide_ids(string $iid): array {
     }
     return [...$ids,'changes','budget','contacts','summary'];
 }
+
+// Follow generated variants back to the uploaded image; stop at a manual replacement.
+function original_file_image(array $version): array {
+    $seen=[];
+    while(!empty((json_decode($version['metadata'],true)?:[])['generated'])&&!empty($version['parent_id'])){
+        if(isset($seen[$version['id']]))throw new RuntimeException('Image history is invalid.');$seen[$version['id']]=true;
+        $parent=one('SELECT * FROM file_versions WHERE id=? AND asset_id=?',[$version['parent_id'],$version['asset_id']]);
+        if(!$parent)throw new RuntimeException('The original image is unavailable.');$version=$parent;
+    }
+    return $version;
+}
