@@ -29,7 +29,7 @@ CREATE INDEX IF NOT EXISTS idx_slides_source ON presentation_slides(iteration_id
 CREATE TABLE IF NOT EXISTS slide_layout (iteration_id TEXT NOT NULL REFERENCES iterations(id), slide_id TEXT NOT NULL, hidden INTEGER NOT NULL DEFAULT 0, deleted INTEGER NOT NULL DEFAULT 0, position INTEGER, PRIMARY KEY(iteration_id,slide_id));
 CREATE TABLE IF NOT EXISTS studio_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id), theme TEXT NOT NULL DEFAULT '{}');
 CREATE TABLE IF NOT EXISTS studios (id TEXT PRIMARY KEY,name TEXT NOT NULL,theme TEXT NOT NULL DEFAULT '{}',created_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS studio_members (studio_id TEXT NOT NULL REFERENCES studios(id),user_id TEXT NOT NULL REFERENCES users(id),display_name TEXT NOT NULL DEFAULT '',role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin','member')),PRIMARY KEY(studio_id,user_id));
+CREATE TABLE IF NOT EXISTS studio_members (studio_id TEXT NOT NULL REFERENCES studios(id),user_id TEXT NOT NULL REFERENCES users(id),display_name TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin','member')),PRIMARY KEY(studio_id,user_id));
 CREATE TABLE IF NOT EXISTS project_members (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
 CREATE TABLE IF NOT EXISTS project_pins (project_id TEXT NOT NULL REFERENCES projects(id),user_id TEXT NOT NULL REFERENCES users(id),PRIMARY KEY(project_id,user_id));
 CREATE TABLE IF NOT EXISTS studio_logos (studio_id TEXT PRIMARY KEY REFERENCES studios(id),data BLOB NOT NULL,mime TEXT NOT NULL);
@@ -48,4 +48,4 @@ CREATE TABLE IF NOT EXISTS budget_choices (budget_item_id TEXT PRIMARY KEY REFER
 CREATE TABLE IF NOT EXISTS event_questions (event_id TEXT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE, slide TEXT NOT NULL, slide_title TEXT NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', answer_meta TEXT NOT NULL DEFAULT '{}', answered_at TEXT);
 CREATE TABLE IF NOT EXISTS slide_content (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',PRIMARY KEY(iteration_id,slide_id));
 
-CREATE TABLE IF NOT EXISTS project_team_contacts (project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',PRIMARY KEY(project_id,user_id));
+CREATE TABLE IF NOT EXISTS project_team_contacts (project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,name TEXT NOT NULL DEFAULT '',phone TEXT NOT NULL DEFAULT '',role TEXT NOT NULL DEFAULT '',PRIMARY KEY(project_id,user_id));

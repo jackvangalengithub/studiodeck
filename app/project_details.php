@@ -4,12 +4,13 @@ function project_details(string $pid): array {
     $r=one('SELECT tags,deadline FROM project_details WHERE project_id=?',[$pid])?:['tags'=>'[]','deadline'=>''];$r['tags']=json_decode($r['tags'],true)?:[];return $r;
 }
 function project_people(string $pid): array {
-    $people=rows("SELECT u.id,u.email,COALESCE(NULLIF(sm.display_name,''),u.name) AS name FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$pid]);
+    $people=rows("SELECT u.id,u.email,sm.phone,COALESCE(NULLIF(sm.display_name,''),u.name) AS name FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$pid]);
     foreach($people as &$person){
         $person['profile']=array_intersect_key(profile_for(person_key($person['email'],true),$person['name']),array_flip(['name','color','avatar']));
-        $details=one('SELECT name,phone FROM project_team_contacts WHERE project_id=? AND user_id=?',[$pid,$person['id']]);
-        $person['name']=($details['name']??'')?:$person['profile']['name'];
-        $person['phone']=$details['phone']??(one('SELECT phone FROM contacts WHERE project_id=? AND lower(email)=? ORDER BY rowid DESC LIMIT 1',[$pid,strtolower($person['email'])])['phone']??'');
+        $person['profile']['name']=$person['name'];
+        $details=one('SELECT role,phone FROM project_team_contacts WHERE project_id=? AND user_id=?',[$pid,$person['id']]);
+        $person['role']=$details['role']??'';
+        $person['phone']=$person['phone']?:($details['phone']??'')?:(one('SELECT phone FROM contacts WHERE project_id=? AND lower(email)=? ORDER BY rowid DESC LIMIT 1',[$pid,strtolower($person['email'])])['phone']??'');
     }
     return $people;
 }

@@ -32,7 +32,7 @@ function create_studio(string $uid,string $name): string {
     $sid=id();insert('studios',['id'=>$sid,'name'=>$name,'theme'=>'{}','created_at'=>now()]);insert('studio_members',['studio_id'=>$sid,'user_id'=>$uid,'role'=>'admin']);return $sid;
 }
 function studio_members(string $sid): array {
-    $members=rows("SELECT u.id,u.email,COALESCE(NULLIF(m.display_name,''),u.name) AS name,m.role,p.avatar FROM studio_members m JOIN users u ON u.id=m.user_id LEFT JOIN person_profiles p ON p.person_key='user:'||u.email WHERE m.studio_id=? ORDER BY u.name,u.email",[$sid]);
+    $members=rows("SELECT u.id,u.email,COALESCE(NULLIF(m.display_name,''),u.name) AS name,m.role,m.phone,p.avatar FROM studio_members m JOIN users u ON u.id=m.user_id LEFT JOIN person_profiles p ON p.person_key='user:'||u.email WHERE m.studio_id=? ORDER BY u.name,u.email",[$sid]);
     foreach($members as &$member){$member['profile']=['avatar'=>$member['avatar']?'data:image/png;base64,'.base64_encode($member['avatar']):null];unset($member['avatar']);}
     return $members;
 }

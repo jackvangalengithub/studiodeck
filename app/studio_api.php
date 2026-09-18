@@ -23,15 +23,16 @@ if($action==='save_studio_user'||$action==='remove_studio_user'){
             query('DELETE FROM studio_members WHERE studio_id=? AND user_id=?',[$u['studio_id'],$uid]);return;
         }
         $email=email_field($b['email']??'');$name=text_field($b['name']??'',100);if(!$name)fail('Enter a name.');
+        $phone=array_key_exists('phone',$b)?text_field($b['phone'],40):($existing['phone']??'');
         if($existing){
             $old=one('SELECT email FROM users WHERE id=?',[$uid]);if($old['email']!==$email)fail('Email identifies the account. Remove and add a different account to change it.');
-            // Account names are shared across studios; membership editing only changes this studio's role.
-            query('UPDATE studio_members SET role=?,display_name=? WHERE studio_id=? AND user_id=?',[$role,$name,$u['studio_id'],$uid]);
+            // Studio contact details and access roles do not change the shared account.
+            query('UPDATE studio_members SET role=?,display_name=?,phone=? WHERE studio_id=? AND user_id=?',[$role,$name,$phone,$u['studio_id'],$uid]);
         }else{
             $account=one('SELECT id FROM users WHERE email=?',[$email]);$uid=$account['id']??id();
             if(!$account)insert('users',['id'=>$uid,'email'=>$email,'name'=>$name,'created_at'=>now()]);
             if(one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$u['studio_id'],$uid]))fail('This user is already a studio member.',409);
-            insert('studio_members',['studio_id'=>$u['studio_id'],'user_id'=>$uid,'display_name'=>$name,'role'=>$role]);
+            insert('studio_members',['studio_id'=>$u['studio_id'],'user_id'=>$uid,'display_name'=>$name,'phone'=>$phone,'role'=>$role]);
         }
     });json_response(['users'=>studio_members($u['studio_id'])]);
 }
@@ -39,7 +40,10 @@ if($action==='project_members'){
     $u=owner(true);$b=input();
     transaction(function()use($u,$b){$p=owned_project(text_field($b['project_id']??''),$u);$ids=array_values(array_unique($b['user_ids']??[]));if(!$ids)fail('Keep at least one project team member.');
         foreach($ids as $uid)if(!is_string($uid)||!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$p['studio_id'],$uid]))fail('Choose members of this studio.');
+        $roles=$b['roles']??[];if(!is_array($roles))fail('Provide a project role for each selected member.');
+        foreach($roles as $uid=>$role)if(!in_array($uid,$ids,true)||!is_string($role))fail('Roles must belong to selected studio members.');
         query('DELETE FROM project_members WHERE project_id=?',[$p['id']]);foreach($ids as $uid)insert('project_members',['project_id'=>$p['id'],'user_id'=>$uid]);
+        foreach($roles as $uid=>$role)query('INSERT INTO project_team_contacts(project_id,user_id,role) VALUES(?,?,?) ON CONFLICT(project_id,user_id) DO UPDATE SET role=excluded.role',[$p['id'],$uid,text_field($role,80)]);
     });json_response(['ok'=>true]);
 }
 

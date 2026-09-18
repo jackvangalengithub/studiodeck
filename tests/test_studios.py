@@ -103,12 +103,23 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(t['mode']=='dark' and t['background']=='#111314' and t['colors']==['#112233'],'Studio branding changes preserve the independent project palette and dark presentation settings')
 
         admin.call('upload_avatar',{},files=[('avatar.png','image/png',logo)],file_field='avatar')
-        admin.call('save_project_person',{'project_id':pid,'group':'team','key':aid,'name':'Project lead','email':'admin@example.test','phone':'+31 20 1234567'})
+        admin.call('save_studio_user',{'id':aid,'email':'admin@example.test','name':'Admin','role':'admin','phone':'+31 20 1234567'})
+        admin.call('save_project_person',{'project_id':pid,'group':'team','key':aid,'role':'Project lead'})
         admin.call('project_members',{'project_id':pid,'user_ids':[aid,mid]})
         people=admin.call('project',query='&id='+pid)['people']
         lead=next(person for person in people['team'] if person['key']==aid)
-        check(lead['name']=='Project lead' and lead['phone']=='+31 20 1234567' and lead['profile']['avatar'].startswith('data:image/png'), 'Team contact details persist through membership updates and include known avatars')
+        check(lead['name']=='Admin' and lead['role']=='Project lead' and lead['phone']=='+31 20 1234567' and lead['profile']['avatar'].startswith('data:image/png'), 'Project roles persist while names, phones and avatars come from studio members')
         admin.call('save_project_person',{'project_id':pid,'group':'team','key':aid,'name':'Wrong','email':'another@example.test'},expected=400)
+        role_project=admin.call('create_project',{'name':'Independent roles','emails':[]},expected=201)
+        admin.call('project_members',{'project_id':role_project['project_id'],'user_ids':[aid,mid],'roles':{aid:'Consultant',mid:'Project architect'}})
+        check(admin.call('project',query='&id='+pid)['people']['team'][0]['role']=='Project lead','A role in a second project does not replace the first project role')
+        other_team=admin.call('project',query='&id='+role_project['project_id'])['people']['team']
+        check(next(x for x in other_team if x['id']==mid)['role']=='Project architect','Team addition stores a distinct role for each selected studio member')
+        admin.call('project_members',{'project_id':pid,'user_ids':[aid,mid],'roles':{'outside':'Designer'}},expected=400)
+        member.call('save_studio_user',{'id':mid,'email':'member@example.test','name':'Unauthorized','phone':'123'},expected=403)
+        member.call('save_project_person',{'project_id':role_project['project_id'],'group':'team','key':mid,'role':'admin'})
+        check(member.call('session')['studio']['role']=='member','Project role text cannot grant studio administrator permissions')
+
         admin.call('save_project_person',{'project_id':pid,'group':'clients','name':'Homeowner','email':'client@example.test','phone':'+31 6 12345678'})
         admin.call('save_project_person',{'project_id':pid,'group':'other','name':'Painter','email':'','phone':'020 7654321','role':'Painting contractor'})
         people=admin.call('project',query='&id='+pid)['people'];painter=people['other'][0]

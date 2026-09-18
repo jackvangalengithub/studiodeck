@@ -8,7 +8,7 @@ if(in_array($action,['save_project_person','remove_project_person'],true)){
         $people=project_directory($pid);$existing=null;
         foreach($people[$group] as $person)if($person['key']===$key)$existing=$person;
         if(($key!==''||$remove)&&!$existing)fail('This person is no longer in this project.',404);
-        if(!$remove){
+        if(!$remove&&$group!=='team'){
             $name=text_field($b['name']??'',100);if(!$name)fail('Enter a name.');
             $phone=text_field($b['phone']??'',40);$raw=trim((string)($b['email']??''));
             $email=$raw!==''?email_field($raw):'';
@@ -23,8 +23,9 @@ if(in_array($action,['save_project_person','remove_project_person'],true)){
                 query('DELETE FROM project_team_contacts WHERE project_id=? AND user_id=?',[$pid,$key]);
                 query("DELETE FROM contacts WHERE project_id=? AND role<>'Client' AND lower(email)=?",[$pid,strtolower($existing['email'])]);
             }else{
-                if($email!==$existing['email'])fail('Team email addresses belong to their sign-in accounts.');
-                query('INSERT INTO project_team_contacts(project_id,user_id,name,phone) VALUES(?,?,?,?) ON CONFLICT(project_id,user_id) DO UPDATE SET name=excluded.name,phone=excluded.phone',[$pid,$key,$name,$phone]);
+                if(array_intersect(['name','email','phone'],array_keys($b)))fail('Team member details are managed by studio admins. Only the project role can be changed here.');
+                $role=text_field($b['role']??'',80);$name=$existing['name'];
+                query('INSERT INTO project_team_contacts(project_id,user_id,role) VALUES(?,?,?) ON CONFLICT(project_id,user_id) DO UPDATE SET role=excluded.role',[$pid,$key,$role]);
             }
         }elseif($group==='clients'){
             if($remove){
