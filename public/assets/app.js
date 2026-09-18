@@ -111,7 +111,7 @@ function sectionIndex(defs,presentation=true){
  const active=presentation?defs[state.slide]?.section:state.slideGroup,edit=!presentation&&editable();
  return (!presentation?`<button type="button" class="${!active?'active':''}" data-action="editor-section" data-section="">All slides<small>${defs.length}</small></button>`:'')+Object.entries(currentGroups()).filter(([key])=>!presentation||defs.some(s=>s.section===key)).map(([key,label])=>{
   const button=`<button type="button" class="${active===key?'active':''}" data-action="${presentation?'jump-section':'editor-section'}" data-section="${esc(key)}" ${active===key?'aria-current="true"':''}>${esc(label)}<small>${defs.filter(s=>s.section===key).length}</small></button>`;
-  return edit?`<span class="slide-group" data-group-id="${esc(key)}" data-drop-group="${esc(key)}"><span class="slide-group-controls"><button type="button" class="group-drag-handle" data-drag-group="${esc(key)}" aria-label="Reorder group ${esc(label)}" title="Drag group; Space for keyboard controls">⠿</button>${button}</span><span class="drop-group-hint">Drop to add to this group</span></span>`:button;
+  return edit?`<span class="slide-group" data-group-id="${esc(key)}" data-drop-group="${esc(key)}"><span class="slide-group-controls"><button type="button" class="group-drag-handle" data-drag-group="${esc(key)}" aria-label="Reorder group ${esc(label)}" title="Drag group; Space for keyboard controls">⠿</button>${button}</span></span>`:button;
  }).join('')+(edit?button('Add group','add-slide-group','small','','plus'):'');
 }
 
