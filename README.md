@@ -53,7 +53,8 @@ The included PHP router serves these application paths. If using another web ser
 ## What works
 
 - Designer passwordless sign-in: a 15-minute, single-use token; a 14-day HttpOnly session; Secure cookies with an HTTPS `APP_URL`; CSRF tokens for designer writes; request throttling.
-- Project creation and contacts, drag-and-drop uploads, content/type checks, and a background processing queue. Up to 20 files per batch, 100 MB per file and 120 MB total per batch; configure a 128 MB request limit. Oversized files are explained before uploading, with matching server checks.
+- Two-step project setup: enter project details, then select design files. Processing opens the project overview automatically when finished; upload retries reuse the created project. You can also add files later.
+- Project contacts, drag-and-drop uploads, content/type checks, and a background processing queue. Up to 20 files per batch, 100 MB per file and 120 MB total per batch; configure a 128 MB request limit. Oversized files are explained before uploading, with matching server checks.
 - Automatic file categorization using filename, type and extracted text; optional AI classification and visual style detection. Categories and the deck palette/font can be corrected by the designer.
 - The presentation has an introduction, an individual slide for each extracted image, and changes, budget, contacts and downloads. Moodboard, photo, render and drawing slide types can repeat as often as needed. Each visual has its own source page/crop reference and feedback identifier. Collages and moodboards are retained as one composed visual instead of duplicated component slides. All original files remain downloadable.
 - Included vendor subquotes and additional subquotes, expandable at multiple levels. Integer-cent money; unknown amounts remain `NULL`; quoted and estimated costs are distinguished. Each imported budget row points to its source file version. Cyclic subquotes are rejected.

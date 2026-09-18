@@ -196,10 +196,45 @@ function imagePromptForm(form,hidden){return `<p>Every variation starts from the
 function enhanceSlideModal(id){const s=state.data.slides?.find(s=>s.id===id);if(!s||!requireDraft())return;openModal('Change with AI',imagePromptForm('slide-image-edit',`<input type="hidden" name="slide_id" value="${esc(id)}">`));}
 
 function openModal(title,content,wide=false){previousFocus=document.activeElement;activeModal=true;$('#overlay').innerHTML=`<div class="modal-backdrop"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-header"><h2 id="modal-title">${title}</h2>${iconBtn('close','close-modal','Close dialog')}</div>${content}</section></div>`;document.body.style.overflow='hidden';setTimeout(()=>$('.modal input:not([type="hidden"]),.modal textarea,.modal button')?.focus(),20);}
-function closeModal(){if(state.settingsOpen){state.settingsOpen=false;syncWorkspaceUrl(true);}activeModal=false;$('#overlay').innerHTML='';document.body.style.overflow='';previousFocus?.focus();}
+function closeModal(){if(newProjectWizard?.busy)return;newProjectWizard=null;if(state.settingsOpen){state.settingsOpen=false;syncWorkspaceUrl(true);}activeModal=false;$('#overlay').innerHTML='';document.body.style.overflow='';previousFocus?.focus();}
 function formFooter(label='Save',iconName='check'){return `<div class="modal-footer">${button('Cancel','close-modal','ghost')}<button class="button primary" type="submit">${icon(iconName)}${esc(label)}</button></div>`;}
 function requireDraft(){if(state.data?.can_edit===false){toast('Only project team members can edit this project.');return false;}if(!editable()){iterationModal();return false;}return true;}
-function newProjectModal(){openModal('A new project, a fresh start.',`<p>Give it a name. Add your clients. Then bring in your ideas.</p><form data-form="new-project"><label>Project name<input name="name" placeholder="Familie van Galen Werkhoven" required maxlength="160" autocomplete="off"></label><label>Visibility<select name="visibility"><option value="team">Team members only</option><option value="public">Public · everyone in this studio can view</option></select></label><label>Client email addresses<textarea name="emails" rows="2" placeholder="jack@example.com, partner@example.com" maxlength="2000"></textarea></label><p class="form-hint">Separate addresses with commas. Nothing is sent until you share.</p><div class="field-row"><label>Location <span class="muted">(optional)</span><input name="location" placeholder="Werkhoven, Netherlands" maxlength="160"></label><label>A short description <span class="muted">(optional)</span><input name="description" placeholder="A warm, considered family home" maxlength="2000"></label></div>${formFooter('Create project','arrow')}</form>`);}
+let newProjectWizard=null;
+function wizardSteps(step){return `<ol class="project-wizard-steps" aria-label="Create project progress"><li ${step===1?'aria-current="step"':''}><span>1</span>Project details</li><li ${step===2?'aria-current="step"':''}><span>2</span>Upload files</li></ol>`;}
+function newProjectModal(){newProjectWizard={details:{visibility:'team'},files:[],created:null,busy:false};projectWizardDetails();}
+function projectWizardDetails(){
+    const w=newProjectWizard;if(!w||w.busy||w.created)return;const d=w.details;
+    openModal('Start your project',`${wizardSteps(1)}<p>First, tell us a little about the project. Next, add your design files.</p><form data-form="new-project"><label>Project name<input name="name" value="${esc(d.name||'')}" placeholder="Familie van Galen Werkhoven" required maxlength="160" autocomplete="off"></label><label>Visibility<select name="visibility"><option value="team" ${d.visibility!=='public'?'selected':''}>Team members only</option><option value="public" ${d.visibility==='public'?'selected':''}>Public · everyone in this studio can view</option></select></label><label>Client email addresses<textarea name="emails" rows="2" placeholder="jack@example.com, partner@example.com" maxlength="2000">${esc(d.emails||'')}</textarea></label><p class="form-hint">Separate addresses with commas. Nothing is sent until you share.</p><div class="field-row"><label>Location <span class="muted">(optional)</span><input name="location" value="${esc(d.location||'')}" placeholder="Werkhoven, Netherlands" maxlength="160"></label><label>A short description <span class="muted">(optional)</span><input name="description" value="${esc(d.description||'')}" placeholder="A warm, considered family home" maxlength="2000"></label></div>${formFooter('Next: upload files','arrow')}</form>`);
+}
+function projectWizardFiles(error=''){
+    const w=newProjectWizard;if(!w)return;
+    openModal('Bring your ideas together',`${wizardSteps(2)}<p>Add files for <strong>${esc(w.details.name)}</strong>. We’ll extract the pages, images and text, then open your project when processing finishes.</p><form data-form="new-project-files">${error?`<p class="form-error" role="alert">${esc(error)}</p>`:''}<div class="dropzone wizard-dropzone" data-wizard-dropzone><button type="button" class="wizard-file-picker" data-action="wizard-browse">${icon('upload')}<strong>Drop your files here, or browse</strong><span>PDF, PowerPoint, Excel & images</span><small>Up to 100 MB per file · 120 MB per batch · 20 files</small></button><input type="file" id="wizard-file-input" hidden multiple accept=".pdf,.ppt,.pptx,.xls,.xlsx,.csv,.jpg,.jpeg,.png,.webp"></div><div class="wizard-file-list" aria-live="polite">${w.files.length?`<p class="form-hint">${w.files.length} file${w.files.length===1?'':'s'} selected · ${bytes(w.files.reduce((total,f)=>total+f.size,0))}</p>${w.files.map((f,n)=>`<div class="wizard-file-row">${icon('file')}<span><strong>${esc(f.name)}</strong><small>${bytes(f.size)}</small></span>${iconBtn('close','wizard-remove-file',`Remove ${f.name}`,`data-index="${n}"`)}</div>`).join('')}`:'<p class="form-hint">Choose one or more files. You can add more later.</p>'}</div><div class="modal-footer wizard-footer">${!w.created?button('Back','wizard-back','ghost','','left'):''}<button type="submit" name="finish" value="skip" class="button ghost">Add files later</button><button type="submit" name="finish" value="upload" class="button primary" ${w.files.length?'':'disabled'}>${icon('arrow')}${w.created?'Retry upload':'Create & process files'}</button></div></form>`);
+    const input=$('#wizard-file-input'),zone=$('[data-wizard-dropzone]');
+    input.addEventListener('change',()=>addWizardFiles([...input.files]));
+    zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dragging');});
+    zone.addEventListener('dragleave',e=>{if(!zone.contains(e.relatedTarget))zone.classList.remove('dragging');});
+    zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragging');addWizardFiles([...e.dataTransfer.files]);});
+}
+function addWizardFiles(files){
+    const w=newProjectWizard;if(!w||w.busy)return;
+    const next=[...w.files];for(const file of files)if(!next.some(f=>f.name===file.name&&f.size===file.size&&f.lastModified===file.lastModified))next.push(file);
+    const unsupported=next.find(f=>! /\.(pdf|pptx?|xlsx?|csv|jpe?g|png|webp)$/i.test(f.name));
+    const error=unsupported?`“${unsupported.name}” isn’t a supported file. Please choose PDF, PowerPoint, Excel, CSV, JPG, PNG or WebP files.`:uploadSelectionError(next);
+    if(error){projectWizardFiles(error);return;}w.files=next;projectWizardFiles();
+}
+async function finishProjectWizard(skip=false){
+    const w=newProjectWizard;if(!w||w.busy)return;
+    if(!skip){const error=!w.files.length?'Choose at least one file, or select “Add files later”.':uploadSelectionError(w.files);if(error){projectWizardFiles(error);return;}}
+    w.busy=true;document.querySelectorAll('.modal button,.modal input').forEach(el=>el.disabled=true);
+    const status=document.createElement('p');status.className='form-hint';status.setAttribute('role','status');status.textContent=w.created?'Opening your project…':'Creating your project…';$('.wizard-file-list').prepend(status);
+    try{
+        if(!w.created)w.created=await api('create_project',{...w.details,emails:w.details.emails.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean)});
+        state.tab='overview';await openProject(w.created.project_id,w.created.iteration_id);state.projects=(await api('projects')).projects;
+        w.busy=false;closeModal();
+        if(skip){toast('Your project is ready. Add files whenever you’re ready.');return;}
+        await uploadFiles(w.files,'','',true);
+    }catch(error){w.busy=false;if(processingView.visible)hideProcessing();newProjectWizard=w;projectWizardFiles(error.message);}
+}
 function iterationModal(){if(state.data?.can_edit===false){toast('Only project team members can create iterations.');return;}const d=state.data;openModal('Room for the next iteration.',`<p>Create a new version of your presentation. All ${d.files.length} files carry forward; replace only what has changed.</p><form data-form="iteration"><label>Iteration name<input name="title" value="Design development" required maxlength="120"></label><p class="form-hint">Current client links stay attached to the iteration you shared.</p>${formFooter('Create iteration','plus')}</form><div class="section-title"><h2>Earlier iterations</h2></div>${(d.iterations||[]).map(i=>`<div class="history-item"><span>Concept ${i.number} · ${esc(i.title)}<small>${esc(i.status)} · ${esc(date(i.created_at))}</small></span>${button('Open','switch-iteration','small',`data-id="${esc(i.id)}"`)}</div>`).join('')}`);}
 function originalsModal(){const id=slideDefs()[state.slide].id;openModal('The files behind this slide.',`<p>Download the source or explore its version history.</p><div class="download-list">${slideFiles(id).map(f=>`<button data-action="history" data-id="${esc(f.id)}"><span>${esc(f.name)}<small>Version ${f.number} · ${f.history.length} saved version${f.history.length===1?'':'s'}</small></span>${icon('right')}</button>`).join('')||'<p class="budget-note">No source files on this slide.</p>'}</div>`);}
 function historyModal(id){const f=state.data.files.find(x=>x.id===id);if(!f)return;openModal('Every version, kept safe.',`<p>${esc(f.name)}</p>${f.history.map((v,n)=>`<div class="history-item"><div>Version ${v.number} ${n===0?'<span class="tag green">In this iteration</span>':''}<small>${esc(v.name)}${n===f.history.length-1?' · Original upload':''}</small></div>${button('Download','download','small',`data-id="${esc(v.id)}"`,'download')}</div>`).join('')}${f.metadata?.generated?`<p class="budget-note">AI change: ${esc(f.metadata.prompt)}</p>`:''}`);}
@@ -238,8 +273,8 @@ function editImageModal(id){const f=state.data.files.find(x=>x.id===id);if(!f||!
 
 function manageLinks(){const shares=state.data.shares||[];openModal('Your shared presentations.',`<p>Each link opens only the iteration it was created for. Revoke a link to stop access.</p>${shares.map(s=>`<div class="history-item"><span>${esc(s.email)}<small>${s.revoked?'Revoked':'Expires '+new Date(s.expires_at*1000).toLocaleDateString('en-GB')}</small></span>${s.revoked?'':button('Revoke','revoke-share','small',`data-id="${esc(s.id)}"`)}</div>`).join('')||'<p class="muted">There are no active links recorded for this iteration.</p>'}<div class="modal-footer">${button('Share presentation','share','primary','','send')}</div>`);}
 async function download(id){let name,url;if(DEMO){const f=demoFile(id);if(!f)throw Error('This source is not available.');name=f.name;url=f.url;}else{const f=state.data.files.flatMap(f=>[f,...f.history]).find(v=>v.id===id);if(!f)throw Error('This source is not part of this iteration.');const p=new URLSearchParams({action:'file',id,iteration:state.data.iteration.id}),headers=state.shareToken?{Authorization:'Bearer '+state.shareToken}:state.studio?.id?{'X-Studio-ID':state.studio.id}:{};const r=await fetch('api.php?'+p,{credentials:'same-origin',headers});if(!r.ok){const b=await r.json();throw Error(b.error||'Download unavailable.');}name=f.name;url=URL.createObjectURL(await r.blob());}const a=document.createElement('a');a.href=url;a.download=name;a.click();if(!DEMO)setTimeout(()=>URL.revokeObjectURL(url),20000);}
-async function uploadFiles(files,asset='',category=''){if(!files.length||!requireDraft())return;const sizeError=uploadSelectionError(files);if(sizeError){openModal('Upload needs attention',`<p>${esc(sizeError)}</p><div class="modal-footer">${button('Got it','close-modal','primary')}</div>`);return;}const fd=new FormData();fd.append('iteration',state.data.iteration.id);if(category)fd.append('category',category);if(asset)fd.append('replace_asset',asset);for(const f of files)fd.append('files[]',f);
-    showProcessing(true);
+async function uploadFiles(files,asset='',category='',projectSetup=false){if(!files.length||!requireDraft())return;const sizeError=uploadSelectionError(files);if(sizeError){openModal('Upload needs attention',`<p>${esc(sizeError)}</p><div class="modal-footer">${button('Got it','close-modal','primary')}</div>`);return;}const fd=new FormData();fd.append('iteration',state.data.iteration.id);if(category)fd.append('category',category);if(asset)fd.append('replace_asset',asset);for(const f of files)fd.append('files[]',f);
+    showProcessing(true,[],projectSetup);
     try{const result=await api('upload',fd);processingView.uploading=false;processingView.ids=result.ids||[];state.tab='overview';await refresh();renderProcessing();}
     catch(e){processingView.uploading=false;processingView.error=e.message;renderProcessing();throw e;}
 }
@@ -307,6 +342,9 @@ case 'archive-project':await api('project_settings',{project_id:el.dataset.id,ar
 case 'open-project':state.tab='overview';await openProject(el.dataset.id);break;
 case 'tab':if(!state.data){state.tab='projects';state.present=false;await loadProjects();render();break;}state.tab=el.dataset.tab;state.present=false;if(state.tab==='comments')await loadFeed();render();break;
 case 'new-project':newProjectModal();break;
+case 'wizard-back':projectWizardDetails();break;
+case 'wizard-browse':if(!newProjectWizard?.busy)$('#wizard-file-input')?.click();break;
+case 'wizard-remove-file':if(newProjectWizard&&!newProjectWizard.busy){newProjectWizard.files.splice(Number(el.dataset.index),1);projectWizardFiles();}break;
 case 'preview':state.inspectHidden=false;startPresentation();break;
 case 'go-slide':{const next=Number(el.dataset.slide);if(state.present)moveSlide(next-state.slide);else startPresentation(next);break;}
 case 'toggle-fullscreen':await togglePresentationFullscreen();break;
@@ -363,7 +401,8 @@ document.addEventListener('submit',async e=>{const form=e.target.closest('[data-
   if(type==='studio-user'){state.studioUsers=(await api('save_studio_user',data)).users;closeModal();applySession(await api('session'));render();}
   if(type==='remove-studio-user'){await api('remove_studio_user',data);closeModal();if(data.id===state.user.id)state.studio=null;applySession(await api('session'));await resetStudio();}
   if(type==='project-team'){await api('project_members',{project_id:state.data.project.id,user_ids:[...teamPicker.selected]});closeModal();await resetStudio();}
-  if(type==='new-project'){const emails=data.emails.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);if(emails.some(x=>!/^\S+@\S+\.\S+$/.test(x)))throw Error('Please check the client email addresses.');const r=await api('create_project',{...data,emails});closeModal();state.tab='files';state.projects=(await api('projects')).projects;await openProject(r.project_id);toast('Your project is ready. Drop in your first files.');}
+  if(type==='new-project'){const emails=data.emails.split(/[,;\n]/).map(x=>x.trim()).filter(Boolean);if(emails.some(x=>!/^\S+@\S+\.\S+$/.test(x)))throw Error('Please check the client email addresses.');newProjectWizard.details=data;projectWizardFiles();}
+  if(type==='new-project-files')await finishProjectWizard(e.submitter?.value==='skip');
   if(type==='iteration'){const r=await api('new_iteration',{iteration:iid,title:data.title});closeModal();await openProject(state.data.project.id,r.id);toast('New iteration created. All existing files carried forward.');}
   if(type==='budget'){if(data.parent_id&&data.parent_id===data.id)throw Error('A quote cannot contain itself.');await api('save_budget',{...data,iteration:iid,included:data.included==='on'});closeModal();await refresh();toast('Cost saved.');}
   if(type==='contact'){await api('save_contact',{...data,project_id:state.data.project.id});closeModal();await refresh();toast('Contact added.');}
@@ -445,9 +484,9 @@ let processingFocus=null;
 function processingJobs(){return (state.data?.jobs||[]).filter(j=>!processingView.ids.length||processingView.ids.includes(j.version_id));}
 function processingDescription(){const job=(state.data?.jobs||[]).find(j=>j.status==='running')||(state.data?.jobs||[]).find(j=>j.status==='queued');if(job?.type==='slide_image_edit'||job?.type==='image_edit')return 'Changing your image with AI · The result will appear on its slide';const p=extractionProgress(job);return `${p.title} · ${p.detail} · ${p.percent}%`; }
 function processingBanner(){return pending()?`<div class="notice processing-banner"><span class="loading-inline" aria-hidden="true"></span><span role="status">${esc(processingDescription())}</span>${button('View progress','show-processing','small')}</div>`:'';}
-function showProcessing(uploading=false,ids=[]){
+function showProcessing(uploading=false,ids=[],projectSetup=false){
     processingFocus=document.activeElement;
-    processingView={visible:true,uploading,ids,iteration:state.data?.iteration.id};
+    processingView={visible:true,uploading,ids,projectSetup,iteration:state.data?.iteration.id};
     if(activeModal)closeModal();
     renderProcessing();$('#processing-overlay [data-action="hide-processing"]')?.focus();
 }
@@ -459,6 +498,7 @@ function renderProcessing(){
     if(!root){root=document.createElement('div');root.id='processing-overlay';root.className='processing-overlay';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-labelledby','processing-title');root.innerHTML=`<button class="icon-button processing-close" data-action="hide-processing" aria-label="Close processing overlay">${icon('close')}</button><div class="processing-content"></div>`;document.body.append(root);}
     $('#app').inert=true;$('#overlay').inert=true;document.body.classList.add('processing-open');
     const jobs=processingJobs(),active=jobs.find(j=>j.status==='running')||jobs.find(j=>j.status==='queued'),complete=jobs.length&&!active&&!processingView.uploading,failed=jobs.filter(j=>j.status==='failed'),done=jobs.filter(j=>j.status==='done').length;
+    if(processingView.projectSetup&&!processingView.uploading&&!processingView.error&&((complete&&!failed.length)||(DEMO&&state.data.files.length))){hideProcessing();state.tab='overview';render();toast('Your project is ready to explore.');return;}
     const warningCount=jobs.reduce((n,j)=>n+(j.progress?.warning_count||0),0);
     const imageJob=active&&['slide_image_edit','image_edit'].includes(active.type);
     const progress=active?.progress,stage=processingView.uploading?'uploading':active?.status==='queued'?'queued':progress?.stage||'reading_pages';
@@ -561,4 +601,4 @@ async function markCommentsRead(comments){const ids=comments.filter(c=>c.unread)
 function presentationTeam(data){const team=(data.team||data.members||[]).map(m=>({...m,role:'Design team'})),emails=new Set(team.map(m=>m.email.toLowerCase()));return [...team,...data.contacts.filter(c=>c.role!=='Client'&&!emails.has(c.email.toLowerCase()))];}
 
 
-document.addEventListener('change',e=>{if(!e.target.matches('input[type=file]'))return;const label=e.target.closest('label')||e.target.parentElement;label.querySelector('.upload-selection')?.remove();if(e.target.files.length){const summary=document.createElement('span');summary.className='upload-selection';summary.setAttribute('role','status');summary.textContent=[...e.target.files].map(f=>`${f.name} · ${bytes(f.size)}`).join(', ');label.append(summary);}});
+document.addEventListener('change',e=>{if(!e.target.matches('input[type=file]')||e.target.id==='wizard-file-input')return;const label=e.target.closest('label')||e.target.parentElement;label.querySelector('.upload-selection')?.remove();if(e.target.files.length){const summary=document.createElement('span');summary.className='upload-selection';summary.setAttribute('role','status');summary.textContent=[...e.target.files].map(f=>`${f.name} · ${bytes(f.size)}`).join(', ');label.append(summary);}});

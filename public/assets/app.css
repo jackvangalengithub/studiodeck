@@ -126,3 +126,17 @@ body.presentation-fullscreen .presentation>.preview-bar{display:none}body.presen
 .presentation-top{height:auto;padding-top:12px;padding-bottom:12px}
 .presentation-top>.row,.presentation-top>.brand{flex-shrink:0}
 @media(max-width:1000px){.tabs-row{flex-wrap:wrap}.tabs-row .iteration-select{position:static;display:block;max-width:100%;margin-bottom:12px}.presentation-top{flex-wrap:wrap;row-gap:8px}.presentation-top .presentation-identity{order:3;flex-basis:100%}}
+
+/* Two-step project setup. */
+.project-wizard-steps{display:flex;gap:20px;list-style:none;padding:0;margin:4px 0 24px;color:var(--muted);font-size:13px}
+.project-wizard-steps li{display:flex;align-items:center;gap:8px}.project-wizard-steps li[aria-current]{color:var(--ink);font-weight:600}
+.project-wizard-steps li>span{display:grid;place-items:center;width:26px;height:26px;border:1px solid var(--line);border-radius:50%}
+.project-wizard-steps li[aria-current]>span{background:var(--green);color:var(--on-accent);border-color:var(--green)}
+.wizard-dropzone{display:block;padding:0;margin-top:18px}.wizard-file-picker{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;width:100%;padding:28px 16px;background:transparent;text-align:center;color:var(--ink)}
+.wizard-file-picker>svg{width:30px;height:30px;color:var(--green)}.wizard-file-picker>span,.wizard-file-picker>small{color:var(--muted)}
+.wizard-file-list{max-height:240px;overflow-y:auto;margin-top:14px}.wizard-file-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.wizard-file-row>span{flex:1;min-width:0}.wizard-file-row strong{display:block;font-size:13px;overflow-wrap:anywhere}.wizard-file-row small{display:block;color:var(--muted);margin-top:3px}.wizard-file-row>svg,.wizard-file-row>button{flex-shrink:0}
+.wizard-footer{flex-wrap:wrap}.wizard-footer>[data-action="wizard-back"]{margin-right:auto}
+@media(max-width:600px){.project-wizard-steps{gap:14px;font-size:12px}.wizard-footer>.primary{width:100%}.wizard-file-list{max-height:190px}}
+
+.wizard-file-list>.form-hint{margin:0 0 12px;color:var(--muted)!important}
