@@ -121,7 +121,10 @@ function slide_image_source(array $slide,bool $original=false): array {
     }elseif($slide['page_number']) {
         $image=$slide['image_number']?one('SELECT data FROM document_images WHERE version_id=? AND page_number=? AND number=?',[$slide['source_version_id'],$slide['page_number'],$slide['image_number']]):one('SELECT preview AS data FROM document_pages WHERE version_id=? AND number=?',[$slide['source_version_id'],$slide['page_number']]);
         if($image)$image['mime']='image/jpeg';
-    }else $image=one('SELECT data,mime FROM file_versions WHERE id=?',[$slide['source_version_id']]);
+    }else{
+        $image=one('SELECT * FROM file_versions WHERE id=?',[$slide['source_version_id']]);
+        if($original&&$image)$image=original_file_image($image);
+    }
     if(!$image||!$image['data'])throw new RuntimeException('The source image is unavailable.');
     return $image;
 }

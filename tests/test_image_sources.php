@@ -18,6 +18,7 @@ try{
     insert('slide_image_versions',['id'=>'ai-image','parent_id'=>null,'source_version_id'=>'original','mime'=>'image/png','data'=>'generated slide','metadata'=>'{}','created_at'=>now()]);
     $slide=['image_version_id'=>'ai-image','page_number'=>0,'image_number'=>0,'source_version_id'=>'original'];
     check_image(slide_image_source($slide,true)['data']==='original','Slide edits can read the original despite a selected AI variant');
+    check_image(slide_image_source([...$slide,'source_version_id'=>'second'],true)['data']==='original','Slides built from file variations still edit the uploaded original');
     insert('document_pages',['version_id'=>'original','number'=>1,'text'=>'','metadata'=>'{}','preview'=>'page preview']);
     insert('document_images',['version_id'=>'original','page_number'=>1,'number'=>1,'metadata'=>'{}','data'=>'original crop']);
     check_image(slide_image_source([...$slide,'page_number'=>1,'image_number'=>1],true)['data']==='original crop','Document slide editing uses the original crop, not the entire page');
