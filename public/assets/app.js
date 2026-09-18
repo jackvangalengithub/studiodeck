@@ -1,3 +1,4 @@
+import {installGroupOrdering} from './group-order.js';
 import {imagePresets,customImagePlaceholder} from './image-presets.js';
 import {installFloorplans} from './floorplan.js';
 import {installSlideOrdering} from './slide-order.js';
@@ -91,7 +92,7 @@ function slideThumb(id){const defs=slideDefs(),idx=defs.findIndex(x=>x.id===id),
 const slideTypeName=s=>visualTypes[s.type]||({intro:'Introduction',source:'Document page',changes:'Changes',budget:'Budget',contacts:'Contacts',summary:'Summary'}[s.type])||'Image';
 function editorSlides(){return presentationSlides(state.data,{includeHidden:true});}
 function openEditorSlide(id,zoom=false){const def=editorSlides().find(s=>s.id===id);if(!def)return;state.inspectHidden=def.hidden;startPresentation(slideDefs().findIndex(s=>s.id===id));if(zoom)openPhotoLightbox();}
-const currentGroups=()=>({...slideSections,...state.data?.slide_groups});
+const currentGroups=()=>state.data?.slide_groups||slideSections;
 function allSlides(){
     const defs=editorSlides(),visible=defs.filter(s=>!s.hidden).length,list=state.slideView!=='grid';
     return `<div class="section-title slide-editor-heading"><div><h2>Your client’s journey</h2><p class="muted">${visible} visible · ${defs.length-visible} hidden. Drag the handle to reorder. With the handle focused, press Space, then arrow keys and Enter.</p></div><div class="row wrap">${editable()?button('Arrange by section','group-slides','small','','folder'):''}${button('List','slide-view',list?'small active':'small',`data-view="list"`,'menu')}${button('Grid','slide-view',!list?'small active':'small',`data-view="grid"`,'grid')}${state.data.can_edit!==false?button('New iteration','iteration','small','','plus'):''}${button('Preview all','preview','small','','play')}</div></div>${!editable()?'<p class="notice">This shared iteration is preserved. Create a new iteration to edit the slides.</p>':''}${pending()?'<p class="notice">Your files are still being processed. New slides will appear here automatically when each file finishes.</p>':''}<div class="section-index editor-section-index">${sectionIndex(defs,false)}</div><p class="sr-only" id="slide-order-status" role="status" aria-live="polite"></p><div class="slide-editor ${list?'slide-editor-list':'all-slides'}">${defs.filter(s=>!state.slideGroup||s.section===state.slideGroup).map((s,n)=>{
@@ -103,7 +104,14 @@ function allSlides(){
 async function changeSlideLayout(operation,extra={}){if(!requireDraft())return;const selected=state.present?slideDefs()[state.slide]?.id:null;if(selected&&operation==='hide')state.inspectHidden=true;await api('slide_layout',{iteration:state.data.iteration.id,operation,...extra});await refresh(true);if(selected&&state.present){const index=slideDefs().findIndex(s=>s.id===selected);if(index>=0)state.slide=index;render();}}
 installSlideOrdering({getOrder:()=>editorSlides().map(s=>s.id),saveOrder:order=>changeSlideLayout('reorder',{order}),assignGroup:(slide_id,section)=>changeSlideLayout('section',{slide_id,section}),setBusy:value=>{state.reordering=value;if(!value)pollJobs();},onError:toast});
 document.addEventListener('change',async e=>{if(e.target.matches('[data-slide-section-select]'))try{await changeSlideLayout('section',{slide_id:e.target.dataset.slideSectionSelect,section:e.target.value});}catch(error){toast(error.message);}});
-function sectionIndex(defs,presentation=true){const active=presentation?defs[state.slide]?.section:state.slideGroup;return (!presentation?`<button type="button" class="${!active?'active':''}" data-action="editor-section" data-section="">All slides<small>${defs.length}</small></button>`:'')+Object.entries(currentGroups()).filter(([key])=>!presentation||defs.some(s=>s.section===key)).map(([key,label])=>`<button type="button" class="${active===key?'active':''}" data-action="${presentation?'jump-section':'editor-section'}" data-section="${esc(key)}" ${!presentation&&editable()?`data-drop-group="${esc(key)}"`:''} ${active===key?'aria-current="true"':''}>${esc(label)}<small>${defs.filter(s=>s.section===key).length}</small></button>`).join('')+(!presentation&&editable()?button('Add group','add-slide-group','small','','plus'):'');}
+installGroupOrdering({getOrder:()=>Object.keys(currentGroups()),saveOrder:async order=>{if(!requireDraft())return;await api('reorder_slide_groups',{iteration:state.data.iteration.id,order});await refresh(true);},setBusy:value=>{state.reordering=value;if(!value)pollJobs();},onError:toast});
+function sectionIndex(defs,presentation=true){
+ const active=presentation?defs[state.slide]?.section:state.slideGroup,edit=!presentation&&editable();
+ return (!presentation?`<button type="button" class="${!active?'active':''}" data-action="editor-section" data-section="">All slides<small>${defs.length}</small></button>`:'')+Object.entries(currentGroups()).filter(([key])=>!presentation||defs.some(s=>s.section===key)).map(([key,label])=>{
+  const button=`<button type="button" class="${active===key?'active':''}" data-action="${presentation?'jump-section':'editor-section'}" data-section="${esc(key)}" ${active===key?'aria-current="true"':''}>${esc(label)}<small>${defs.filter(s=>s.section===key).length}</small></button>`;
+  return edit?`<span class="slide-group" data-group-id="${esc(key)}" data-drop-group="${esc(key)}"><span class="slide-group-controls"><button type="button" class="group-drag-handle" data-drag-group="${esc(key)}" aria-label="Reorder group ${esc(label)}" title="Drag group; Space for keyboard controls">⠿</button>${button}</span><span class="drop-group-hint">Drop to add to this group</span></span>`:button;
+ }).join('')+(edit?button('Add group','add-slide-group','small','','plus'):'');
+}
 
 const expandedFiles=new Set();
 function extractedAssets(file){
@@ -254,7 +262,7 @@ case 'slide-view':state.slideView=el.dataset.view;render();break;
 case 'open-editor-slide':openEditorSlide(el.dataset.id);break;
 case 'zoom-editor-slide':openEditorSlide(el.dataset.id,true);break;
 case 'visibility-slide':await changeSlideLayout(el.dataset.operation,{slide_id:el.dataset.id});break;
-case 'group-slides':await changeSlideLayout('reorder',{order:groupSlideOrder(editorSlides())});break;
+case 'group-slides':await changeSlideLayout('reorder',{order:groupSlideOrder(editorSlides(),currentGroups())});break;
 case 'jump-section':{const index=slideDefs().findIndex(s=>s.section===el.dataset.section);if(index>=0)moveSlide(index-state.slide);break;}
 case 'editor-section':state.slideGroup=el.dataset.section;render();break;
 case 'add-slide-group':openModal('Add slide group',`<form data-form="slide-group"><label>Group name<input name="label" required maxlength="60" placeholder="Materials & finishes"></label>${formFooter('Add group','plus')}</form>`);break;

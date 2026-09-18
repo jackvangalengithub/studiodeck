@@ -11,7 +11,7 @@ try {
     $read=['session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the draft check with simple metadata writes and publication.
-    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','add_slide_group','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','slide_layout','add_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
     require __DIR__.'/../app/studio_api.php';
     require __DIR__.'/../app/project_api.php';
@@ -214,6 +214,13 @@ try {
         [$i]=access_iteration((string)($_GET['iteration']??''));$slide=current_slide($i['id'],(string)($_GET['slide_id']??''));
         if(!$slide)fail('Slide not found.',404);
         $image=slide_image_source($slide,isset($_GET['original']));header('Content-Type: '.$image['mime']);header('Content-Length: '.strlen($image['data']));echo $image['data'];exit;
+    }
+    if($action==='reorder_slide_groups') {
+        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$groups=slide_groups($i['id']);$order=$b['order']??null;
+        if(!is_array($order)||!array_is_list($order)||count($order)!==count($groups)||count(array_filter($order,'is_string'))!==count($order))fail('Include every group exactly once.');
+        $keys=array_keys($groups);$sorted=$order;sort($keys);sort($sorted);if($keys!==$sorted)fail('Include every group exactly once.');
+        foreach($order as $position=>$gid)query('INSERT INTO slide_groups(iteration_id,id,label,position) VALUES(?,?,?,?) ON CONFLICT(iteration_id,id) DO UPDATE SET position=excluded.position',[$i['id'],$gid,$groups[$gid],$position]);
+        audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Reordered presentation groups');json_response(['ok'=>true]);
     }
     if($action==='add_slide_group') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',60);

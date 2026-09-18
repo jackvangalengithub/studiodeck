@@ -27,6 +27,7 @@ function migrate_slide_groups(PDO $db): void {
 }
 function slide_groups(string $iid): array {
     $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget'];
-    foreach(rows('SELECT id,label FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group)$defaults[$group['id']]=$group['label'];
-    return $defaults;
+    $ordered=[];foreach(rows('SELECT id,label FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group)$ordered[$group['id']]=$group['label'];
+    // Existing custom-only records follow the default groups until an order is explicitly saved.
+    return isset($ordered['story'])?$ordered+$defaults:$defaults+$ordered;
 }

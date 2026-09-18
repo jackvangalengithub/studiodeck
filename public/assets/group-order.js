@@ -1,0 +1,23 @@
+import {movedSlide} from './slide-order.js';
+export function installGroupOrdering({getOrder,saveOrder,setBusy,onError}){
+ let drag=null,keyboard=null,saving=false,frame=0;
+ const announce=text=>{const el=document.querySelector('#slide-order-status');if(el)el.textContent=text;};
+ function ghostFor(row){const rect=row.getBoundingClientRect(),ghost=document.createElement('span');ghost.className='group-drop-placeholder';ghost.textContent=row.querySelector('[data-action]')?.textContent||'Group';ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';ghost.setAttribute('aria-hidden','true');return ghost;}
+ function clear(){cancelAnimationFrame(frame);document.body.classList.remove('dragging-group');document.querySelectorAll('.group-moving').forEach(el=>el.classList.remove('group-moving'));document.querySelector('.group-drop-placeholder')?.remove();if(drag?.handle.hasPointerCapture?.(drag.pointerId))drag.handle.releasePointerCapture(drag.pointerId);drag=null;keyboard=null;setBusy(false);}
+ function locate(){if(!drag?.active)return;const hit=document.elementFromPoint(drag.x,drag.y),row=hit?.closest('[data-group-id]');drag.valid=false;
+  if(hit?.closest('.group-drop-placeholder')){drag.valid=!!drag.target;return;}
+  if(!row||row.dataset.groupId===drag.id){drag.valid=!!drag.target&&!!hit?.closest('.editor-section-index');return;}
+  const rect=row.getBoundingClientRect();drag.target=row.dataset.groupId;drag.after=drag.x>rect.left+rect.width/2;drag.valid=true;row[drag.after?'after':'before'](drag.ghost);
+ }
+ function scroll(){if(!drag?.active)return;const rail=drag.row.closest('.editor-section-index'),rect=rail.getBoundingClientRect();if(drag.y>=rect.top&&drag.y<=rect.bottom){const delta=drag.x<rect.left+35?-10:drag.x>rect.right-35?10:0;if(delta){rail.scrollLeft+=delta;locate();}}frame=requestAnimationFrame(scroll);}
+ async function commit(order,id){saving=true;setBusy(true);try{await saveOrder(order);document.querySelector(`[data-drag-group="${CSS.escape(id)}"]`)?.focus({preventScroll:true});announce('Group order saved.');}catch(e){onError(e.message);}finally{saving=false;setBusy(false);}}
+ document.addEventListener('pointerdown',e=>{const handle=e.target.closest('[data-drag-group]');if(!handle||e.button!==0||drag||keyboard||saving||document.body.classList.contains('dragging-slide'))return;e.preventDefault();drag={handle,id:handle.dataset.dragGroup,row:handle.closest('[data-group-id]'),pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,x:e.clientX,y:e.clientY};handle.setPointerCapture(e.pointerId);setBusy(true);});
+ document.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.pointerId)return;drag.x=e.clientX;drag.y=e.clientY;if(!drag.active&&Math.hypot(drag.x-drag.startX,drag.y-drag.startY)>6){drag.active=true;document.body.classList.add('dragging-group');drag.ghost=ghostFor(drag.row);drag.row.after(drag.ghost);drag.row.classList.add('group-moving');scroll();}if(drag.active){e.preventDefault();locate();}});
+ document.addEventListener('pointerup',e=>{if(!drag||e.pointerId!==drag.pointerId)return;const {id,target,after,active,valid}=drag,order=getOrder();clear();if(active&&valid&&target)commit(movedSlide(order,id,target,after),id);});
+ document.addEventListener('pointercancel',()=>{if(drag)clear();});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(drag||keyboard)){e.preventDefault();clear();announce('Group reordering cancelled.');return;}const handle=e.target.closest('[data-drag-group]');if(!handle||saving||drag)return;
+  if([' ','Enter'].includes(e.key)){e.preventDefault();if(keyboard){const {id,order}=keyboard;clear();commit(order,id);}else{const row=handle.closest('[data-group-id]');keyboard={id:handle.dataset.dragGroup,order:getOrder(),ghost:ghostFor(row)};row.after(keyboard.ghost);document.body.classList.add('dragging-group');setBusy(true);announce('Picked up group. Arrow keys move it; Enter saves and Escape cancels.');}return;}
+  if(keyboard&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)){e.preventDefault();const order=keyboard.order,from=order.indexOf(keyboard.id),to=e.key==='Home'?0:e.key==='End'?order.length-1:Math.max(0,Math.min(order.length-1,from+(['ArrowLeft','ArrowUp'].includes(e.key)?-1:1)));if(from!==to){const row=document.querySelector(`[data-group-id="${CSS.escape(order[to])}"]`);keyboard.order=movedSlide(order,keyboard.id,order[to],to>from);row[to>from?'after':'before'](keyboard.ghost);keyboard.ghost.scrollIntoView({block:'nearest',inline:'nearest'});}announce(`Group position ${to+1} of ${order.length}. Press Enter to save.`);}
+ });
+ document.addEventListener('dragstart',e=>{if(e.target.closest('.slide-group'))e.preventDefault();});
+}

@@ -10,3 +10,5 @@ assert.equal(slides.find(s=>s.id==='summary').section,'custom');
 assert.equal(new Set(groupSlideOrder(slides)).size,slides.length);
 assert.equal(groupSlideOrder(slides).at(-1),'summary');
 console.log('PASS Filtered reordering preserves all slide IDs, custom groups retain every slide.');
+
+assert.equal(groupSlideOrder(slides,{custom:'Materials',story:'The story',budget:'The budget'})[0],'summary');

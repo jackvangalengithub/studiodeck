@@ -28,4 +28,4 @@ export function presentationSlides(data,{includeHidden=false}={}){
 
 export const slideSections={story:'The story',current:'The current situation',moodboards:'The moodboards',designs:'The designs',budget:'The budget'};
 export function defaultSlideSection(slide){if(slide.type==='budget')return 'budget';if(slide.situation==='before')return 'current';if(slide.type==='moodboard')return 'moodboards';if(slide.visual)return 'designs';return 'story';}
-export function groupSlideOrder(slides){return [...new Set([...Object.keys(slideSections),...slides.map(s=>s.section)])].flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}
+export function groupSlideOrder(slides,groups=slideSections){return [...new Set([...Object.keys(groups),...slides.map(s=>s.section)])].flatMap(section=>slides.filter(s=>s.section===section).map(s=>s.id));}
