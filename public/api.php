@@ -8,13 +8,15 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
+    if(in_array($action,['website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($_GET['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($_GET['website_studio'],32);
     // Every API is private unless explicitly part of the authentication flow.
     if(!in_array($action,['session','request_login','consume_login'],true))$apiUser=authenticated_user();
-    $read=['project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
+    $read=['website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the iteration lock check with simple metadata writes.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
+    require __DIR__.'/../app/website_api.php';
     require __DIR__.'/../app/billing_api.php';
     require __DIR__.'/../app/project_export_api.php';
     require __DIR__.'/../app/destinations_api.php';

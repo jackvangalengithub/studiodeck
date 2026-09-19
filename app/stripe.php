@@ -103,6 +103,11 @@ function billing_cancel_checkout(array $u,string $oid): void {
 function billing_fulfill_checkout(array $s): void {
     $oid=$s['metadata']['order_id']??$s['client_reference_id']??'';$order=one('SELECT * FROM billing_orders WHERE id=?',[$oid]);if(!$order)return;
     $b=billing_studio($order['studio_id']);
+    if($order['kind']==='website'){
+        if(stripe_id($s['customer']??null)!==$b['customer_id']||($order['checkout_id']&&$order['checkout_id']!==$s['id']))throw new RuntimeException('Website checkout mismatch.');
+        if(($s['payment_status']??'')==='paid')website_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode(stripe_id($s['subscription'])),['expand'=>['latest_invoice']]));
+        return;
+    }
     if(stripe_id($s['customer']??null)!==$b['customer_id']||($order['checkout_id']&&$order['checkout_id']!==$s['id']))throw new RuntimeException('Checkout customer or order mismatch.');
     if(in_array($order['status'],['paid','refunded'],true))return;
     if(($s['payment_status']??'')!=='paid')return;
@@ -142,6 +147,7 @@ function billing_fulfill_checkout(array $s): void {
     });
 }
 function billing_sync_subscription(array $s): void {
+    if(website_sync_subscription($s))return;
     $customer=stripe_id($s['customer']??null);$b=one('SELECT * FROM studio_billing WHERE customer_id=?',[$customer]);if(!$b)return;
     if($b['subscription_id']&&$b['subscription_id']!==$s['id']){
         // A late event for an older subscription must never replace the current one.

@@ -269,3 +269,7 @@ See [billing deployment and operations](docs/billing.md) for Stripe setup, test 
 ### First-project welcome
 
 Studios with no projects, including archived projects, see a welcome page with a captioned one-minute tour, an isolated tour through the actual app and a path into project creation starting at **How it works**. The first project gets a dismissible checklist, and **Getting started** keeps both tours available later. See [onboarding behavior, video generation and checks](docs/onboarding.md).
+
+### Studio websites
+
+Studio admins can open **Website** to build a portfolio from curated project copies and approved testimonials. Ten one-page starting designs with full-screen previews, freely editable HTML/CSS/JavaScript, chat-driven source edits, sandboxed private previews, explicit static publication, optimized images, SEO metadata, ZIP export and version restore are implemented. Publishing requires the separate $39 USD/month website entitlement (or explicit local development mode). Project changes and deletion never alter published snapshots. See [website setup, limits and deployment](docs/website.md) for Stripe and custom-domain HTTPS configuration.

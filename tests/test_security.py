@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PHP = os.environ.get('PHP_BIN', 'php')
 DENIED = (401, 403, 404)
 READ_ACTIONS = {
+    'website', 'website_sources', 'website_source_image', 'website_asset', 'website_preview', 'website_template_preview', 'website_export',
     'project_access', 'billing', 'billing_invoices', 'project_export',
     'drive_status', 'drive_list', 'drive_callback', 'session', 'projects',
     'project', 'deck', 'file', 'document_page', 'slide_image', 'studio_users',
@@ -44,6 +45,8 @@ READ_ACTIONS = {
 }
 PUBLIC_ACTIONS = {'session', 'request_login', 'consume_login'}
 WRITE_ACTIONS = {
+    'website_reset', 'website_start', 'website_save', 'website_import', 'website_upload', 'website_publish', 'website_restore', 'website_undo',
+    'website_chat', 'website_checkout', 'website_refresh_billing', 'website_domain',
     'project_activate', 'billing_checkout', 'billing_resume_checkout', 'billing_cancel_checkout', 'billing_cancel_change',
     'billing_change_preview', 'billing_change_confirm', 'billing_refresh', 'billing_portal', 'billing_onboard', 'billing_coverage',
     'generate_open_questions', 'save_open_question', 'reply_open_question', 'add_client_question',

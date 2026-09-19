@@ -11,6 +11,8 @@ $practiceFrame=$path==='/index.html'&&($_GET['app-tour']??'')==='1';
 header('X-Frame-Options: '.($practiceFrame?'SAMEORIGIN':'DENY'));
 if($practiceFrame)header("Content-Security-Policy: frame-ancestors 'self'");
 try {
+    require_once __DIR__.'/../app/website_public.php';
+    if(website_public_route($path))return;
     if($path==='/stripe-webhook.php'){require __DIR__.'/stripe-webhook.php';return;}
     if($path==='/api.php'){require __DIR__.'/api.php';return;}
     if($path==='/login'){
@@ -27,7 +29,7 @@ try {
     }
     $appPage=$path==='/'||$path==='/index.html'||$path==='/choose';
     $clientPage=preg_match('~^/client/projects/([A-Za-z0-9_-]+)/?$~',$path,$clientRoute);
-    $studioPage=!$clientPage && preg_match('~^/([A-Za-z0-9_-]+)/(projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|activity|comments|settings|billing|profile)/?$~',$path,$studioRoute);
+    $studioPage=!$clientPage && preg_match('~^/([A-Za-z0-9_-]+)/(projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|activity|comments|settings|billing|website|profile)/?$~',$path,$studioRoute);
     $file=realpath(__DIR__.$path);
     $asset=$file && str_starts_with($file,__DIR__.'/assets/') && is_file($file) && !str_contains($path,'..');
     if(!$appPage&&!$clientPage&&!$studioPage&&!$asset)fail('Not found.',404);
@@ -40,7 +42,7 @@ try {
     if($studioPage){
         $user['studio_id']=$studioRoute[1];require_studio_member($user);
         $route=explode('/',$studioRoute[2]);
-        if($route[0]==='billing')studio_admin($user);
+        if(in_array($route[0],['billing','website'],true))studio_admin($user);
         $project=null;
         if($route[0]==='projects'&&isset($route[1]))$project=owned_project($route[1],$user,false);
         if($route[0]==='slide'){

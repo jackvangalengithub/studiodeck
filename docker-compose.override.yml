@@ -1,11 +1,16 @@
 # Local development: use the current workspace even when an older image is rebuilt.
 services:
   web:
+    environment:
+      # Publish local website drafts without a paid subscription. Production ignores this flag.
+      WEBSITE_LOCAL_FREE: ${WEBSITE_LOCAL_FREE:-true}
     volumes:
       - ./app:/app/app:ro
       - ./public:/app/public:ro
       - ./scripts:/app/scripts:ro
   worker:
+    environment:
+      WEBSITE_LOCAL_FREE: ${WEBSITE_LOCAL_FREE:-true}
     volumes:
       - ./app:/app/app:ro
       - ./scripts:/app/scripts:ro

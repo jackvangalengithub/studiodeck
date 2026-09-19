@@ -2,6 +2,8 @@
 declare(strict_types=1);
 function billing_reconcile_studio(string $sid): void {
     $b=billing_studio($sid);
+    $website=one('SELECT subscription_id FROM websites WHERE studio_id=?',[$sid]);
+    if(!empty($website['subscription_id']))website_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($website['subscription_id']),['expand'=>['latest_invoice']]));
     if($b['subscription_id'])billing_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($b['subscription_id']),['expand'=>['latest_invoice']]));
     foreach(rows("SELECT * FROM billing_orders WHERE studio_id=? AND status='pending'",[$sid]) as $o){
         if(!$o['checkout_id'])continue;

@@ -14,6 +14,7 @@ if($action==='billing_invoices')json_response(['invoices'=>billing_invoices(owne
 if($action==='billing_checkout')json_response(billing_checkout(owner(true),input()));
 if($action==='billing_resume_checkout'){
     $u=owner(true);studio_admin($u);$o=one("SELECT * FROM billing_orders WHERE id=? AND studio_id=? AND status='pending'",[text_field(input()['order_id']??''),$u['studio_id']]);if(!$o)fail('Pending checkout not found.',404);
+    if($o['kind']==='website')json_response(website_checkout($u));
     json_response(billing_checkout($u,array_merge(json_decode($o['parameters'],true),['plan'=>$o['plan'],'project_id'=>$o['project_id']??''])));
 }
 if($action==='billing_cancel_checkout'){$u=owner(true);billing_cancel_checkout($u,text_field(input()['order_id']??''));json_response(['ok'=>true]);}

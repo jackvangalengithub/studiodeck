@@ -18,6 +18,10 @@ require_once __DIR__.'/project_details.php';
 require_once __DIR__.'/communications.php';
 require_once __DIR__.'/enhancements.php';
 require_once __DIR__.'/starting_pack.php';
+require_once __DIR__.'/website.php';
+require_once __DIR__.'/website_render.php';
+require_once __DIR__.'/website_source.php';
+require_once __DIR__.'/website_billing.php';
 
 const ROOT = __DIR__ . '/..';
 foreach (is_file(ROOT . '/.env') ? file(ROOT . '/.env', FILE_IGNORE_NEW_LINES) : [] as $line) {
@@ -45,6 +49,7 @@ function db(): PDO {
     migrate_studios($db);
     migrate_languages($db);
     migrate_billing($db);
+    $db->exec(file_get_contents(__DIR__.'/website_schema.sql'));
     migrate_project_team_roles($db);
     migrate_project_clients($db);
     migrate_budget($db);
