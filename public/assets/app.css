@@ -429,3 +429,20 @@ body:has(.workspace) #overlay .modal-header>.icon-button{flex-shrink:0}
 .presentation :is(h1,h2,h3,h4,h5,h6,.project-name){overflow-wrap:anywhere}
 
 .system-slide-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:20px}.system-slide-option{display:grid;grid-template-columns:32px minmax(0,1fr);align-content:start;gap:14px;padding:20px;border:1px solid var(--line);border-radius:14px}.system-slide-icon{color:var(--muted);padding-top:3px}.system-slide-option h3{font-size:16px;margin:0 0 8px}.system-slide-option p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}.system-slide-option .button{grid-column:2;justify-self:start}.removed-slides{margin-bottom:24px}@media(max-width:600px){.system-slide-list{grid-template-columns:minmax(0,1fr)}.add-slide-tabs button{font-size:12px;padding:10px 6px}.system-slide-option{padding:16px}}
+
+/* Keep a compact navigation rail between the desktop sidebar and phone drawer. */
+@media (min-width:701px) and (max-width:1180px){
+ .workspace{grid-template-columns:76px minmax(0,1fr)}
+ .sidebar{width:76px;padding:24px 12px}
+ .sidebar>button:first-child,.sidebar-caption,.side-link-label,.profile-open>span:last-child{display:none}
+ .studio-switch{position:relative;justify-content:center;min-height:48px;padding:8px;margin-bottom:24px}
+ .studio-switch select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+ .studio-switch:focus-within{outline:2px solid var(--green);outline-offset:3px}
+ .studio-mark{flex-shrink:0;pointer-events:none}
+ .side-link{position:relative;justify-content:center;min-height:48px;padding:12px;gap:0}
+ .side-link .icon{flex-shrink:0}
+ .side-link .unread-total:not(:empty){position:absolute;top:8px;right:8px;width:7px;height:7px;border-radius:50%;background:currentColor;font-size:0}
+ .profile{flex-direction:column;padding:0;gap:12px}
+ .profile-open{flex:none;justify-content:center;width:48px;min-height:48px}
+ .profile>button[data-action="logout"]{display:grid;place-items:center;width:48px;min-height:48px}
+}
