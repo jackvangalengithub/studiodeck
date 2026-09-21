@@ -1,5 +1,14 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"pin_feedback":"Feedback vastpinnen",
+"cancel_pin":"Pin annuleren",
+"show_resolved_pins":"Afgehandelde pins tonen",
+"pin_keyboard_hint":"Klik op een punt in de afbeelding, of gebruik de pijltjestoetsen en Enter. Escape annuleert.",
+"feedback_pin":"Feedbackpin {number}",
+"feedback_pin_selected":"Je reactie wordt gekoppeld aan dit punt op deze afbeeldingsversie.",
+"pin_on_original":"Vastgepind op de oorspronkelijke afbeelding",
+"pin_on_variation":"Vastgepind op een afbeeldingsvariant",
+
 "notify_me_about":"Stuur mij meldingen over",
 "all_conversation_messages":"Alle berichten in gesprekken",
 "only_explicit_mentions":"Alleen als ik met @ word vermeld",

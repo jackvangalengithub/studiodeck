@@ -36,3 +36,11 @@ The project picker includes the full project directory: team, clients and other 
 Profile → Communication preferences offers all conversation emails or only explicit @mentions, with the existing email checkbox as the master switch. Mentions-only also applies to confirmation requests: being selected as the approver alone is not an @mention. Messages remain visible in Communication regardless of email preferences. Existing profiles default to all messages; existing email opt-outs remain off. The preference and mentions schema migrate automatically.
 
 Mention checks: `python3 -m unittest discover -s tests -p test_mentions.py -v`; run `node tests/test_mentions.cjs` against a fresh mail-enabled communication fixture for desktop/mobile, profile persistence and restricted guest checks.
+
+### Feedback pins
+
+On an image or floorplan, choose **Pin feedback**, then click the point to discuss. Keyboard users can move the crosshair with arrow keys and press Enter; Escape cancels placement. Pins follow floorplan zoom and pan. When comparing an original and AI variation, first choose **Show original** or **Show generated image** so the pin identifies one image.
+
+A pin opens the existing comment thread, with replies, mentions and unread tracking. **Answered** resolves it; **Show resolved pins** reveals completed pins so they can be reopened. Pins store the exact source, page/crop and image variation with normalized coordinates. They appear only on that image version, and comment thumbnails continue to show the referenced image after replacements. Conversations stay in their original iteration. Locked iterations still allow feedback. Studio viewers can read pins; project members and invited clients can place and resolve them.
+
+Checks: `python3 -m unittest discover -s tests -p test_annotations.py -v`, `node tests/test_annotations.mjs` and `tests/test_annotations_browser.cjs` against the disposable Communication fixture.

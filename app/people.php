@@ -18,6 +18,8 @@ function normalized_upload(string $field,int $size=640): string {
     $scale=min(1,$size/max(imagesx($im),imagesy($im)));$out=imagecreatetruecolor(max(1,(int)(imagesx($im)*$scale)),max(1,(int)(imagesy($im)*$scale)));imagealphablending($out,false);imagesavealpha($out,true);imagecopyresampled($out,$im,0,0,0,0,imagesx($out),imagesy($out),imagesx($im),imagesy($im));ob_start();imagepng($out);$data=ob_get_clean();imagedestroy($im);imagedestroy($out);return $data;
 }
 function decorate_comments(array $comments,string $key): array {
+    foreach($comments as &$comment)$comment['annotation']=isset($comment['annotation'])?json_decode($comment['annotation'],true):null;
+    unset($comment);
     foreach($comments as &$c){$c['mentions']=comment_mentions($c['id']);$c['confirmation']=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']])?:null;$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
         $account=one('SELECT name FROM users WHERE email=?',[$c['author']]);$c['profile']=profile_for(person_key($c['author'],(bool)$account),$account['name']??explode('@',$c['author'])[0]);}
     return $comments;

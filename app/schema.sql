@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS budget_items (id TEXT PRIMARY KEY, iteration_id TEXT 
 CREATE INDEX IF NOT EXISTS idx_budget_iteration ON budget_items(iteration_id);
 CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, iteration_id TEXT NOT NULL REFERENCES iterations(id), token_hash TEXT NOT NULL UNIQUE, email TEXT NOT NULL, expires_at INTEGER NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_shares_iteration ON shares(iteration_id);
-CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, answered INTEGER NOT NULL DEFAULT 0 CHECK(answered IN (0,1)), iteration_id TEXT NOT NULL REFERENCES iterations(id), slide TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, annotation TEXT, parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, answered INTEGER NOT NULL DEFAULT 0 CHECK(answered IN (0,1)), iteration_id TEXT NOT NULL REFERENCES iterations(id), slide TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_comments_iteration ON comments(iteration_id);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT, actor TEXT NOT NULL, type TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_events_project_time ON events(project_id,created_at);

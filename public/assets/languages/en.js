@@ -1,5 +1,14 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"pin_feedback":"Pin feedback",
+"cancel_pin":"Cancel pin",
+"show_resolved_pins":"Show resolved pins",
+"pin_keyboard_hint":"Click a point on the image, or use arrow keys and Enter. Escape cancels.",
+"feedback_pin":"Feedback pin {number}",
+"feedback_pin_selected":"Your comment will be attached to this point on this image version.",
+"pin_on_original":"Pinned to the original image",
+"pin_on_variation":"Pinned to an image variation",
+
 "notify_me_about":"Notify me about",
 "all_conversation_messages":"All conversation messages",
 "only_explicit_mentions":"Only when I’m @mentioned",

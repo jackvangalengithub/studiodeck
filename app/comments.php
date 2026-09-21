@@ -13,6 +13,28 @@ function migrate_comment_threads(PDO $db): void {
         } catch(Throwable $e) {$db->exec('ROLLBACK');throw $e;}
     }
     $db->exec('CREATE INDEX IF NOT EXISTS idx_comments_parent ON comments(parent_id)');
+    if(!in_array('annotation',array_column($db->query('PRAGMA table_info(comments)')->fetchAll(),'name'),true)) {
+        $db->exec('BEGIN IMMEDIATE');
+        try {
+            if(!in_array('annotation',array_column($db->query('PRAGMA table_info(comments)')->fetchAll(),'name'),true))$db->exec('ALTER TABLE comments ADD COLUMN annotation TEXT');
+            $db->exec('COMMIT');
+        }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
+    }
+}
+
+function comment_annotation(array $i,string $slide,mixed $value): ?string {
+    if($value===null)return null;
+    if(!is_array($value))fail('Choose a point on the image.');
+    foreach(['x','y'] as $axis)if(!isset($value[$axis])||(!is_int($value[$axis])&&!is_float($value[$axis]))||!is_finite((float)$value[$axis])||$value[$axis]<0||$value[$axis]>1)fail('Choose a point inside the image.');
+    require_once __DIR__.'/slides.php';
+    $s=str_starts_with($slide,'visual-')?current_slide($i['id'],substr($slide,7)):null;
+    if(!$s||!in_array($s['type'],VISUAL_TYPES,true)||!$s['source_version_id'])fail('Choose an image slide in this presentation.',404);
+    $layout=one('SELECT hidden,deleted FROM slide_layout WHERE iteration_id=? AND slide_id=?',[$i['id'],$slide]);
+    if(!empty($layout['deleted'])||(!empty($layout['hidden'])&&str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client ')))fail('Image slide not found.',404);
+    foreach(['source_version_id','page_number','image_number'] as $field)if(!array_key_exists($field,$value)||(string)$value[$field]!== (string)$s[$field])fail('This image has changed. Reload it before placing feedback.',409);
+    $variant=text_field($value['image_version_id']??'',80);
+    if($variant&&!in_array($variant,array_column(slide_image_variants($s),'id'),true))fail('Image variation not found in this presentation.',404);
+    return json_encode(['x'=>$value['x'],'y'=>$value['y'],'source_version_id'=>$s['source_version_id'],'page_number'=>(int)$s['page_number'],'image_number'=>(int)$s['image_number'],'image_version_id'=>$variant]);
 }
 
 function add_comment(array $i,string $actor,array $input): array {
@@ -25,7 +47,9 @@ function add_comment(array $i,string $actor,array $input): array {
         if($parent&&!empty($parent['parent_id']))fail('Reply to the original comment to keep the conversation in one thread.');
         $slide=text_field($input['slide']??($parent['slide']??'intro'),80);
         if($parent&&$slide!==$parent['slide'])fail('A reply must stay on the same slide as its original comment.');
+        if($parent&&isset($input['annotation']))fail('Replies use the original feedback pin.');
         $comment=['id'=>id(),'iteration_id'=>$i['id'],'parent_id'=>$parentId?:null,'slide'=>$slide,'author'=>$actor,'body'=>$body,'created_at'=>now()];
+        $comment['annotation']=comment_annotation($i,$slide,$input['annotation']??null);
         insert('comments',$comment);
         save_comment_mentions($i,$comment,$input);
         audit($i['project_id'],$i['id'],$actor,'change_requested',$slide.': '.($parent?'Reply: ':'').$body);
