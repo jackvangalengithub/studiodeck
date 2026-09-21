@@ -48,11 +48,11 @@ c=sqlite3.connect(sys.argv[1]);c.execute("DELETE FROM jobs WHERE id='pending-sha
   const expected=['Budget 2.csv','Budget 10.csv','Alpha.pdf','Zulu.pdf','Garden.png'];
   const check=async(selector)=>{const rows=page.locator(selector+' button[data-action=history]');assert.equal(await rows.count(),5);assert.deepEqual(await rows.locator('.download-file-copy').evaluateAll(els=>els.map(e=>e.firstChild.textContent)),expected);assert.equal(await rows.locator('.file-type-logo').count(),5);};
   await check('.summary-layout .download-list');await page.screenshot({path:'/tmp/studiodeck-download-summary.png'});
-  await page.locator('[data-action=originals]').click();await check('.modal .download-list');await page.screenshot({path:'/tmp/studiodeck-download-popup.png'});
+  await page.locator('.presentation-sidebar-handle').hover();await page.locator('[data-action=originals]').click();await check('.modal .download-list');await page.screenshot({path:'/tmp/studiodeck-download-popup.png'});
   await page.setViewportSize({width:390,height:844});assert.ok(await page.locator('.modal').evaluate(e=>e.scrollWidth<=e.clientWidth+1));await page.screenshot({path:'/tmp/studiodeck-download-mobile.png'});
   await page.locator('.modal [data-action=history]').first().click();assert.equal(await page.locator('.history-item .file-type-logo').count(),1);
   const download=page.waitForEvent('download');await page.locator('.modal [data-action=download]').click();assert.equal((await download).suggestedFilename(),'Budget 2.csv');
-  await page.getByRole('button',{name:'Close dialog',exact:true}).click();await page.locator('[data-action=project-documents]').click();await check('.modal .download-list');
+  await page.getByRole('button',{name:'Close dialog',exact:true}).click();await page.locator('.presentation-sidebar-handle').hover();await page.locator('[data-action=project-documents]').click();await check('.modal .download-list');
   const client=await browser.newContext(),viewer=await client.newPage();viewer.on('pageerror',e=>errors.push(e.message));await viewer.goto(url);await viewer.locator('.presentation').waitFor();await client.close();
   assert.deepEqual(errors,[]);console.log('PASS share dialog, recipient defaults, sending/link creation, repeat sharing, client access, file-type/title sorting, badges, mobile layout and original download.');
  }finally{await browser.close();}

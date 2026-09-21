@@ -76,6 +76,7 @@ export function appTourGuide({state,stats,esc,prepare}) {
     document.documentElement.style.setProperty('--tour-dock-size',coach.offsetHeight+'px');
     target?.removeAttribute('aria-describedby');
     target=document.querySelector(step<steps.length?steps[step].target:'.comment-thread');
+    document.querySelector('.presentation-sidebar')?.dispatchEvent(new CustomEvent('presentation-navigation-guide',{detail:!!target?.closest('.presentation-sidebar')}));
     if(target){target.setAttribute('aria-describedby','app-tour-instruction');target.scrollIntoView({block:'center',inline:'center',behavior:'instant'});}
     requestAnimationFrame(()=>{place();focusTarget();});
   }

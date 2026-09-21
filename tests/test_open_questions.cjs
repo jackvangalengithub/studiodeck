@@ -37,9 +37,9 @@ const root=path.resolve(__dirname,'..'),fixture=JSON.parse(fs.readFileSync(proce
   await page.locator('[data-action=editor-section][data-section=questions]').click();
   assert.equal(await page.locator('.slide-editor-row').count(),1);
   await page.locator('[data-action=open-editor-slide][data-id=open-questions]').click();
-  await page.locator('[data-action=jump-section][data-section=budget]').click();
+  await page.locator('.presentation-sidebar-handle').hover();await page.locator('[data-action=jump-section][data-section=budget]').click();
   await page.locator('.presentation-budget').waitFor();
-  await page.locator('[data-action=jump-section][data-section=questions]').click();
+  await page.locator('.presentation-sidebar-handle').hover();await page.locator('[data-action=jump-section][data-section=questions]').click();
   await page.getByRole('button',{name:'Suggest questions',exact:true}).waitFor();
   await page.locator('.open-question-card').first().waitFor();
   assert.equal(await page.locator('.open-question-card').count(),2);

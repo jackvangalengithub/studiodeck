@@ -6,14 +6,11 @@ export const justExitedFullscreen=()=>Date.now()-lastExit<400;
 const hasPopup=()=>!!document.querySelector('.modal-backdrop,#section-slide-menu');
 function setHidden(hidden){
  document.body.classList.toggle('presentation-controls-hidden',hidden);
- document.querySelectorAll('.presentation-chrome-top').forEach(el=>{el.inert=hidden;if(hidden)el.setAttribute('aria-hidden','true');else el.removeAttribute('aria-hidden');});
 }
 function hide(){
  clearTimeout(hideTimer);
  if(!isPresentationFullscreen()||!document.querySelector('.presentation'))return;
  if(hasPopup()){hideTimer=setTimeout(hide,delay);return;}
- const focused=document.activeElement;
- if(focused?.closest('.presentation-chrome-top'))focused.blur();
  setHidden(true);
 }
 function reveal(){
@@ -22,7 +19,7 @@ function reveal(){
 }
 export function syncPresentationFullscreen(){
  const active=isPresentationFullscreen();document.body.classList.toggle('presentation-fullscreen',active);
- document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('title',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('aria-pressed',String(active));});
+ document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('title',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('aria-pressed',String(active));const label=button.querySelector('[data-fullscreen-label]');if(label)label.textContent=active?tr('exit_fullscreen'):tr('show_fullscreen');});
  if(active&&!wasActive)reveal();
  else if(!active){clearTimeout(hideTimer);setHidden(false);}
  else setHidden(document.body.classList.contains('presentation-controls-hidden'));
@@ -36,7 +33,7 @@ document.addEventListener('pointerdown',reveal,{passive:true});
 document.addEventListener('touchstart',reveal,{passive:true});
 document.addEventListener('keydown',event=>{
  if(!isPresentationFullscreen())return;
- // Tab exposes all navigation to keyboard users. Slide arrows never wake chrome.
+ // Tab restores the cursor for keyboard navigation; slide arrows keep it hidden.
  if(event.key==='Tab'){reveal();return;}
  if(['ArrowLeft','ArrowRight'].includes(event.key)&&!hasPopup()&&!event.target.closest('input,textarea,select,[contenteditable="true"],.floorplan-viewport'))hide();
 },true);

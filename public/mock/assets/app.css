@@ -209,8 +209,7 @@ body.presentation-fullscreen .presentation>.preview-bar{display:none}body.presen
 .presentation-brand{flex-shrink:0;display:flex;flex-direction:column;gap:3px}.presentation-brand .presented-by{position:static;font-size:9px;line-height:1.2}.presentation-top>.row{flex-shrink:0;flex-wrap:nowrap}.presentation-top .slide-originals{gap:6px;padding:8px;border:1px solid var(--line);border-radius:6px;white-space:nowrap}.presentation-navigation{display:flex;align-items:center;gap:16px;padding:6px 4vw;border-bottom:1px solid var(--line);background:var(--bg);min-width:0}.presentation-group-scroll{position:relative;min-width:0;flex:1;overflow:hidden}.presentation .presentation-section-index{display:flex;flex-flow:row nowrap;gap:6px;min-width:0;max-width:100%;padding:2px 0;border:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}.presentation-section-index::-webkit-scrollbar{display:none}.presentation-section-index>button,.presentation-section-index>.section-split{flex-shrink:0}.presentation-slide-navigation{display:flex;align-items:center;gap:6px;flex-shrink:0;margin-left:auto}.presentation-slide-navigation .slide-counter{font-size:12px;color:var(--muted)}.group-scroll-arrow{position:absolute;top:0;bottom:0;z-index:2;width:22px;display:grid;place-items:center;background:var(--bg);color:var(--ink);padding:0;border:0}.group-scroll-arrow[hidden]{display:none}.group-scroll-arrow[data-group-scroll="-1"]{left:0;box-shadow:6px 0 8px var(--bg)}.group-scroll-arrow[data-group-scroll="1"]{right:0;box-shadow:-6px 0 8px var(--bg)}.group-scroll-arrow .icon{width:14px;height:14px}.group-scroll-arrow:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
 /* Preserve studio scrollbar stability, but use the full width for presentations. */
 html:has(body.presenting){scrollbar-gutter:auto;overflow:hidden}.presentation .slide-area{scrollbar-gutter:auto;scrollbar-width:none}.presentation .slide-area::-webkit-scrollbar{display:none}
-/* Reserve the measured toolbar height whether the fullscreen chrome is visible or hidden. */
-.presentation-fullscreen .presentation .slide-area{border-top:calc(var(--presentation-toolbar-height,140px) + 16px) solid var(--deck-bg,var(--bg));padding-top:0;scroll-padding-top:24px}.presentation-fullscreen .slide-area>:first-child:not(.full-photo-slide){margin-top:24px}.presentation-fullscreen .presentation .slide-area:has(>.full-photo-slide){border-top:0}.presentation-fullscreen .presentation .full-photo-slide{padding-top:calc(var(--presentation-toolbar-height,140px) + 24px)}.presentation-fullscreen .presentation-budget .budget-sticky-summary{top:0}
+
 
 @media(max-width:700px){.presentation-navigation{padding:6px 12px;gap:8px}.presentation-slide-navigation{gap:3px}.presentation-slide-navigation .icon-button{width:32px;height:32px;min-height:32px}.presentation-slide-navigation .slide-counter{min-width:42px;font-size:10px}.presentation-top .slide-originals{padding:8px;gap:4px}.presentation-top .source-files-label{display:none}.presentation-top .slide-originals .tag{font-size:10px}.presentation-top>.row{gap:6px}.presentation-brand .presented-by{font-size:8px}}
 
@@ -446,3 +445,49 @@ body:has(.workspace) #overlay .modal-header>.icon-button{flex-shrink:0}
  .profile-open{flex:none;justify-content:center;width:48px;min-height:48px}
  .profile>button[data-action="logout"]{display:grid;place-items:center;width:48px;min-height:48px}
 }
+
+/* Presentation groups slide out from the left; pinning reserves slide space. */
+.presentation{position:relative;--presentation-sidebar-width:min(260px,65vw)}
+.presentation-sidebar{position:absolute;top:var(--presentation-sidebar-top,0px);bottom:0;left:0;width:var(--presentation-sidebar-width);z-index:35;transform:translateX(-100%);transition:transform .24s ease;color:var(--ink)}
+.presentation-sidebar.is-open{transform:translateX(0)}
+.presentation-sidebar-content{height:100%;display:flex;flex-direction:column;gap:16px;padding:18px 14px;background:var(--deck-bg,var(--bg));border-right:1px solid var(--line);box-shadow:12px 0 28px #00000014;visibility:hidden;transition:visibility .24s}
+.presentation-sidebar.is-open .presentation-sidebar-content{visibility:visible}
+.presentation-sidebar-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-shrink:0}
+.presentation-sidebar-heading strong{font-size:12px;font-weight:500;color:var(--muted)}
+.presentation-sidebar-pin{flex-shrink:0}
+.presentation-sidebar-pin .icon{transform:rotate(35deg);transition:transform .2s}
+.presentation-sidebar-pin[aria-pressed=true]{background:var(--green);color:var(--on-accent);border-color:var(--green)}
+.presentation-sidebar-pin[aria-pressed=true] .icon{transform:rotate(0)}
+.presentation-sidebar-handle{position:absolute;left:100%;top:24px;width:22px;height:56px;display:grid;place-items:center;padding:0;border:1px solid var(--line);border-left:0;border-radius:0 8px 8px 0;background:var(--deck-bg,var(--bg));color:var(--muted);box-shadow:3px 2px 10px #0000000a}
+.presentation-sidebar-handle span{width:3px;height:22px;border-radius:3px;background:currentColor;opacity:.6}
+.presentation-sidebar-handle:hover{color:var(--green)}
+.presentation-sidebar :is(button,a):focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.presentation .presentation-sidebar .presentation-section-index{flex:0 0 auto;min-height:0;display:flex;flex-flow:column nowrap;align-items:stretch;gap:7px;padding:0;border:0;background:transparent;overflow:visible}
+.presentation-sidebar .section-index>button,.presentation-sidebar .section-split>button:first-child{flex:1;text-align:left;white-space:normal;overflow-wrap:anywhere;min-width:0;line-height:1.5}
+.presentation-sidebar .section-index>button{flex:0 0 auto;border:1px solid var(--line)}
+.presentation-sidebar .section-foldout{flex:0 0 32px}
+.presentation-sidebar .presentation-slide-navigation{flex-shrink:0;justify-content:center;margin:0;padding-top:14px;border-top:1px solid var(--line)}
+.presentation.navigation-pinned>.slide-area:not(.slide-outgoing){margin-left:var(--presentation-sidebar-width);min-width:0}
+.navigation-pinned .presentation-sidebar-content{box-shadow:none}
+.navigation-pinned .presentation-sidebar-handle{visibility:hidden}
+.presentation-fullscreen .presentation-sidebar{top:0}
+@media(prefers-reduced-motion:reduce){.presentation-sidebar,.presentation-sidebar-content,.presentation-sidebar-pin .icon{transition:none}}
+
+@media(max-width:700px){.presentation{--presentation-sidebar-width:min(220px,50vw)}}
+
+/* Branding, project actions and groups share one scrolling sidebar. */
+.presentation-sidebar-heading{align-items:flex-start}
+.presentation-sidebar-heading .presentation-brand{min-width:0;flex:1;gap:6px}
+.presentation-sidebar-heading .brand{font-size:23px;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.presentation-sidebar-heading .presentation-logo{max-width:100%;object-fit:contain;object-position:left}
+.presentation-sidebar-scroll{position:relative;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;display:flex;flex-direction:column;gap:18px}
+.presentation-sidebar .presentation-identity{display:flex;flex-direction:column;gap:5px;min-width:0;max-width:none;text-align:left;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.presentation-sidebar .presentation-identity strong{font-weight:500}
+.presentation-sidebar .project-label{display:block;font-size:11px;color:var(--muted)}
+.presentation-sidebar-actions{display:flex;flex-direction:column;gap:6px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.presentation-sidebar-actions>button{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;min-height:36px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:transparent;color:var(--ink);font-size:12px;text-align:left;line-height:1.4;white-space:normal}
+.presentation-sidebar-actions>button:hover{background:var(--soft)}
+.presentation-sidebar-actions .icon{width:16px;height:16px;flex-shrink:0}
+.presentation-sidebar-actions .tag{margin-left:auto;flex-shrink:0}
+.presentation-sidebar-section-label{font-size:11px;font-weight:500;color:var(--muted)}
+@media(max-width:700px){.presentation-sidebar-heading .brand{font-size:19px}.presentation-sidebar-content{padding:14px 10px;gap:14px}}
