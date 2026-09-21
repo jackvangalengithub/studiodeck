@@ -7,7 +7,7 @@ if(!str_starts_with(env('STRIPE_SECRET_KEY'),'sk_test_')&&!in_array('--live',$ar
 try{
     foreach(billing_catalog() as $key=>$p){
         // Lookup keys survive repeated setup runs; existing prices are never edited.
-        $lookup='studiodeck_v1_'.$key;
+        $lookup=$key==='website'?'studiodeck_website_v1_eur':'studiodeck_v1_'.$key;
         $existing=stripe_request('GET','prices',['lookup_keys'=>[$lookup],'active'=>'true','limit'=>1]);
         if(!empty($existing['data']))$price=$existing['data'][0];
         else{

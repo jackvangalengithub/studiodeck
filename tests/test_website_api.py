@@ -34,7 +34,7 @@ def run(tmp):
         a.call('complete_studio_setup',{'name':'Willow Studio','language':'en','business_type':'interior'})
         a.call('billing_onboard',{'name':'Admin','studio_name':'Willow Studio'})
         project=a.call('create_project',{'name':'Miller family','description':'A carefully considered family home.'},expected=201);pid=project['project_id']
-        site=a.call('website');check(site['billing']['local'] and not site['draft']['started'] and len(site['templates'])==10,'Welcome screen offers ten starting designs')
+        site=a.call('website');check(site['billing']['local'] and not site['draft']['started'] and len(site['templates'])==26,'Welcome screen offers 26 starting designs')
         example,eh=a.call('website_template_preview&template=noir&website_studio='+sid,raw=True)
         check(b'Studio Forma' in example and 'allow-scripts' in eh['Content-Security-Policy'] and 'allow-same-origin' not in eh['Content-Security-Policy'],'Full-screen examples are sandboxed')
         site=a.call('website_start',{'template':'editorial','revision':site['revision']})

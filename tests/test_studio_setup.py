@@ -58,14 +58,19 @@ with tempfile.TemporaryDirectory(prefix='studio-setup-') as temp:
             result = owner.call('complete_studio_setup', payload)
             assert result['studio']['setup_completed_at']
             for key, value in payload.items(): assert result['studio'][key] == value
-            assert result['billing']['needs_onboarding'], 'Exploring the wizard does not start a trial'
+            assert not result['billing']['needs_onboarding'], 'Completing the wizard also completes billing onboarding'
+            assert result['billing']['trial_active']
+            trial_end = result['billing']['trial_ends_at']
+            assert abs(trial_end - time.time() - 7*86400) < 3
             owner.call('complete_studio_setup', payload | {'name': 'Stale tab', 'business_type': 'events'})
             assert owner.call('session')['studio'] == result['studio'], 'A retry cannot overwrite completed setup'
+            assert owner.call('session')['billing']['trial_ends_at'] == trial_end, 'Retries cannot restart a trial'
             print('PASS Persistent, validated, CSRF-protected setup with safe retries')
 
             other = owner.call('create_studio', {'name': 'Second studio'}, expected=201)
             assert other['studio']['setup_completed_at'] is None
-            owner.call('complete_studio_setup', {'name': 'Second studio', 'language': 'en', 'business_type': 'architecture'})
+            second = owner.call('complete_studio_setup', {'name': 'Second studio', 'language': 'en', 'business_type': 'architecture'})
+            assert not second['billing']['needs_onboarding'] and not second['billing']['trial_active'], 'Another studio does not grant a second trial'
             owner.call('switch_studio', {'studio_id': sid})
             assert owner.call('session')['studio']['business_type'] == 'landscape'
             stranger = Client(base); stranger.login('stranger@example.test', log); stranger.studio = sid
@@ -85,7 +90,7 @@ with tempfile.TemporaryDirectory(prefix='studio-setup-') as temp:
                 owner.call('studio_theme', {'business_type': item['id'], 'language': 'en'})
                 site = owner.call('website')
                 assert [t['id'] for t in site['templates'][:3]] == item['templates']
-                assert len(site['templates']) == 10 and sum(t['recommended'] for t in site['templates']) == 3
+                assert len(site['templates']) == 26 and sum(t['recommended'] for t in site['templates']) == 3
                 example = owner.call('website_template_preview&template='+item['templates'][0], raw=True).decode()
                 assert item['en']['headline'] in example
                 assert item['en']['projectTitle'] in example

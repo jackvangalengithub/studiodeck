@@ -1,0 +1,41 @@
+{
+  "mode": "Built-in image_gen tool",
+  "assets": [
+    {
+      "key": "living",
+      "prompt": "Use case: photorealistic-natural. Create an original high-end architectural editorial photograph for a fictional modern Dutch villa interior design presentation, Villa Auren. Wide landscape 3:2. Spacious sunken living room, floor-to-ceiling glazing with slim bronze frames overlooking dune grasses and pines, quiet contemporary architecture, warm limewash walls, pale European oak ceiling and joinery, large ivory curved linen sofa, two olive upholstered sculptural lounge chairs, low solid travertine coffee table, tall abstract earth-toned original artwork, restrained ceramics, honed limestone floor. Late afternoon natural light, authentic fine material detail, magazine-quality architectural photography, beautifully considered negative space and composition. No people, no text, no logos, no watermark. One single full-frame photograph, not collage."
+    },
+    {
+      "key": "kitchen",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior presentation. Wide architectural photograph of kitchen and dining room: monolithic honed cream travertine island with gently rounded corners, pale oak full-height cabinetry, brushed bronze tap, three sculptural stools, oval oak dining table and six woven chairs, sculptural plaster pendant, olive tree glimpsed through bronze-framed glazing. Natural morning light. Cohesive quiet contemporary modern Dutch villa, sand/ivory/olive palette, restrained luxury, realistic magazine photography, landscape 3:2 composition. No people, no lettering, no logos or watermarks. One full-frame image."
+    },
+    {
+      "key": "bedroom",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior presentation. Wide editorial photograph of primary bedroom: low upholstered ivory bed, full-width pale oak headboard wall, floating travertine bedside shelves, olive linen throw, bronze reading sconces, long sheer curtains, peaceful pine-tree view through full-height window, original abstract minimal artwork. Soft early morning light. Cohesive quiet contemporary modern Dutch villa, sand/ivory/olive palette, restrained luxury, realistic magazine photography, landscape 3:2 composition. No people, no lettering, no logos or watermarks. One full-frame image."
+    },
+    {
+      "key": "bathroom",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior presentation. Wide architectural photograph of serene primary bathroom: freestanding matte ivory bathtub in front of tall garden window, vein-cut travertine walls and double vanity, pale oak floating drawers, brushed bronze fixtures, discreet walk-in shower, sculptural neutral ceramics. Soft natural light, beautiful real stone detail. Cohesive quiet contemporary modern Dutch villa, sand/ivory/olive palette, restrained luxury, realistic magazine photography, landscape 3:2 composition. No people, no lettering, no logos or watermarks. One full-frame image."
+    },
+    {
+      "key": "materials",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior presentation. One exquisitely styled tactile material moodboard, photographed directly overhead on warm ivory plaster. Composition of large vein-cut travertine slab, pale oak rectangular sample, folded natural ivory linen, olive bouclé fabric, warm mushroom wool, brushed bronze metal plate and cream limewash sample, small sculptural ceramic bowl, tiny dried branch. Asymmetrical editorial arrangement with generous negative space, beautifully real textures, soft raking sunlight and gentle shadows. No rooms, just physical material samples. Cohesive quiet contemporary modern Dutch villa, sand/ivory/olive palette, restrained luxury, realistic magazine photography, landscape 3:2 composition. No people, no lettering, no logos or watermarks. One full-frame image."
+    },
+    {
+      "key": "exterior",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior design demo. A wide editorial architectural photograph of a beautiful modern two-storey Dutch villa at the edge of coastal dunes: pale limestone and warm oak exterior, bronze-framed floor-to-ceiling glazing, elegant flat roofs, landscaped dune grasses and pines, sheltered terrace with ivory outdoor seating, quiet restrained luxury. Gentle evening sunlight, no cars or people. Sand, ivory, pale oak, olive, bronze cohesive palette. Landscape 3:2. No lettering, logos or watermarks. Single full-frame image."
+    },
+    {
+      "key": "study",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior design demo. A wide editorial architectural photograph of a study and reading room in a modern Dutch villa. Pale oak floating desk along large garden window, warm ivory plaster, olive upholstered sculptural desk chair, full-height oak library, small rust ceramic lamp, large original minimalist cream and umber abstract painting, hidden cable management, a comfortable reading nook. Soft side light. Sand, ivory, pale oak, olive, bronze cohesive palette. Landscape 3:2. No lettering, logos or watermarks. Single full-frame image."
+    },
+    {
+      "key": "artwork",
+      "prompt": "Use case: stylized-concept. Asset: original image for fictional Villa Auren interior design demo. An original collectible abstract painting, straight-on full frame view of entire canvas, no frame, no surrounding room. Large organic chalk-white and muted ochre curved forms meeting dark umber hand-painted gestural blocks, subtle sand-colored ground, expressive dry brush edges and canvas texture, refined spacious composition for warm modern architectural interiors. Landscape 3:2. Do not imitate any named artist. Sand, ivory, pale oak, olive, bronze cohesive palette. Landscape 3:2. No lettering, logos or watermarks. Single full-frame image."
+    },
+    {
+      "key": "softboard",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Villa Auren interior design demo. A beautifully styled tactile soft-furnishings moodboard photographed overhead, warm off-white background: ivory linen upholstery, olive green bouclé, mushroom wool rug, translucent sheer drapery fabric, tobacco leather small sample, small brushed bronze disc, unframed miniature abstract ochre and umber artwork card. Restrained asymmetrical layered layout, generous negative space, real textures, delicate long shadows. Sand, ivory, pale oak, olive, bronze cohesive palette. Landscape 3:2. No lettering, logos or watermarks. Single full-frame image."
+    }
+  ]
+}

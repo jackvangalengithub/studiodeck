@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 780" role="img" aria-labelledby="title desc">
+<title id="title">Villa Auren illustrative ground-floor zoning</title><desc id="desc">Unmeasured concept showing living, dining, kitchen, study, entry and service spaces around a garden terrace. Not for construction.</desc>
+<rect width="900" height="780" fill="#f7f4ee"/>
+<g font-family="Arial,sans-serif" fill="#626954"><text x="65" y="62" font-size="13" letter-spacing="3">GROUND FLOOR / SPATIAL CONCEPT</text><text x="65" y="91" font-size="12">Illustrative zoning · no dimensions or scale · upper floor not shown</text></g>
+<path d="M65 150H815V295H65Z" fill="#e2e5d8"/>
+<g fill="none" stroke="#b0b49e"><path d="M65 180H815M65 215H815M65 250H815"/><circle cx="130" cy="217" r="35"/><circle cx="730" cy="217" r="38"/></g>
+<text x="370" y="203" font-family="Arial" font-size="15" fill="#687159" letter-spacing="3">GARDEN TERRACE</text>
+<text x="364" y="228" font-family="Arial" font-size="11" fill="#687159">external works outside priced scope</text>
+<path d="M65 295H815V685H65Z" fill="#eae3d7" stroke="#4b4c43" stroke-width="9"/>
+<path d="M330 295V505H65M330 505H540M540 295V470M540 550V685M330 575V685M650 505H815" fill="none" stroke="#4b4c43" stroke-width="7"/>
+<path d="M90 295H303M355 295H510M565 295H785" stroke="#8f9980" stroke-width="8"/>
+<path d="M88 309H303M355 309H510M565 309H785" stroke="#fcfcf8" stroke-width="3"/>
+<rect x="90" y="340" width="155" height="55" rx="15" fill="#f8f5ef" stroke="#b8b19e" stroke-width="2"/>
+<rect x="99" y="393" width="55" height="62" rx="13" fill="#f8f5ef" stroke="#b8b19e" stroke-width="2"/>
+<rect x="171" y="415" width="72" height="42" rx="8" fill="#c9b99e"/>
+<rect x="267" y="419" width="36" height="37" rx="14" fill="#838c6d"/>
+<text x="105" y="484" font-family="Arial" font-size="15" fill="#53564a">01 / LIVING</text>
+<ellipse cx="435" cy="393" rx="48" ry="66" fill="#baa17d"/>
+<g fill="#f6f0e6" stroke="#b4a68e" stroke-width="2"><rect x="370" y="349" width="22" height="28" rx="7"/><rect x="370" y="404" width="22" height="28" rx="7"/><rect x="479" y="349" width="22" height="28" rx="7"/><rect x="479" y="404" width="22" height="28" rx="7"/><rect x="421" y="307" width="28" height="22" rx="7"/><rect x="421" y="459" width="28" height="22" rx="7"/></g>
+<text x="372" y="489" font-family="Arial" font-size="15" fill="#53564a">02 / DINING</text>
+<rect x="755" y="320" width="40" height="164" fill="#c5ad88"/>
+<rect x="591" y="358" width="110" height="63" rx="9" fill="#e0d3bc" stroke="#ab9e86" stroke-width="2"/>
+<g fill="#8c806b"><circle cx="610" cy="446" r="12"/><circle cx="647" cy="446" r="12"/><circle cx="684" cy="446" r="12"/></g>
+<text x="585" y="484" font-family="Arial" font-size="15" fill="#53564a">03 / KITCHEN</text>
+<rect x="86" y="533" width="125" height="33" fill="#c5ad88"/><rect x="106" y="578" width="42" height="38" rx="14" fill="#838c6d"/>
+<rect x="87" y="633" width="216" height="25" fill="#c5ad88"/>
+<text x="183" y="589" font-family="Arial" font-size="15" fill="#53564a">04 / STUDY</text>
+<text x="350" y="638" font-family="Arial" font-size="14" fill="#53564a">ENTRY / HALL</text>
+<path d="M379 685V677H462V685" stroke="#f7f4ee" stroke-width="13" fill="none"/>
+<path d="M395 733V702M385 712L395 701L405 712" fill="none" stroke="#6a705c" stroke-width="2"/>
+<rect x="566" y="577" width="82" height="82" fill="#f0ebdf" stroke="#99937f"/>
+<g stroke="#aaa38f"><path d="M566 591H648M566 605H648M566 619H648M566 633H648M566 647H648"/></g>
+<text x="566" y="564" font-family="Arial" font-size="12" fill="#53564a">STAIR ↑</text>
+<text x="672" y="563" font-family="Arial" font-size="14" fill="#53564a">UTILITY</text><text x="672" y="584" font-family="Arial" font-size="12" fill="#53564a">&amp; WC</text>
+<text x="65" y="756" font-family="Arial" font-size="11" fill="#737966">FICTIONAL DEMO / NOT A MEASURED PLAN / NOT FOR CONSTRUCTION</text>
+</svg>

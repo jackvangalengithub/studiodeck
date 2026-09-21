@@ -45,23 +45,26 @@ function stripe_customer(array $u): string {
     return billing_studio($u['studio_id'])['customer_id'];
 }
 function billing_require_fit(string $sid,string $plan,int $extraProjects=0,int $extraSeats=0,bool $includeTrial=false): void {
-    if(!in_array($plan,['solo','studio','practice'],true)||$extraProjects<0||$extraProjects>500||$extraSeats<0||$extraSeats>100||($extraSeats&&$plan!=='practice'))fail('Choose a valid plan and capacity.');
+    if(!in_array($plan,['solo','studio','practice'],true)||$extraProjects<0||$extraSeats<0)fail('Choose a valid plan and capacity.');
     $p=billing_catalog()[$plan];$usage=billing_usage($sid);
     $additional=$includeTrial?(int)one("SELECT COUNT(*) n FROM projects p JOIN project_coverage c ON c.project_id=p.id WHERE p.studio_id=? AND p.archived=0 AND c.source IN ('trial','legacy')",[$sid])['n']:0;
     if($usage['seats']>$p['seats']+$extraSeats||$usage['projects']+$additional>$p['projects']+$extraProjects)fail('This package is too small for your current studio. Archive projects or remove studio memberships first.',409);
 }
 function billing_checkout(array $u,array $input): array {
     studio_admin($u);$plan=text_field($input['plan']??'',30);$catalog=billing_catalog();
-    if(!isset($catalog[$plan])||in_array($plan,['extra_project','extra_seat'],true))fail('Choose a package.');
+    if(!isset($catalog[$plan])||in_array($plan,['extra_project','extra_seat','website'],true))fail('Choose a package.');
     if(!$catalog[$plan]['price_id'])fail('This package is not available for checkout yet.',503);
     $pid=text_field($input['project_id']??'');$kind=in_array($plan,['pass','extension'],true)?$plan:'subscription';
     $extras=['extra_projects'=>filter_var($input['extra_projects']??0,FILTER_VALIDATE_INT),'extra_seats'=>filter_var($input['extra_seats']??0,FILTER_VALIDATE_INT)];
     if(in_array(false,$extras,true))fail('Enter whole numbers for extra capacity.');
+    $website=$kind==='subscription'&&billing_website_selection($input,billing_studio($u['studio_id']));
+    if($website){website_stripe_price();$extras['website']=true;}
     $order=transaction(function()use($u,$plan,$catalog,$pid,$kind,$extras){
         $b=billing_studio($u['studio_id']);if(!$b['onboarded_at']&&!$b['legacy_exempt'])fail('Complete your studio setup first.',409);
         if($kind==='subscription'){
             if($b['subscription_id']&&!in_array($b['subscription_status'],['canceled','incomplete_expired'],true))fail('Manage your existing subscription instead of purchasing another.',409);
             billing_require_fit($u['studio_id'],$plan,$extras['extra_projects'],$extras['extra_seats'],true);
+            if(!empty($extras['website']))billing_require_website_bundle($u['studio_id']);
         }elseif($pid||$kind==='extension'){
             $p=one('SELECT * FROM projects WHERE id=? AND studio_id=?',[$pid,$u['studio_id']]);if(!$p)fail('Project not found.',404);
             if((int)one('SELECT COUNT(*) n FROM project_members WHERE project_id=?',[$pid])['n']!==1)fail('A pass covers one designer. Keep one project team member or choose a subscription.',409);
@@ -82,6 +85,7 @@ function billing_checkout(array $u,array $input): array {
     foreach(['extra_projects'=>'extra_project','extra_seats'=>'extra_seat'] as $field=>$key)if($kind==='subscription'&&$extras[$field]){
         if(!$catalog[$key]['price_id'])fail('Extra capacity is not configured yet.',503);$lineItems[]=['price'=>$catalog[$key]['price_id'],'quantity'=>$extras[$field]];
     }
+    if($website)$lineItems[]=['price'=>$catalog['website']['price_id'],'quantity'=>1];
     $url=base_url().'/'.rawurlencode($u['studio_id']).'/billing';$meta=['order_id'=>$order['id'],'studio_id'=>$u['studio_id']];
     $params=['mode'=>$kind==='subscription'?'subscription':'payment','customer'=>$customer,'line_items'=>$lineItems,'client_reference_id'=>$order['id'],'metadata'=>$meta,'success_url'=>$url.'?checkout=success&order='.$order['id'],'cancel_url'=>$url.'?checkout=cancelled','expires_at'=>(int)$order['expires_at'],'billing_address_collection'=>'required','customer_update'=>['address'=>'auto','name'=>'auto'],'tax_id_collection'=>['enabled'=>'true'],'automatic_tax'=>['enabled'=>env('STRIPE_AUTOMATIC_TAX','false')==='true'?'true':'false']];
     if($kind==='subscription')$params['subscription_data']=['metadata'=>$meta];
@@ -155,11 +159,12 @@ function billing_sync_subscription(array $s): void {
         if(!$order)return;
         if(!in_array($b['subscription_status'],['canceled','incomplete_expired'],true))throw new RuntimeException('Multiple studio subscriptions require review.');
     }
-    $catalog=billing_catalog();$plan=null;$extraProjects=0;$extraSeats=0;$periodEnd=0;
+    $catalog=billing_catalog();$plan=null;$extraProjects=0;$extraSeats=0;$periodEnd=0;$website=false;
     foreach($s['items']['data']??[] as $item){
         $price=stripe_id($item['price']);$key=null;foreach($catalog as $k=>$p)if($p['price_id']&&$p['price_id']===$price)$key=$k;
         if(in_array($key,['solo','studio','practice'],true)){$plan=$key;$periodEnd=(int)($item['current_period_end']??$s['current_period_end']??0);}
         elseif($key==='extra_project')$extraProjects=(int)$item['quantity'];elseif($key==='extra_seat')$extraSeats=(int)$item['quantity'];
+        elseif($key==='website'&&(int)$item['quantity']===1)$website=true;
         else throw new RuntimeException('Unknown Stripe subscription price.');
     }
     if(!$plan)throw new RuntimeException('Subscription package is missing.');
@@ -169,6 +174,7 @@ function billing_sync_subscription(array $s): void {
     $paid=(int)$b['paid_until'];if(($invoice['status']??'')==='paid'&&in_array($s['status'],['active','past_due','canceled'],true))$paid=max($paid,$periodEnd);
     if($b['subscription_id']&&$b['subscription_id']!==$s['id'])$paid=($invoice['status']??'')==='paid'?$periodEnd:0;
     query('UPDATE studio_billing SET subscription_id=?,subscription_status=?,plan=?,paid_until=?,cancel_at_period_end=?,extra_projects=?,extra_seats=?,subscription_json=?,synced_at=? WHERE studio_id=?',[$s['id'],$s['status'],$plan,$paid,!empty($s['cancel_at_period_end'])?1:0,$extraProjects,$extraSeats,json_encode($s),time(),$b['studio_id']]);
+    website_sync_package($s,$b['studio_id'],$website);
     // A paid upgrade webhook must settle the UI's change record immediately.
     billing_reconcile_changes($b['studio_id']);
 }

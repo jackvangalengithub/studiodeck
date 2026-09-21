@@ -1,0 +1,19 @@
+key,label,vendor,amount,source,parent,included,kind,min_amount,max_amount,optional,note
+build,Interior construction & installation,Forma Build — fictional,82000,FB-260918,,False,quote,,,False,"Fixed demo package: €28,500 preliminaries/finishes + €18,500 electrical + €14,000 plumbing + €21,000 flooring. All child quotes included."
+electric,Electrical installation & controls,Lumen Works — fictional,18500,LW-260918,build,True,quote,,,False,"Included in Forma Build. €13,700 installation + €4,800 controls. Decorative fixtures priced separately."
+controls,Dimming drivers & scene controls,Signal Atelier — fictional,4800,SA-260918,electric,True,quote,,,False,Second-tier subquote included in Lumen Works and therefore Forma Build. Do not add again.
+plumbing,Plumbing & underfloor heating adaptations,Flow Systems — fictional,14000,FS-260918,build,True,quote,,,False,Included in Forma Build; excludes sanitary fixtures.
+floor,Stone floors & mineral wall finishes,Terra Surface — fictional,21000,TS-260918,build,True,quote,,,False,Included in Forma Build. 150 m² floors and 180 m² wall finishes.
+kitchen,Kitchen & fitted oak joinery,Grain Atelier — fictional,54000,GA-260918,,False,quote,,,False,"€26,000 cabinetry + €16,000 stone + €12,000 appliances. Study upgrade excluded."
+stone,Travertine island & worktops,Quarry Objects — fictional,16000,QO-260918,kitchen,True,quote,,,False,"Included in Grain Atelier. Templating, fabrication, delivery and fitting."
+appliances,Integrated appliance package,Quiet Appliances — fictional,12000,QA-260918,kitchen,True,quote,,,False,"Included in Grain Atelier; induction, extraction, ovens, refrigeration and dishwasher."
+study,Optional bespoke study library,Grain Atelier — fictional,9600,GA-260918,kitchen,False,quote,,,True,Additional subquote: not included in the kitchen contract. Off by default; rendered study shows this upgrade.
+furniture,Furniture & rugs selection,Softline Editions — fictional,,SE-260918,,False,estimate,36000,44000,False,"€36,000 base selection; €44,000 premium upholstery and larger rug specification. Range is a selection allowance, not VAT variation."
+lighting,Decorative lighting,Halo Objects — fictional,12800,HO-260918,,False,quote,,,False,Decorative fixtures only; installation and controls are in Forma Build.
+curtains,Curtains & window treatments,Veil Textiles — fictional,14400,VT-260918,,False,quote,,,False,Measured allowance for 48 linear metres of sheers and bedroom blackout; manual tracks.
+bath,Bathroom fixtures & vanity,Still Bath — fictional,23500,SB-260918,,False,quote,,,False,"Bath, sanitaryware, bronze fittings, vanity and installation of supplied fixtures; rough-in separately included in Flow Systems."
+art,Original artwork & styling,Form Editions — fictional,6800,FE-260918,,False,quote,,,False,"Two fictional art commissions, framing, ceramics and styling day. AI artwork represents the concept."
+design,Interior design & site coordination,Auren Interior Studio — fictional,24000,AI-260918,,False,quote,,,False,"Concept, design development, procurement coordination and six site visits; excludes structural and permit services."
+reserve,Client-held contingency,Client allowance,25000,budget,,False,estimate,,,False,Uncommitted planning reserve; not a supplier quote or authorisation to spend.
+terrace,Optional terrace furnishing package,Outdoor Quiet — fictional,18500,OQ-260918,,False,quote,,,True,Loose outdoor furniture and pots only. Exterior landscaping and building works excluded.
+landscape,Landscape design & external works,Supplier to be appointed,,scope,,False,unknown,,,False,Unpriced and excluded from known total; shown landscape is illustrative.

@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "images": [
+    {
+      "key": "render-chalet",
+      "ref": "summer",
+      "prompt": "Use case: stylized-concept. Asset type: landscape presentation image, 1536x1024. Style: clearly computer-made architectural 3D visualization from circa 2008\u20132014 design software, SketchUp plus early V-Ray aesthetic. Crisp modeled edges, simplified geometry, flat repeating material maps, basic ambient occlusion, slightly plastic surfaces, simple directional shadows, low-poly vegetation. Professional and compositionally beautiful, but unmistakably an older 3D render, not a photograph, not painterly, no photoreal textures, no depth of field, no text, logos, UI or watermark. Input image is a design reference. Recreate this Haus Morgenlicht Austrian chalet exterior as the described older 3D render. Preserve broad pitched roof, timber balcony, weathered timber upper floor, pale plaster lower floor, rough stone plinth and enlarged ground floor glazing. Simple faceted Alpine terrain, low-poly conifers and distant angular mountain silhouettes. Clear midday lighting."
+    },
+    {
+      "key": "render-interior",
+      "prompt": "Use case: stylized-concept. Asset type: landscape presentation image, 1536x1024. Style: clearly computer-made architectural 3D visualization from circa 2008\u20132014 design software, SketchUp plus early V-Ray aesthetic. Crisp modeled edges, simplified geometry, flat repeating material maps, basic ambient occlusion, slightly plastic surfaces, simple directional shadows, low-poly vegetation. Professional and compositionally beautiful, but unmistakably an older 3D render, not a photograph, not painterly, no photoreal textures, no depth of field, no text, logos, UI or watermark. Interior 3D design study for renovated Austrian chalet Haus Morgenlicht. Old dark timber ceiling beams, retained green tiled stove, pale silver-fir joinery and flooring, warm ivory plaster, mineral stone hearth, oatmeal sofa and muted blue-green wool chairs, large new garden glazing with simplified alpine mountain geometry outside. Perspective across open living and dining space. Clearly modeled furniture, smooth untextured textiles, repetitive wood texture, ambient occlusion and directional sun.",
+      "refinement_prompt": "Use case: style-transfer. Edit this image into an unmistakably old architectural CAD/SketchUp viewport render, circa 2005. Preserve the design, layout and camera. Dramatically simplify everything: flat solid-color material faces, thin dark visible model edges, hard polygon corners, low-segment curved furniture, simplified geometric plants, faceted trees. NO realistic cloth weave, NO wood grain, NO photographic stone texture, NO subtle global illumination, NO photoreal lighting. Only basic hard sun shadows and very simple ambient shade. Restrained original palette. Professional architectural design model visualization, crisp and clearly computer-made. No user interface, no text, no labels."
+    }
+  ]
+}

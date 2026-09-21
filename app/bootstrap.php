@@ -56,6 +56,7 @@ function db(): PDO {
     migrate_studio_setup($db);
     migrate_mentions($db);
     migrate_billing($db);
+    migrate_studio_billing_setup($db);
     $db->exec(file_get_contents(__DIR__.'/website_schema.sql'));
     migrate_project_team_roles($db);
     migrate_project_clients($db);

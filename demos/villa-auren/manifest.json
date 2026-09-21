@@ -1,0 +1,698 @@
+{
+  "assets": [
+    "living",
+    "exterior",
+    "materials",
+    "softboard",
+    "kitchen",
+    "bedroom",
+    "bathroom",
+    "study",
+    "artwork",
+    "render-spatial",
+    "render-living"
+  ],
+  "name": "Villa Auren",
+  "location": "Bergen, North Holland · fictional villa",
+  "description": "A contemporary villa shaped by light, honest materials and everyday rituals. Interior concept & investment proposal · September 2026",
+  "theme": {
+    "style": "Warm modernism",
+    "font": "serif",
+    "mode": "light",
+    "light_background": "#f7f4ee",
+    "colors": [
+      "#f0eade",
+      "#c7b395",
+      "#a89783",
+      "#66705a",
+      "#59493c"
+    ]
+  },
+  "budget": [
+    {
+      "key": "build",
+      "label": "Interior construction & installation",
+      "vendor": "Forma Build — fictional",
+      "amount": 82000,
+      "source": "FB-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Fixed demo package: €28,500 preliminaries/finishes + €18,500 electrical + €14,000 plumbing + €21,000 flooring. All child quotes included."
+    },
+    {
+      "key": "electric",
+      "label": "Electrical installation & controls",
+      "vendor": "Lumen Works — fictional",
+      "amount": 18500,
+      "source": "LW-260918",
+      "parent": "build",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Forma Build. €13,700 installation + €4,800 controls. Decorative fixtures priced separately."
+    },
+    {
+      "key": "controls",
+      "label": "Dimming drivers & scene controls",
+      "vendor": "Signal Atelier — fictional",
+      "amount": 4800,
+      "source": "SA-260918",
+      "parent": "electric",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Second-tier subquote included in Lumen Works and therefore Forma Build. Do not add again."
+    },
+    {
+      "key": "plumbing",
+      "label": "Plumbing & underfloor heating adaptations",
+      "vendor": "Flow Systems — fictional",
+      "amount": 14000,
+      "source": "FS-260918",
+      "parent": "build",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Forma Build; excludes sanitary fixtures."
+    },
+    {
+      "key": "floor",
+      "label": "Stone floors & mineral wall finishes",
+      "vendor": "Terra Surface — fictional",
+      "amount": 21000,
+      "source": "TS-260918",
+      "parent": "build",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Forma Build. 150 m² floors and 180 m² wall finishes."
+    },
+    {
+      "key": "kitchen",
+      "label": "Kitchen & fitted oak joinery",
+      "vendor": "Grain Atelier — fictional",
+      "amount": 54000,
+      "source": "GA-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "€26,000 cabinetry + €16,000 stone + €12,000 appliances. Study upgrade excluded."
+    },
+    {
+      "key": "stone",
+      "label": "Travertine island & worktops",
+      "vendor": "Quarry Objects — fictional",
+      "amount": 16000,
+      "source": "QO-260918",
+      "parent": "kitchen",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Grain Atelier. Templating, fabrication, delivery and fitting."
+    },
+    {
+      "key": "appliances",
+      "label": "Integrated appliance package",
+      "vendor": "Quiet Appliances — fictional",
+      "amount": 12000,
+      "source": "QA-260918",
+      "parent": "kitchen",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Grain Atelier; induction, extraction, ovens, refrigeration and dishwasher."
+    },
+    {
+      "key": "study",
+      "label": "Optional bespoke study library",
+      "vendor": "Grain Atelier — fictional",
+      "amount": 9600,
+      "source": "GA-260918",
+      "parent": "kitchen",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": true,
+      "note": "Additional subquote: not included in the kitchen contract. Off by default; rendered study shows this upgrade."
+    },
+    {
+      "key": "furniture",
+      "label": "Furniture & rugs selection",
+      "vendor": "Softline Editions — fictional",
+      "amount": null,
+      "source": "SE-260918",
+      "parent": "",
+      "included": false,
+      "kind": "estimate",
+      "min_amount": 36000,
+      "max_amount": 44000,
+      "optional": false,
+      "note": "€36,000 base selection; €44,000 premium upholstery and larger rug specification. Range is a selection allowance, not VAT variation."
+    },
+    {
+      "key": "lighting",
+      "label": "Decorative lighting",
+      "vendor": "Halo Objects — fictional",
+      "amount": 12800,
+      "source": "HO-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Decorative fixtures only; installation and controls are in Forma Build."
+    },
+    {
+      "key": "curtains",
+      "label": "Curtains & window treatments",
+      "vendor": "Veil Textiles — fictional",
+      "amount": 14400,
+      "source": "VT-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Measured allowance for 48 linear metres of sheers and bedroom blackout; manual tracks."
+    },
+    {
+      "key": "bath",
+      "label": "Bathroom fixtures & vanity",
+      "vendor": "Still Bath — fictional",
+      "amount": 23500,
+      "source": "SB-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Bath, sanitaryware, bronze fittings, vanity and installation of supplied fixtures; rough-in separately included in Flow Systems."
+    },
+    {
+      "key": "art",
+      "label": "Original artwork & styling",
+      "vendor": "Form Editions — fictional",
+      "amount": 6800,
+      "source": "FE-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Two fictional art commissions, framing, ceramics and styling day. AI artwork represents the concept."
+    },
+    {
+      "key": "design",
+      "label": "Interior design & site coordination",
+      "vendor": "Auren Interior Studio — fictional",
+      "amount": 24000,
+      "source": "AI-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Concept, design development, procurement coordination and six site visits; excludes structural and permit services."
+    },
+    {
+      "key": "reserve",
+      "label": "Client-held contingency",
+      "vendor": "Client allowance",
+      "amount": 25000,
+      "source": "budget",
+      "parent": "",
+      "included": false,
+      "kind": "estimate",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Uncommitted planning reserve; not a supplier quote or authorisation to spend."
+    },
+    {
+      "key": "terrace",
+      "label": "Optional terrace furnishing package",
+      "vendor": "Outdoor Quiet — fictional",
+      "amount": 18500,
+      "source": "OQ-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": true,
+      "note": "Loose outdoor furniture and pots only. Exterior landscaping and building works excluded."
+    },
+    {
+      "key": "landscape",
+      "label": "Landscape design & external works",
+      "vendor": "Supplier to be appointed",
+      "amount": null,
+      "source": "scope",
+      "parent": "",
+      "included": false,
+      "kind": "unknown",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Unpriced and excluded from known total; shown landscape is illustrative."
+    }
+  ],
+  "slides": [
+    {
+      "key": "cover",
+      "title": "Villa Auren",
+      "subtitle": "A quieter kind of luxury.",
+      "image": "living",
+      "section": "story",
+      "kind": "cover",
+      "body": "A contemporary villa shaped by light, honest materials and everyday rituals. Interior concept & investment proposal · September 2026",
+      "points": []
+    },
+    {
+      "key": "welcome",
+      "title": "A home that lets you exhale.",
+      "subtitle": "01 / THE STORY",
+      "image": "exterior",
+      "section": "story",
+      "kind": "split",
+      "body": "For our fictional clients, Eva and Julian Vermeer, home is where busy days become slow evenings. Villa Auren brings the ease of a coastal retreat to a generous modern family house: welcoming, tactile and quietly expressive.",
+      "points": [
+        "Fictional location: Bergen, North Holland",
+        "Illustrative whole-villa area: 320 m² over two levels",
+        "Detailed design focus: living, dining, kitchen, study and primary suite"
+      ]
+    },
+    {
+      "key": "brief",
+      "title": "Beautiful in the everyday.",
+      "subtitle": "THE CLIENT BRIEF",
+      "image": null,
+      "section": "story",
+      "kind": "split",
+      "body": "A family home that hosts generously and works effortlessly. Space for cooking together, a place to retreat, and rooms that feel complete without feeling precious.",
+      "points": [
+        "An open social heart with concealed storage",
+        "A calm primary suite and a proper place to work",
+        "Natural materials with a practical maintenance plan",
+        "A transparent investment, with options clearly separated"
+      ]
+    },
+    {
+      "key": "principles",
+      "title": "Light. Texture. Restraint.",
+      "subtitle": "THE DESIGN PRINCIPLES",
+      "image": "materials",
+      "section": "story",
+      "kind": "split",
+      "body": "Architecture does the quiet work. A small family of materials flows from room to room; curved furniture softens the long lines, and bronze details give the palette a little depth.",
+      "points": [
+        "Let daylight define the mood",
+        "Repeat materials; vary scale and texture",
+        "Choose fewer, more generous pieces"
+      ]
+    },
+    {
+      "key": "context",
+      "title": "The architecture is our starting point.",
+      "subtitle": "CONCEPT CONTEXT",
+      "image": "exterior",
+      "section": "current",
+      "kind": "split",
+      "body": "The imagined villa has generous glazing, a strong garden connection and a simple two-storey volume. The exterior image establishes the intended atmosphere; it is a generated concept, not a site photograph.",
+      "points": [
+        "No existing-condition survey is represented",
+        "Final measurements and services require verification",
+        "Garden and architectural shell are outside the interior budget"
+      ]
+    },
+    {
+      "key": "materials",
+      "title": "The material language.",
+      "subtitle": "02 / EARTH, OAK & STONE",
+      "image": "materials",
+      "section": "moodboards",
+      "kind": "board",
+      "body": "M01 limestone · M02 European oak · M03 travertine · M04 ivory mineral finish · M05 brushed bronze. Every selection begins with a physical sample.",
+      "points": []
+    },
+    {
+      "key": "softboard",
+      "title": "Softness, with structure.",
+      "subtitle": "TEXTILE & OBJECT MOODBOARD",
+      "image": "softboard",
+      "section": "moodboards",
+      "kind": "board",
+      "body": "T01 ivory linen · T02 olive bouclé · T03 mushroom wool · T04 translucent sheers. Earth-toned artwork gives the neutral architecture a warm focal point.",
+      "points": []
+    },
+    {
+      "key": "palette",
+      "title": "A palette borrowed from the dunes.",
+      "subtitle": "COLOUR & FINISH",
+      "image": null,
+      "section": "moodboards",
+      "kind": "palette",
+      "body": "Chalk and sand make the envelope. Oak brings warmth. Olive grounds the furniture. Bronze adds a quiet, deliberate edge.",
+      "points": []
+    },
+    {
+      "key": "plan",
+      "title": "Connected, never crowded.",
+      "subtitle": "03 / SPATIAL STRATEGY",
+      "image": "floorplan",
+      "section": "designs",
+      "kind": "plan",
+      "body": "Illustrative ground-floor zoning only, not measured or suitable for construction. A clear arrival sequence opens into connected kitchen, dining and living spaces; the study has its own quiet edge. Primary suite is on the upper level.",
+      "points": []
+    },
+    {
+      "image": "render-spatial",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "render-spatial",
+      "type": "render",
+      "title": "The spaces, together.",
+      "subtitle": "3D / SPATIAL STUDY",
+      "body": "A cutaway model explores the connection between living, dining, kitchen and study. Pale stone and oak hold the rooms together. An illustrative spatial study, not a measured floorplan."
+    },
+    {
+      "key": "living",
+      "title": "The art of staying in.",
+      "subtitle": "LIVING ROOM",
+      "image": "living",
+      "section": "designs",
+      "kind": "hero",
+      "body": "A generous curved sofa, olive lounge chairs and a travertine table face the garden. A lower seating zone creates intimacy inside the open room. Any level change remains subject to accessibility and technical review.",
+      "points": []
+    },
+    {
+      "image": "render-living",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "render-living",
+      "type": "render",
+      "title": "Shape before atmosphere.",
+      "subtitle": "3D / LIVING ROOM MODEL",
+      "body": "A simple shaded model makes the seating, level change and garden glazing easy to read. Faceted furniture and clear model edges keep the focus on proportion and space."
+    },
+    {
+      "key": "livingdetails",
+      "title": "A room made for real life.",
+      "subtitle": "LIVING / DESIGN NOTES",
+      "image": "artwork",
+      "section": "designs",
+      "kind": "split",
+      "body": "Comfort is designed in: conversational seating, soft acoustic layers, dimmable light and generous space around the central table.",
+      "points": [
+        "Ivory linen sofa with removable cover preference",
+        "Olive accent chairs and low-pile wool rug",
+        "Original abstract commission in chalk, umber and ochre",
+        "Power and lamp positions coordinated before first fix"
+      ]
+    },
+    {
+      "key": "kitchen",
+      "title": "A kitchen with presence.",
+      "subtitle": "KITCHEN & DINING",
+      "image": "kitchen",
+      "section": "designs",
+      "kind": "hero",
+      "body": "A sculptural travertine island anchors the room. Flush oak cabinetry conceals the practical things; an oval dining table keeps the transition to the garden relaxed.",
+      "points": []
+    },
+    {
+      "key": "kitchendetails",
+      "title": "Everything has its place.",
+      "subtitle": "KITCHEN / PROCUREMENT",
+      "image": "kitchen",
+      "section": "designs",
+      "kind": "split",
+      "body": "The €54,000 kitchen package includes €26,000 of cabinetry and fitting, €16,000 of stone and €12,000 of appliances. Stone and appliance subquotes are included once in that package.",
+      "points": [
+        "Final island dimensions follow measured clearance review",
+        "Approve stone slab, edge radius and stain sample",
+        "Appliance models agreed before shop drawings",
+        "Optional study joinery is a separate €9,600 addition"
+      ]
+    },
+    {
+      "key": "bedroom",
+      "title": "A softer end to the day.",
+      "subtitle": "PRIMARY BEDROOM",
+      "image": "bedroom",
+      "section": "designs",
+      "kind": "hero",
+      "body": "A low upholstered bed, oak headboard wall, travertine shelves and layered curtains create an unhurried retreat. The olive accent connects the suite to the rest of the home.",
+      "points": []
+    },
+    {
+      "key": "bathroom",
+      "title": "A daily ritual, elevated.",
+      "subtitle": "PRIMARY BATHROOM",
+      "image": "bathroom",
+      "section": "designs",
+      "kind": "hero",
+      "body": "Travertine, bronze and warm oak carry through to a spa-like bathroom. The €23,500 fixture package is separate from the rough-in plumbing already included in construction.",
+      "points": []
+    },
+    {
+      "key": "study",
+      "title": "Room to think.",
+      "subtitle": "STUDY & LIBRARY",
+      "image": "study",
+      "section": "designs",
+      "kind": "hero",
+      "body": "Garden-facing work space, tactile upholstery and an oak library make this room feel part of the home. The illustrated bespoke library and desk are the optional €9,600 joinery upgrade, unselected in the base budget.",
+      "points": []
+    },
+    {
+      "key": "art",
+      "title": "An original point of view.",
+      "subtitle": "ART & OBJECTS",
+      "image": "artwork",
+      "section": "designs",
+      "kind": "board",
+      "body": "“Dune study” — original AI-generated concept artwork for this fictional project. The €6,800 art and styling package allows for two commissions, framing, ceramics and placement. No existing artist is represented.",
+      "points": []
+    },
+    {
+      "key": "lighting",
+      "title": "From daylight to lamplight.",
+      "subtitle": "LIGHTING & ATMOSPHERE",
+      "image": "living",
+      "section": "designs",
+      "kind": "split",
+      "body": "Three layers of light allow the architecture to change pace: integrated ambient light, focused task lighting and expressive decorative pieces.",
+      "points": [
+        "Welcome: soft circulation and a warm living-room glow",
+        "Gather: dining pendant with kitchen task lighting",
+        "Unwind: low-level lamps and bedside reading light",
+        "€12,800 decorative supply; wiring and controls included under construction"
+      ]
+    },
+    {
+      "key": "investment",
+      "title": "An investment you can follow.",
+      "subtitle": "04 / THE BUDGET",
+      "image": null,
+      "section": "budget",
+      "kind": "budget",
+      "body": "€278,500–€286,500 including the €25,000 client-held contingency. The range reflects furniture choices. Optional study and terrace packages are off by default. Unpriced landscape works are excluded. All figures are fictional and use an assumed VAT-inclusive basis.",
+      "points": []
+    },
+    {
+      "key": "hierarchy",
+      "title": "One total. Every layer visible.",
+      "subtitle": "SUPPLIERS & SUB-SUPPLIERS",
+      "image": null,
+      "section": "budget",
+      "kind": "hierarchy",
+      "body": "Included subquotes explain a parent price; they do not increase it. The study is an additional optional subquote and increases the total only when selected.",
+      "points": []
+    },
+    {
+      "key": "options",
+      "title": "Make the choices that matter.",
+      "subtitle": "OPTIONS & ALLOWANCES",
+      "image": null,
+      "section": "budget",
+      "kind": "options",
+      "body": "Base selection €278,500. Premium furniture adds €8,000; study joinery adds €9,600; terrace furnishings add €18,500. Selecting all three gives €314,600, including contingency and excluding unpriced landscape work.",
+      "points": []
+    },
+    {
+      "key": "programme",
+      "title": "From first sketch to first evening.",
+      "subtitle": "05 / THE PROGRAMME",
+      "image": null,
+      "section": "delivery",
+      "kind": "timeline",
+      "body": "An indicative 24-week journey from approved brief. Lead times are fictional planning assumptions and begin after drawings and finishes are approved.",
+      "points": []
+    },
+    {
+      "key": "decisions",
+      "title": "Four decisions unlock the next chapter.",
+      "subtitle": "DESIGN FREEZE",
+      "image": null,
+      "section": "delivery",
+      "kind": "split",
+      "body": "A clear approval sequence keeps the project coherent and procurement coordinated.",
+      "points": [
+        "01 — Approve the spatial concept and material palette",
+        "02 — Choose base or premium furniture allowance",
+        "03 — Decide on the optional study and terrace packages",
+        "04 — Review the scope, exclusions and supplier hierarchy"
+      ]
+    },
+    {
+      "key": "scope",
+      "title": "Clarity is part of the design.",
+      "subtitle": "SCOPE & ASSUMPTIONS",
+      "image": null,
+      "section": "delivery",
+      "kind": "split",
+      "body": "The demo budget covers the specified interior packages. It does not price a new villa, architectural shell, structural alterations, professional engineering, permits, landscaping or undisclosed site conditions.",
+      "points": [
+        "All people, suppliers, quotations and prices are fictional",
+        "All room images are AI-generated concepts, not completed-work photography",
+        "Illustrative VAT assumption: 21% uniformly, for demo arithmetic only",
+        "Supplier PDFs, scope notes and budget CSV are included for review"
+      ]
+    },
+    {
+      "key": "closing",
+      "title": "Welcome to a slower rhythm.",
+      "subtitle": "VILLA AUREN",
+      "image": "exterior",
+      "section": "delivery",
+      "kind": "cover",
+      "body": "A home that feels warm before anyone turns on the lights. Prepared by the fictional Auren Interior Studio for Eva & Julian Vermeer. Demo 01 / Residential villa.",
+      "points": []
+    }
+  ],
+  "base_total": 278500,
+  "max_total": 286500,
+  "all_options_total": 314600,
+  "quotes": [
+    {
+      "reference": "FB-260918",
+      "vendor": "Forma Build",
+      "role": "Main contractor",
+      "key": "build"
+    },
+    {
+      "reference": "LW-260918",
+      "vendor": "Lumen Works",
+      "role": "Electrical subcontractor",
+      "key": "electric"
+    },
+    {
+      "reference": "SA-260918",
+      "vendor": "Signal Atelier",
+      "role": "Controls sub-supplier to Lumen Works",
+      "key": "controls"
+    },
+    {
+      "reference": "FS-260918",
+      "vendor": "Flow Systems",
+      "role": "Plumbing subcontractor",
+      "key": "plumbing"
+    },
+    {
+      "reference": "TS-260918",
+      "vendor": "Terra Surface",
+      "role": "Finish subcontractor",
+      "key": "floor"
+    },
+    {
+      "reference": "GA-260918",
+      "vendor": "Grain Atelier",
+      "role": "Kitchen and bespoke joinery",
+      "key": "kitchen"
+    },
+    {
+      "reference": "QO-260918",
+      "vendor": "Quarry Objects",
+      "role": "Stone sub-supplier to Grain Atelier",
+      "key": "stone"
+    },
+    {
+      "reference": "QA-260918",
+      "vendor": "Quiet Appliances",
+      "role": "Appliance sub-supplier to Grain Atelier",
+      "key": "appliances"
+    },
+    {
+      "reference": "SE-260918",
+      "vendor": "Softline Editions",
+      "role": "Furniture selection allowance",
+      "key": "furniture"
+    },
+    {
+      "reference": "HO-260918",
+      "vendor": "Halo Objects",
+      "role": "Decorative lighting supplier",
+      "key": "lighting"
+    },
+    {
+      "reference": "VT-260918",
+      "vendor": "Veil Textiles",
+      "role": "Curtains and window treatments",
+      "key": "curtains"
+    },
+    {
+      "reference": "SB-260918",
+      "vendor": "Still Bath",
+      "role": "Bathroom supplier",
+      "key": "bath"
+    },
+    {
+      "reference": "FE-260918",
+      "vendor": "Form Editions",
+      "role": "Art and styling studio",
+      "key": "art"
+    },
+    {
+      "reference": "AI-260918",
+      "vendor": "Auren Interior Studio",
+      "role": "Interior designer",
+      "key": "design"
+    },
+    {
+      "reference": "OQ-260918",
+      "vendor": "Outdoor Quiet",
+      "role": "Optional outdoor furnishings",
+      "key": "terrace"
+    }
+  ]
+}

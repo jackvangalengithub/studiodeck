@@ -1,0 +1,6 @@
+[
+  {"key":"render-garden","after":"masterplan","type":"render","title":"The garden,\nin three dimensions.","subtitle":"3D / THE GARDEN MODEL","body":"A model study connects the water court, dining pavilion, circular lounge and productive beds. Simplified planting masses describe enclosure; the masterplan remains the guide to conceptual zoning."},
+  {"key":"render-watercourt","after":"water","type":"render","title":"A clear frame\nfor still water.","subtitle":"3D / WATER COURT STUDY","body":"Pale steps, a dark timber canopy and a reflecting basin give the garden its structure. A deliberately simple shaded model explores the relationship between these elements."},
+  {"key":"sketch-watercourt","after":"render-watercourt","type":"drawing","title":"The first marks\nof a quiet place.","subtitle":"CRAYON / WATER COURT SKETCH","body":"Loose crayon strokes explore the balance of still water, dark shelter and generous planting. Paper grain and unfinished edges preserve the feeling of an early design conversation."},
+  {"key":"sketch-meadow","after":"meadow","type":"drawing","title":"Follow the\nsofter line.","subtitle":"CRAYON / MEADOW WALK SKETCH","body":"A winding gravel path, violet flowers and an oak bench beneath birches. A handdrawn-style study in olive, ochre and lavender, exploring movement and seasonal texture."}
+]

@@ -6,7 +6,7 @@ Studio settings includes a Business type selector. Its choice updates My Project
 
 The shared catalog is `public/assets/studio-types.json`; PHP and the browser both read it. Stable IDs are `interior`, `landscape`, `architecture`, `furniture`, and `events`. Photos live in `public/assets/studio-types/`.
 
-The `studio-setup-v1` migration gives established studios with projects the existing interior defaults and marks setup complete. Empty studios receive the introduction; invited members and client guests do not. Setup completion does not activate or consume a billing trial.
+The `studio-setup-v1` migration gives established studios with projects the existing interior defaults and marks setup complete. Empty studios receive the introduction; invited members and client guests do not. Completing setup also completes billing onboarding and starts the eligible account’s single 7-day trial in the same transaction. Repeated submissions cannot restart it. The `studio-billing-setup-v1` migration repairs studios that previously completed the wizard without billing onboarding, retaining their original setup date and trial eligibility.
 
 Checks: `python3 tests/test_studio_setup.py`, `node tests/test_studio_setup.cjs`, and `php tests/test_website.php`. The browser test supports `PLAYWRIGHT_MODULE`, `CHROMIUM_EXECUTABLE`, and `STUDIODECK_SETUP_ARTIFACTS`. API checks use a temporary database and log-only email.
 

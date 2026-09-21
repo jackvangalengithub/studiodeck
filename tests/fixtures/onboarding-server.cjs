@@ -4,19 +4,20 @@ exports.startOnboardingFixture=async function({offline=false}={}){
   const {demoRequest}=await import('../../public/assets/demo.js');
   const root=path.resolve(__dirname,'../../public'),sample=(await demoRequest('projects')).projects[0];
   const fixture={setupCompleted:'existing',businessType:'interior',studioName:'Demo studio',setupFail:false,empty:true,visible:false,needsSetup:false,language:'en',studio:'demo',user:'onboarding-user',created:null,files:false,shared:false,calls:[]};
-  const billing=()=>({needs_onboarding:fixture.needsSetup,trial_active:true,status:'trial',usage:{passes:0,projects:fixture.empty?0:1},limits:{projects:1}});
+  const billing=()=>({needs_onboarding:fixture.needsSetup,trial_active:!fixture.needsSetup,trial_ends_at:fixture.needsSetup?null:Math.floor(Date.now()/1000)+5*86400,status:'trial',usage:{passes:0,projects:fixture.empty?0:1},limits:{projects:1}});
   const session=async()=>{const s=await demoRequest('session');s.user.id=fixture.user;s.user.profile.language=fixture.language;s.studio.id=fixture.studio;s.studio.setup_completed_at=fixture.setupCompleted;s.studio.business_type=fixture.businessType;s.studio.name=fixture.studioName;s.studio.language=fixture.language;s.studios=[s.studio];s.billing=billing();return s;};
   async function api(action,body){
     fixture.calls.push({action,body});
     if(action==='session')return session();
     if(action==='complete_studio_setup'){
       if(fixture.setupFail)throw Error('Temporary save failure. Please try again.');
-      fixture.setupCompleted='2026-09-19T12:00:00Z';fixture.businessType=body.business_type;fixture.studioName=body.name;fixture.language=body.language;return session();
+      fixture.needsSetup=false;fixture.setupCompleted='2026-09-19T12:00:00Z';fixture.businessType=body.business_type;fixture.studioName=body.name;fixture.language=body.language;return session();
     }
     if(action==='studio_theme'){fixture.businessType=body.business_type;fixture.studioName=body.name;fixture.language=body.language;return {ok:true};}
     if(action==='website'){
+      const types=JSON.parse(await fs.readFile(path.join(root,'assets/studio-types.json'),'utf8')),recommended=types.find(t=>t.id===fixture.businessType).templates;
       const ids=['editorial','linen','noir','gallery','coast','atelier','panorama','folio','terracotta','minimal'];
-      return {studio_id:fixture.studio,draft:{started:false,name:fixture.studioName},templates:ids.map(id=>({id,name:id,description:'A considered design.',tone:'light'})),revision:1};
+      return {studio_id:fixture.studio,draft:{started:false,name:fixture.studioName},templates:[...recommended,...ids.filter(id=>!recommended.includes(id))].map(id=>({id,name:id,description:'A considered design.',tone:'light',recommended:recommended.includes(id),business_types:types.map(t=>t.id),styles:['modern']})),revision:1};
     }
     if(action==='projects')return {studio_empty:fixture.empty,projects:fixture.visible?[{...sample,id:fixture.created?.project_id||sample.id,name:fixture.created?'My first project':sample.name,members:[]}]:[],billing:billing()};
     if(action==='project_access')return {reason:'ready'};

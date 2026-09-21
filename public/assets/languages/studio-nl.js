@@ -1,5 +1,19 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "billing_go_to_checkout": "Naar afrekenen",
+  "billing_website_separate": "Website wordt al apart gefactureerd. Beheer dit in Stripe.",
+  "billing_trial_days": "Nog {count} dagen in je proefperiode",
+  "billing_trial_days_one": "Nog 1 dag in je proefperiode",
+  "billing_trial_ended": "Je proefperiode is afgelopen",
+  "billing_activate": "Activeren",
+
+  "billing_projects": "Projecten",
+  "billing_people": "Personen",
+  "billing_decrease": "{name} verminderen",
+  "billing_increase": "{name} verhogen",
+  "billing_price_note": "Prijzen zijn exclusief btw. Extra projecten: €10/maand per stuk. Extra personen: €20/maand per persoon.",
+  "billing_members_hint": "Elk extra teamlid kost €20/maand. Extra teamleden voegen geen projectplaatsen toe.",
+
   "billing_pass_eyebrow": "BETAAL PER PROJECT",
   "billing_pass_title": "Eén project tegelijk",
   "billing_pass_description": "Een eenmalige aankoop voor één project.",

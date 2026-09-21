@@ -1,0 +1,49 @@
+{
+  "mode": "Built-in image_gen tool",
+  "assets": [
+    {
+      "key": "hero",
+      "prompt": "Use case: photorealistic-natural. Asset: original landscape architectural concept image for fictional Stillwater Garden presentation. An extraordinary contemporary private garden in the Netherlands in late summer, composed around a long still emerald reflecting pool flush with pale warm limestone coping, exuberant naturalistic perennial grasses and soft violet flowers, multi-stem small trees, beautifully layered woodland canopy. In the middle distance an elegant open-sided charred timber pergola with fine horizontal battens and a long dining table. Stepping-stone paths dissolve into lush planting. Low garden-height camera with water reflection in foreground, warm late afternoon side light. Award-winning landscape architecture editorial photography, believable built landscape, richly textured, sophisticated, magical yet real. Wide landscape 3:2, exquisite composition, photographic detail, no text, no watermark, no logos, one full-frame image."
+    },
+    {
+      "key": "pavilion",
+      "prompt": "Use case: photorealistic-natural. Asset: original landscape architectural concept image for fictional Stillwater Garden presentation. Intimate architectural photograph from the garden toward an open-sided charred-timber dining pavilion, flat roof with fine horizontal timber battens, outdoor kitchen built from dark stone, beautifully set long pale oak dining table and woven chairs, large cream ceramic vase, climbing green foliage restrained on one edge, surrounding lush ornamental grasses and violet perennials. Limestone terrace and gravel transition. Contemporary private woodland garden in the Netherlands, warm evening sidelight, no people. Refined, welcoming, utterly beautiful. Wide landscape 3:2, exquisite composition, photographic detail, no text, no watermark, no logos, one full-frame image."
+    },
+    {
+      "key": "meadow",
+      "prompt": "Use case: photorealistic-natural. Asset: original landscape architectural concept image for fictional Stillwater Garden presentation. Immersive garden photography at waist height of a sinuous pale gravel path through lavish late-summer naturalistic perennial planting: airy golden molinia-like grasses, deep violet flower spires, pale mauve daisies, white airy umbels, coppery seed heads, occasional small multi-stem trees. A small part of a dark timber pavilion barely visible in distance to link the setting. Contemporary Dutch private woodland garden, morning dew, sun filtering through trees, layers of soft focus but crisply detailed plants in foreground. Editorial landscape design photography. Wide landscape 3:2, exquisite composition, photographic detail, no text, no watermark, no logos, one full-frame image."
+    },
+    {
+      "key": "night",
+      "prompt": "Use case: photorealistic-natural. Asset: original landscape architectural concept image for fictional Stillwater Garden presentation. Blue-hour architectural garden photograph of a serene long emerald reflecting pool bordered by pale limestone, elegant dark timber dining pavilion softly glowing from warm concealed light, minimal discreet low-level lighting along a sinuous gravel path, generous ornamental grasses and violet flowers, silhouettes of multi-stem trees and woodland canopy. Deep blue sky, inviting pools of soft amber light, dark garden edges, dramatic water reflections. Refined modern Dutch garden. No excessive fairy lights, no harsh uplights, no people. Wide landscape 3:2, exquisite composition, photographic detail, no text, no watermark, no logos, one full-frame image."
+    },
+    {
+      "key": "woodland",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden landscape-design presentation. An intimate woodland garden path of generous pale stone stepping slabs set in fine gravel, curving between lush ferns and layered woodland groundcover, airy multi-stem trees with sculptural trunks, one beautifully simple solid oak bench at a quiet turn, small copper-toned ceramic vessel. Sunlight shafts and soft early morning haze, deep green canopy, high-end contemporary Dutch landscape design. Camera at walking height, extraordinary depth and tactile detail. Wide landscape 3:2. Deep green, warm limestone, charcoal timber and copper palette. No people, no text, no logos, no watermark. Single full-frame image."
+    },
+    {
+      "key": "lounge",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden landscape-design presentation. A stunning contemporary garden conversation space: a circular sunken limestone seating court with curved built-in pale stone benches and warm ivory outdoor cushions, a low round bronze sculptural coffee table rather than a fire pit, lush naturalistic grasses and violet perennials spilling around the rim, a short broad elegant stair and an alternate gently sloping garden path behind, dense green woodland backdrop. Warm late-afternoon sunlight, intimate luxurious outdoor room, landscape editorial photograph. Wide landscape 3:2. Deep green, warm limestone, charcoal timber and copper palette. No people, no text, no logos, no watermark. Single full-frame image."
+    },
+    {
+      "key": "potager",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden landscape-design presentation. A beautifully designed contemporary productive garden: four clean rectangular weathered oak raised planting beds with lush herbs and vegetables, fine warm gravel paths, espalier fruit trees along dark timber fence, sculptural dark green rainwater barrel partly screened by planting, small pale limestone work ledge with handmade terracotta pots, meadow visible beyond. Sophisticated Dutch garden, golden morning light, rich living detail, real photographic texture. Wide landscape 3:2. Deep green, warm limestone, charcoal timber and copper palette. No people, no text, no logos, no watermark. Single full-frame image."
+    },
+    {
+      "key": "materials",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden landscape-design presentation. A luxurious landscape-design material moodboard photographed directly overhead on pale limestone background. Exquisite tactile arrangement: pale flamed limestone slab, charred dark timber board with beautiful grain, warm buff gravel in shallow stone dish, small weathered copper plate, natural oak sample, muted olive outdoor upholstery fabric, a sculptural terracotta fragment, one delicate fern frond and dried ornamental grass stems. Restrained asymmetric composition, strong editorial negative space, grazing natural light, beautifully authentic textures. Physical samples only. Wide landscape 3:2. Deep green, warm limestone, charcoal timber and copper palette. No people, no text, no logos, no watermark. Single full-frame image."
+    },
+    {
+      "key": "botanical",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden design presentation. An exquisite botanical planting moodboard as a single styled photographic flat lay, a landscape designer's composition on warm pale paper. Fresh fern fronds, delicate grass panicles, violet salvia-like flower spikes, mauve echinacea-like flowers, airy white flower clusters, copper autumn leaves, bark sample and dark green glossy foliage, small unlabelled cream paper colour swatches. Organic asymmetrical arrangement with space between specimens, very beautiful editorial still-life, authentic living detail, soft directional sunlight. No text or labels. Landscape 3:2. Natural emerald, olive, chalk, copper and muted violet. No people, lettering, logos or watermarks."
+    },
+    {
+      "key": "seasons",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden design presentation. A sophisticated landscape architecture seasonal moodboard composed of four equal photographic vertical panels with fine cream dividers. Each panel shows the same idea of a lush naturalistic Dutch private garden with a graceful multi-stem tree, ornamental grasses and a pale gravel path: left spring with fresh green leaves and delicate pale blossom, second lush summer with violet and mauve perennials, third autumn with glowing copper leaves and golden grasses, right winter with frosted seedheads and bare branching structure. Visually coherent camera angle across panels, realistic garden photography, one composed board, no labels, no text. Landscape 3:2. Natural emerald, olive, chalk, copper and muted violet. No people, lettering, logos or watermarks."
+    },
+    {
+      "key": "aerial",
+      "prompt": "Use case: photorealistic-natural. Asset: original image for fictional Stillwater Garden design presentation. An oblique aerial architectural concept photograph of a spectacular contemporary woodland garden, approximately square private plot. At the near edge a strip of pale modern house terrace. Along one side a long narrow emerald reflecting pool with pale limestone coping, beside it naturalistic meadow planting and a sinuous gravel path. At the far right an open-sided charred timber pavilion with slatted roof and dining table. At far left a woodland grove with stepping-stone walk. A circular sunken stone lounge set among grasses, four oak raised productive beds along a side boundary. Tree canopy surrounds the boundaries. Warm late afternoon, exceptionally refined landscape design, readable overall spatial composition, completely believable photographic garden textures. Do not include buildings beyond the house edge and pavilion. Landscape 3:2. Natural emerald, olive, chalk, copper and muted violet. No people, lettering, logos or watermarks."
+    }
+  ]
+}

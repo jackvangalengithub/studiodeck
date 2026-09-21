@@ -55,3 +55,20 @@ $portal=billing_portal($u);ok($portal['url']==='https://billing.stripe.com/test'
 // Inbox is durable, retries errors, and ignores duplicate completed delivery.
 $e=['id'=>'evt_retry','type'=>'customer.subscription.updated','data'=>['object'=>['id'=>'sub_test']]];insert('stripe_events',['id'=>$e['id'],'type'=>$e['type'],'payload'=>json_encode($e),'received_at'=>time()]);billing_process_events();ok(one('SELECT status FROM stripe_events WHERE id=?',[$e['id']])['status']==='done','Durable webhook inbox processes subscription event');$count=count($calls);billing_process_events();ok(count($calls)===$count,'Completed event is not processed twice');
 echo "All Stripe contract checks passed.\n";
+// The package button skips app confirmation; Stripe calculates and invoices all changes.
+query("UPDATE billing_changes SET status='cancelled' WHERE status='scheduled'");
+$direct=billing_change_checkout($u,['plan'=>'practice','extra_projects'=>2,'extra_seats'=>3]);
+ok($direct['url']==='https://invoice.stripe.com/test','Direct package update opens the Stripe-hosted invoice');
+$updates=array_values(array_filter($calls,fn($c)=>$c[0]==='POST'&&$c[1]==='subscriptions/sub_test'));$update=end($updates)[2];
+ok($update['proration_behavior']==='always_invoice'&&$update['payment_behavior']==='pending_if_incomplete','Stripe calculates prorations and applies capacity only after successful payment');
+ok(billing_limits(billing_studio($sid))===['seats'=>18,'projects'=>52],'Direct update uses the selected package and capacity');
+$schedules=count(array_filter($calls,fn($c)=>$c[1]==='subscription_schedules'));$quote=0;
+$direct=billing_change_checkout($u,['plan'=>'solo','extra_projects'=>0,'extra_seats'=>0]);
+ok($direct['url']==='https://invoice.stripe.com/test'&&billing_studio($sid)['plan']==='solo','Direct downgrade also uses Stripe invoice calculations');
+ok(count(array_filter($calls,fn($c)=>$c[1]==='subscription_schedules'))===$schedules,'Direct updates do not create app-managed downgrade schedules');
+$failOnce=true;rejects(fn()=>billing_change_checkout($u,['plan'=>'studio','extra_projects'=>1,'extra_seats'=>1]),503);
+$retry=billing_change_checkout($u,['plan'=>'studio','extra_projects'=>1,'extra_seats'=>1]);
+$updates=array_values(array_filter($calls,fn($c)=>$c[0]==='POST'&&$c[1]==='subscriptions/sub_test'));
+ok($retry['url']==='https://invoice.stripe.com/test'&&$updates[count($updates)-1][3]===$updates[count($updates)-2][3],'Direct retry resumes the same Stripe update without a second charge');
+rejects(fn()=>billing_change_checkout($u,['plan'=>'studio','extra_projects'=>-1]),400);
+echo "Direct Stripe handoff checks passed.\n";

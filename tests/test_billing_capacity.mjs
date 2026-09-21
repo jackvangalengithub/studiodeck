@@ -2,11 +2,14 @@ import assert from 'node:assert/strict';
 import {billingUi} from '../public/assets/billing.js';
 const catalog={solo:{name:'Solo',cents:3900,seats:1,projects:3,available:true},studio:{name:'Studio',cents:19900,seats:5,projects:15,available:true},practice:{name:'Practice',cents:39900,seats:15,projects:50,available:true},pass:{available:true}};
 const summary={plan:'studio',package:'Studio',status:'active',subscription_active:true,usage:{seats:3,projects:2,passes:0},limits:{seats:5,projects:17}};
-const state={studio:{id:'test',role:'admin'},billing:summary};let modal='',preview=null;
+const state={studio:{id:'test',role:'admin'},billing:summary};let modal='',preview=null,redirect='';
+globalThis.location={assign:url=>redirect=url};
 const api=async(action,body)=>{
   if(action==='billing')return {summary,catalog,extra_projects:2,extra_seats:0,projects:[],orders:[],changes:[]};
   if(action==='billing_invoices')return {invoices:[]};
-  if(action==='billing_change_preview'){preview=body;return {change_id:'test',amount:1000,monthly_amount:43900};}
+  if(action==='billing_change_checkout'){preview=body;return {url:'https://invoice.stripe.com/test'};}
+  if(action==='billing_portal')return {url:'https://billing.stripe.com/test'};
+  if(action==='billing_checkout'){preview=body;return {url:'https://checkout.stripe.com/test'};}
 };
 const button=(label,action,classes='',attrs='')=>`<button class="button ${classes}" data-action="${action}" ${attrs}>${label}</button>`;
 const ui=billingUi({state,api,esc:v=>String(v),button,openModal:(_,html)=>modal=html});
@@ -15,17 +18,17 @@ assert.equal((html.match(/class="billing-plan is-selected"/g)||[]).length,1);
 assert(html.includes('Studio — current package'));
 assert(html.includes('billing-current-button" disabled>CURRENT PACKAGE'));
 assert(html.includes('small billing-adjust'));
-assert(html.includes('€199.00 + €20.00 = €219.00'));
-assert(html.includes('5 team members · 17 active projects'));
+assert(html.includes('>€219.00</span>'));assert(!html.includes(' = '));
+assert(/name="projects"[^>]+min="15"[^>]+value="17"/.test(html));assert(/name="seats"[^>]+min="5"[^>]+value="5"/.test(html));assert(!html.includes('max="'));assert.equal((html.match(/role="switch"/g)||[]).length,3);
 await ui.action('billing-plan',{dataset:{plan:'studio'}});
-assert(/name="team_capacity"[^>]+value="5" readonly/.test(modal));
-assert(modal.includes('€199.00 + €20.00 = €219.00'));
+assert.equal(redirect,'https://billing.stripe.com/test');assert.equal(modal,'');
 await ui.action('billing-plan',{dataset:{plan:'practice'}});
-assert(/name="team_capacity"[^>]+min="15"[^>]+value="15" required/.test(modal));
+assert.deepEqual(preview,{plan:'practice',extra_projects:0,extra_seats:0,website:false});assert.equal(redirect,'https://invoice.stripe.com/test');assert.equal(modal,'');
 const output={textContent:''};
 ui.capacityChanged({dataset:{form:'billing-plan'},elements:{plan:{value:'practice'},extra_projects:{value:'2'},team_capacity:{value:'17'}},querySelector:()=>output});
 assert(output.textContent.includes('17 team members · 52 active projects'));
-assert(output.textContent.includes('€399.00 + €20.00 + €40.00 = €459.00'));
+assert(output.textContent.includes('€459.00'));assert(!output.textContent.includes(' = '));
 await ui.form('billing-plan',{plan:'practice',extra_projects:'2',team_capacity:'17'});
 assert.equal(preview.extra_seats,2);assert(!Object.hasOwn(preview,'team_capacity'));
-console.log('PASS selected plan, itemized monthly pricing, live capacity total and team-member capacity form.');
+assert.equal(modal,'');summary.plan=null;summary.status='none';await ui.action('billing-plan',{dataset:{plan:'solo'}});assert.equal(redirect,'https://checkout.stripe.com/test');
+console.log('PASS package minimums, uncapped capacity, correct totals and direct Stripe checkout/update redirects without modals.');

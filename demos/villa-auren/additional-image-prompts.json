@@ -1,0 +1,15 @@
+{
+  "tool": "built-in image_gen",
+  "images": [
+    {
+      "key": "render-living",
+      "ref": "living",
+      "prompt": "Use case: stylized-concept. Asset type: landscape presentation image, 1536x1024. Style: clearly computer-made architectural 3D visualization from circa 2008\u20132014 design software, SketchUp plus early V-Ray aesthetic. Crisp modeled edges, simplified geometry, flat repeating material maps, basic ambient occlusion, slightly plastic surfaces, simple directional shadows, low-poly vegetation. Professional and compositionally beautiful, but unmistakably an older 3D render, not a photograph, not painterly, no photoreal textures, no depth of field, no text, logos, UI or watermark. Input image is a design reference. Recreate this Villa Auren living room as the described older 3D render: sunken cream limestone seating area, curved ivory sofa, olive chairs, low travertine table, oak ceiling, large garden glazing. Keep the spatial arrangement recognizable.",
+      "refinement_prompt": "Use case: style-transfer. Edit this image into an unmistakably old architectural CAD/SketchUp viewport render, circa 2005. Preserve the design, layout and camera. Dramatically simplify everything: flat solid-color material faces, thin dark visible model edges, hard polygon corners, low-segment curved furniture, simplified geometric plants, faceted trees. NO realistic cloth weave, NO wood grain, NO photographic stone texture, NO subtle global illumination, NO photoreal lighting. Only basic hard sun shadows and very simple ambient shade. Restrained original palette. Professional architectural design model visualization, crisp and clearly computer-made. No user interface, no text, no labels."
+    },
+    {
+      "key": "render-spatial",
+      "prompt": "Use case: stylized-concept. Asset type: landscape presentation image, 1536x1024. Style: clearly computer-made architectural 3D visualization from circa 2008\u20132014 design software, SketchUp plus early V-Ray aesthetic. Crisp modeled edges, simplified geometry, flat repeating material maps, basic ambient occlusion, slightly plastic surfaces, simple directional shadows, low-poly vegetation. Professional and compositionally beautiful, but unmistakably an older 3D render, not a photograph, not painterly, no photoreal textures, no depth of field, no text, logos, UI or watermark. Create a roofless axonometric 3D dollhouse spatial study for Villa Auren, a warm modern villa ground floor. Connected living room with curved ivory sofa, olive chairs and travertine table; adjacent oak kitchen with stone island and oval dining table; quiet oak study at the edge. Cream limestone floors, ivory walls and dark slender glazing frames. Entire model on a pale neutral background, generous margins. Schematic design concept, no dimensions or labels."
+    }
+  ]
+}

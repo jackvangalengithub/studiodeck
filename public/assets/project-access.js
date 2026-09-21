@@ -9,12 +9,15 @@ export function projectAccessUi({state,api,esc,button,openModal,closeModal,toast
   const footer=()=>`<div class="modal-footer">${button(tr("studio_back_to_projects"),'billing-access-back')}${context?.pid?button(tr("studio_open_read_only"),'billing-access-read'):''}</div>`;
   async function gate(pid='',intent='open',options={}){
     const d=await api('project_access',{project_id:pid});
+    if(d.summary)state.billing=d.summary;
+    // Opening an expired trial stays read-only; the fixed bar carries the reminder.
+    if(pid&&intent==='open'&&d.reason==='trial_expired')return true;
     if(d.reason==='ready'&&intent!=='reactivate')return true;
     context={pid,intent,options,d};show();return false;
   }
   function show(message=''){
     const {d,pid}=context,a=d.access,b=d.summary;
-    const titles={get archived(){return tr("studio_reactivate_this_project");},get capacity(){return tr("studio_your_active_project_slots_are_full");},get trial_expired(){return tr("studio_your_trial_has_ended");},get pass_expired(){return tr("studio_your_project_pass_has_expired");},get subscription_ended(){return tr("studio_your_subscription_has_ended");},get payment_required(){return tr("studio_update_your_payment_to_continue");},get uncovered(){return tr("studio_choose_access_for_this_project");},get trial_used(){return tr("studio_your_trial_includes_one_project");},get named_designer(){return tr("studio_this_pass_covers_another_designer");}};
+    const titles={get archived(){return tr("studio_reactivate_this_project");},get capacity(){return tr("studio_your_active_project_slots_are_full");},get trial_expired(){return tr("studio_review_project_access");},get pass_expired(){return tr("studio_your_project_pass_has_expired");},get subscription_ended(){return tr("studio_your_subscription_has_ended");},get payment_required(){return tr("studio_update_your_payment_to_continue");},get uncovered(){return tr("studio_choose_access_for_this_project");},get trial_used(){return tr("studio_your_active_project_slots_are_full");},get named_designer(){return tr("studio_this_pass_covers_another_designer");}};
     let body=`${message?`<p class="notice" role="alert">${esc(message)}</p>`:''}<p><strong>${esc(d.project?.name||tr("studio_new_project"))}</strong></p>`;
     if(a?.archived)body+=`<p>${tr("studio_archived_projects_are_read_only_reactivating_restores_editing_and_collaboration_archiving_does_not_p")}</p>`;
     if(d.reason==='named_designer')body+=`<p>${tr("studio_only_this_pass_s_named_designer_can_edit_a_studio_admin_can_move_the_project_to_a_subscription_for_t")}</p>`;

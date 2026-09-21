@@ -1,0 +1,810 @@
+{
+  "slug": "stillwater-garden",
+  "name": "Stillwater Garden",
+  "project_name": "Stillwater Garden · Landscape demo",
+  "location": "Veluwe woodland edge, Netherlands · fictional garden",
+  "description": "A private world of water, wild planting and quiet architecture. A complete fictional landscape concept.",
+  "pdf": "Stillwater-Garden-Presentation.pdf",
+  "assets": [
+    "hero",
+    "pavilion",
+    "meadow",
+    "night",
+    "woodland",
+    "lounge",
+    "potager",
+    "materials",
+    "botanical",
+    "seasons",
+    "aerial",
+    "render-garden",
+    "render-watercourt",
+    "sketch-watercourt",
+    "sketch-meadow"
+  ],
+  "plans": [
+    "masterplan",
+    "plantingplan",
+    "lightingplan",
+    "section"
+  ],
+  "composed": [
+    "palette",
+    "plants",
+    "lightscenes",
+    "suppliers",
+    "options",
+    "programme"
+  ],
+  "theme": {
+    "style": "Contemporary woodland",
+    "font": "serif",
+    "mode": "dark",
+    "background": "#172c25",
+    "light_background": "#f4f1e8",
+    "colors": [
+      "#e8e4d8",
+      "#af8968",
+      "#96a382",
+      "#81728c",
+      "#243d31"
+    ]
+  },
+  "groups": [
+    [
+      "story",
+      "The story"
+    ],
+    [
+      "moodboards",
+      "Mood & materials"
+    ],
+    [
+      "designs",
+      "The garden rooms"
+    ],
+    [
+      "planting",
+      "Planting & water"
+    ],
+    [
+      "lighting",
+      "After dark"
+    ],
+    [
+      "budget",
+      "The investment"
+    ],
+    [
+      "delivery",
+      "The next chapter"
+    ]
+  ],
+  "budget": [
+    {
+      "key": "landscape",
+      "label": "Landscape construction",
+      "vendor": "Terra Forma — fictional",
+      "amount": 64000,
+      "source": "TF-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "€18,000 earthworks + €12,000 drainage + €34,000 hardscape. All three subcontract packages included."
+    },
+    {
+      "key": "earth",
+      "label": "Ground preparation & earthworks",
+      "vendor": "Ground Atelier — fictional",
+      "amount": 18000,
+      "source": "GR-260918",
+      "parent": "landscape",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Terra Forma. Protection, site preparation, grading and ordinary spoil allowance. Unforeseen contamination excluded."
+    },
+    {
+      "key": "drain",
+      "label": "Drainage & irrigation distribution",
+      "vendor": "Raincraft — fictional",
+      "amount": 12000,
+      "source": "RC-260918",
+      "parent": "landscape",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Terra Forma. Drainage routes and irrigation pipework; below-ground rainwater storage is optional and additional."
+    },
+    {
+      "key": "hardscape",
+      "label": "Paths, terraces & sunken lounge",
+      "vendor": "Stone & Line — fictional",
+      "amount": 34000,
+      "source": "SL-260918",
+      "parent": "landscape",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Terra Forma. €19,500 stone supply + €14,500 bedding, laying, gravel and lounge construction."
+    },
+    {
+      "key": "stone",
+      "label": "Limestone supply & fabrication",
+      "vendor": "Quarry North — fictional",
+      "amount": 19500,
+      "source": "QN-260918",
+      "parent": "hardscape",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Second-tier subquote: included in Stone & Line, itself included in Terra Forma. Never add this again."
+    },
+    {
+      "key": "pavilion",
+      "label": "Charred-timber dining pavilion",
+      "vendor": "Timber Field — fictional",
+      "amount": 32000,
+      "source": "TI-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "€23,000 timber, roof and fitting + €9,000 structural metalwork. Outdoor kitchen is additional and optional."
+    },
+    {
+      "key": "steel",
+      "label": "Pavilion metalwork package",
+      "vendor": "Frame Studio — fictional",
+      "amount": 9000,
+      "source": "FR-260918",
+      "parent": "pavilion",
+      "included": true,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Included in Timber Field. Fabrication and fitting allowance; final engineering remains a review gate."
+    },
+    {
+      "key": "kitchen",
+      "label": "Optional outdoor kitchen",
+      "vendor": "Timber Field — fictional",
+      "amount": 12800,
+      "source": "TI-260918",
+      "parent": "pavilion",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": true,
+      "note": "Additional to the €32,000 pavilion. Images show this option; unselected in the base budget."
+    },
+    {
+      "key": "planting",
+      "label": "Trees, meadow & woodland planting",
+      "vendor": "Wild Form Nursery — fictional",
+      "amount": 29500,
+      "source": "WF-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Trees €11,000 + perennials/grasses €12,500 + woodland understorey €6,000. Concept quantities, pending survey and nursery approval."
+    },
+    {
+      "key": "water",
+      "label": "Reflecting pool & water equipment",
+      "vendor": "Still Waterworks — fictional",
+      "amount": 16800,
+      "source": "SW-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Decorative water feature allowance, not a swimming pool. Includes lining, edge coordination and recirculation equipment."
+    },
+    {
+      "key": "lighting",
+      "label": "Garden lighting & controls",
+      "vendor": "Afterglow Gardens — fictional",
+      "amount": 12400,
+      "source": "AG-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Fixtures €7,200 + cabling/installation €3,000 + controls/commissioning €2,200. Final electrical design by appointed specialist."
+    },
+    {
+      "key": "furniture",
+      "label": "Outdoor furniture & objects",
+      "vendor": "Outside Editions — fictional",
+      "amount": null,
+      "source": "OE-260918",
+      "parent": "",
+      "included": false,
+      "kind": "estimate",
+      "min_amount": 14500,
+      "max_amount": 22500,
+      "optional": false,
+      "note": "Base €14,500; premium teak, upholstery and larger dining selection €22,500. Covers loose furniture only."
+    },
+    {
+      "key": "potager",
+      "label": "Productive garden & oak beds",
+      "vendor": "Kitchen Garden Co — fictional",
+      "amount": 6200,
+      "source": "KG-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Four raised beds, gravel working surface, trellis and starter planting. Hand-filled surface water butt included."
+    },
+    {
+      "key": "design",
+      "label": "Landscape design & coordination",
+      "vendor": "Stillwater Landscape Studio — fictional",
+      "amount": 14800,
+      "source": "ST-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Concept, design development, specifications and six site reviews. Surveys, permits and specialist engineering excluded."
+    },
+    {
+      "key": "care",
+      "label": "First-year establishment care",
+      "vendor": "Wild Form Care — fictional",
+      "amount": 5200,
+      "source": "WC-260918",
+      "parent": "",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Eight scheduled visits, planting establishment review and seasonal handover. Not a low-maintenance guarantee."
+    },
+    {
+      "key": "reserve",
+      "label": "Client-held contingency",
+      "vendor": "Client allowance — fictional",
+      "amount": 18000,
+      "source": "budget",
+      "parent": "",
+      "included": false,
+      "kind": "estimate",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Planning reserve held by the client; not a supplier commitment."
+    },
+    {
+      "key": "rain",
+      "label": "Optional rainwater storage system",
+      "vendor": "Raincraft — fictional",
+      "amount": 6400,
+      "source": "RW-260918",
+      "parent": "drain",
+      "included": false,
+      "kind": "quote",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": true,
+      "note": "Additional to the drainage package: underground tank, pump and connection allowance. Site feasibility review required."
+    },
+    {
+      "key": "site",
+      "label": "Unforeseen ground conditions",
+      "vendor": "Survey pending — fictional",
+      "amount": null,
+      "source": "scope",
+      "parent": "",
+      "included": false,
+      "kind": "unknown",
+      "min_amount": null,
+      "max_amount": null,
+      "optional": false,
+      "note": "Unpriced and excluded: contaminated spoil, unexpected obstructions and exceptional ground remediation."
+    }
+  ],
+  "slides": [
+    {
+      "key": "cover",
+      "title": "Stillwater\nGarden.",
+      "subtitle": "LANDSCAPES FOR A SLOWER LIFE",
+      "body": "A private world of water, wild planting and beautifully quiet architecture. Concept collection / September 2026",
+      "image": "hero",
+      "section": "story",
+      "kind": "cover",
+      "points": []
+    },
+    {
+      "key": "invitation",
+      "title": "Step outside.\nFeel elsewhere.",
+      "subtitle": "01 / THE INVITATION",
+      "body": "For fictional clients Mira and Sebastiaan de Wilde, the garden becomes the most generous room of the house: a place for long lunches, unhurried walks and the simple pleasure of watching the seasons change.",
+      "image": "hero",
+      "section": "story",
+      "kind": "split",
+      "points": [
+        "Imagined location: wooded edge of the Dutch Veluwe",
+        "Illustrative garden plot: 1,400 m²",
+        "Demo 02 / Private residential landscape"
+      ]
+    },
+    {
+      "key": "brief",
+      "title": "A little untamed.\nEntirely considered.",
+      "subtitle": "THE DESIGN BRIEF",
+      "body": "A garden with enough structure to feel composed and enough life to surprise you.",
+      "image": null,
+      "section": "story",
+      "kind": "principles",
+      "points": [
+        "A place to gather: dining, cooking and conversation",
+        "A place to retreat: water, woodland and a quiet bench",
+        "A place to notice: flowers, shadows and seasonal change",
+        "A clear investment with traceable supplier packages"
+      ]
+    },
+    {
+      "key": "overview",
+      "title": "One garden.\nMany small worlds.",
+      "subtitle": "THE LANDSCAPE AS A WHOLE",
+      "body": "Water is the still centre. A loose ribbon of meadow links a social terrace to a woodland edge, while intimate garden rooms reveal themselves along the way. This aerial view is atmospheric; the masterplan sets out the intended zoning.",
+      "image": "aerial",
+      "section": "story",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "story",
+      "title": "Stillness, framed by life.",
+      "subtitle": "THE CONCEPT",
+      "body": "A precise line of water meets loose, generous planting. Dark timber creates shelter. Pale stone catches the light. Copper tones connect seedheads, leaves and objects.",
+      "image": "woodland",
+      "section": "story",
+      "kind": "split",
+      "points": [
+        "Strong spatial structure",
+        "Soft, layered planting",
+        "A changing experience through the year"
+      ]
+    },
+    {
+      "key": "materials",
+      "title": "Elements that age\nwith grace.",
+      "subtitle": "02 / MATERIAL MOOD",
+      "body": "Pale textured limestone, buff gravel, charred timber, natural oak and weathered metal tones. A restrained family of materials allows planting and reflected light to take the lead.",
+      "image": "materials",
+      "section": "moodboards",
+      "kind": "board",
+      "points": []
+    },
+    {
+      "key": "botanical",
+      "title": "The garden\nis the artwork.",
+      "subtitle": "PLANTING MOOD",
+      "body": "Violet spires, soft mauve flowers, white glints and grasses that catch the breeze. The woodland edge becomes a quieter composition of ferns, branching trunks and deep green leaves.",
+      "image": "botanical",
+      "section": "moodboards",
+      "kind": "board",
+      "points": []
+    },
+    {
+      "key": "palette",
+      "title": "Green, in every register.",
+      "subtitle": "COLOUR LANGUAGE",
+      "body": "Forest and olive form the foundation. Chalk and copper add warmth. A muted violet note threads through the planting.",
+      "image": null,
+      "section": "moodboards",
+      "kind": "palette",
+      "points": []
+    },
+    {
+      "key": "seasons",
+      "title": "Designed for\nmore than summer.",
+      "subtitle": "FOUR SEASONS / ONE PLACE",
+      "body": "Spring blossom. Summer abundance. Autumn copper. Winter silhouette. These generated seasonal studies express the intended atmosphere; they are not records of an established garden.",
+      "image": "seasons",
+      "section": "moodboards",
+      "kind": "board",
+      "points": []
+    },
+    {
+      "key": "masterplan",
+      "title": "A journey,\nnot just a view.",
+      "subtitle": "03 / THE MASTERPLAN",
+      "body": "Concept zoning for an assumed 40 × 35 m garden. Arrival, water, meadow, woodland, pavilion, lounge and productive garden form one connected route. Dimensions are illustrative; this is not a measured site drawing.",
+      "image": "masterplan",
+      "section": "designs",
+      "kind": "plan",
+      "points": []
+    },
+    {
+      "image": "render-garden",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "render-garden",
+      "type": "render",
+      "title": "The garden,\nin three dimensions.",
+      "subtitle": "3D / THE GARDEN MODEL",
+      "body": "A model study connects the water court, dining pavilion, circular lounge and productive beds. Simplified planting masses describe enclosure; the masterplan remains the guide to conceptual zoning."
+    },
+    {
+      "key": "water",
+      "title": "The quiet centre.",
+      "subtitle": "THE REFLECTING POOL",
+      "body": "A long, dark basin mirrors the sky and draws the eye through the garden. Pale coping makes a calm threshold between water and planting. A decorative water feature, conceived for reflection rather than swimming.",
+      "image": "hero",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "image": "render-watercourt",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "render-watercourt",
+      "type": "render",
+      "title": "A clear frame\nfor still water.",
+      "subtitle": "3D / WATER COURT STUDY",
+      "body": "Pale steps, a dark timber canopy and a reflecting basin give the garden its structure. A deliberately simple shaded model explores the relationship between these elements."
+    },
+    {
+      "image": "sketch-watercourt",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "sketch-watercourt",
+      "type": "drawing",
+      "title": "The first marks\nof a quiet place.",
+      "subtitle": "CRAYON / WATER COURT SKETCH",
+      "body": "Loose crayon strokes explore the balance of still water, dark shelter and generous planting. Paper grain and unfinished edges preserve the feeling of an early design conversation."
+    },
+    {
+      "key": "pavilion",
+      "title": "Long lunches.\nLate conversations.",
+      "subtitle": "THE DINING PAVILION",
+      "body": "Charred timber shelters a generous dining table; a slatted canopy filters the evening sun. The outdoor kitchen shown is an optional €12,800 addition to the €32,000 pavilion package.",
+      "image": "pavilion",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "meadow",
+      "title": "Let the edges\ncome alive.",
+      "subtitle": "THE MEADOW WALK",
+      "body": "Drifts of airy grasses and violet perennials loosen the geometry. A gently curving path creates changing glimpses of the water and pavilion, with generous planted depth on either side.",
+      "image": "meadow",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "image": "sketch-meadow",
+      "section": "designs",
+      "kind": "board",
+      "points": [],
+      "situation": "concept",
+      "key": "sketch-meadow",
+      "type": "drawing",
+      "title": "Follow the\nsofter line.",
+      "subtitle": "CRAYON / MEADOW WALK SKETCH",
+      "body": "A winding gravel path, violet flowers and an oak bench beneath birches. A handdrawn-style study in olive, ochre and lavender, exploring movement and seasonal texture."
+    },
+    {
+      "key": "woodland",
+      "title": "A room with\na living ceiling.",
+      "subtitle": "THE WOODLAND RETREAT",
+      "body": "Stone steps through green texture; a solid oak bench in a pocket of light. This is the quietest part of the garden, composed for a slower pace and the pleasure of small details.",
+      "image": "woodland",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "lounge",
+      "title": "Gather a little closer.",
+      "subtitle": "THE SUNKEN LOUNGE",
+      "body": "A circular seating court offers a more intimate scale within the garden. Limestone benches and soft cushions sit just below the planted edge. Final levels, drainage and accessible circulation require coordinated technical design.",
+      "image": "lounge",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "potager",
+      "title": "A garden you\ncan bring to the table.",
+      "subtitle": "THE PRODUCTIVE GARDEN",
+      "body": "Four oak beds, herbs, trained fruit and a working ledge make a small daily ritual. The €6,200 package includes the beds, trellis, starter planting and a simple surface water butt.",
+      "image": "potager",
+      "section": "designs",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "plantingplan",
+      "title": "Plant in layers.\nRead it as one.",
+      "subtitle": "04 / THE PLANTING STRATEGY",
+      "body": "A small family of planting characters creates cohesion: meadow matrix, accent drifts, woodland carpet and structural trees. The schedule is a fictional candidate palette, subject to local soil, light and nursery review.",
+      "image": "plantingplan",
+      "section": "planting",
+      "kind": "plan",
+      "points": []
+    },
+    {
+      "key": "plants",
+      "title": "Texture before colour.",
+      "subtitle": "THE CANDIDATE PALETTE",
+      "body": "Plant names describe design intent. Final cultivars, quantities and suitability are decisions for the appointed horticultural team after site assessment.",
+      "image": null,
+      "section": "planting",
+      "kind": "plants",
+      "points": []
+    },
+    {
+      "key": "section",
+      "title": "A landscape\nwith depth.",
+      "subtitle": "SECTION / TERRACE TO WOODLAND",
+      "body": "The section studies relationships between the house terrace, reflecting basin, meadow and tree canopy. Levels, depths and construction details are intentionally schematic.",
+      "image": "section",
+      "section": "designs",
+      "kind": "plan",
+      "points": []
+    },
+    {
+      "key": "waterstrategy",
+      "title": "Make room\nfor the rain.",
+      "subtitle": "WATER & SITE STRATEGY",
+      "body": "Coordinate drainage before the garden is built. The concept separates the decorative water feature from rainfall management, with planted collection areas and an optional storage package.",
+      "image": "aerial",
+      "section": "planting",
+      "kind": "split",
+      "points": [
+        "Confirm soil, infiltration and groundwater conditions",
+        "Resolve gradients and discharge routes with specialists",
+        "Protect existing tree root zones during works",
+        "Optional storage system: + €6,400; off by default"
+      ]
+    },
+    {
+      "key": "night",
+      "title": "When the garden\nchanges its voice.",
+      "subtitle": "05 / AFTER DARK",
+      "body": "A warm glow under the pavilion. A quiet rhythm along the path. Water holding the last colour of the sky. The dark edges remain part of the composition.",
+      "image": "night",
+      "section": "lighting",
+      "kind": "hero",
+      "points": []
+    },
+    {
+      "key": "lightingplan",
+      "title": "Light the moments.\nKeep the mystery.",
+      "subtitle": "THE LIGHTING CONCEPT",
+      "body": "A scene-based lighting concept for arrival, gathering and a final evening walk. Fixture locations are indicative, not an electrical installation plan.",
+      "image": "lightingplan",
+      "section": "lighting",
+      "kind": "plan",
+      "points": []
+    },
+    {
+      "key": "lightscenes",
+      "title": "Three ways\nto spend an evening.",
+      "subtitle": "LIGHTING SCENES",
+      "body": "The €12,400 lighting allowance covers fixtures, installation and commissioning. Aim, timing and ecology constraints are resolved with the appointed specialists.",
+      "image": null,
+      "section": "lighting",
+      "kind": "scenes",
+      "points": []
+    },
+    {
+      "key": "investment",
+      "title": "Beautifully clear\nfrom the ground up.",
+      "subtitle": "06 / THE INVESTMENT",
+      "body": "€213,400–€221,400 including an €18,000 client-held contingency. Furniture selection creates the range. Optional kitchen and rainwater storage are excluded; unforeseen ground conditions remain unpriced. All figures are fictional and include assumed VAT.",
+      "image": null,
+      "section": "budget",
+      "kind": "budget",
+      "points": []
+    },
+    {
+      "key": "suppliers",
+      "title": "Every layer,\naccounted for.",
+      "subtitle": "THE SUPPLIER STRUCTURE",
+      "body": "Included subquotes explain a package price. Additional options increase the total only when selected. The main landscape contract is €64,000; its stone supply is visible two levels below.",
+      "image": null,
+      "section": "budget",
+      "kind": "hierarchy",
+      "points": []
+    },
+    {
+      "key": "options",
+      "title": "Choose your\nextra pleasures.",
+      "subtitle": "OPTIONS & CHOICES",
+      "body": "Base selection €213,400. Premium furniture adds €8,000; outdoor kitchen adds €12,800; rainwater storage adds €6,400. With all choices selected: €240,600, including contingency and excluding unpriced site conditions.",
+      "image": null,
+      "section": "budget",
+      "kind": "options",
+      "points": []
+    },
+    {
+      "key": "programme",
+      "title": "From first line\nto first evening.",
+      "subtitle": "07 / THE PROGRAMME",
+      "body": "An indicative 24-week delivery journey, with planting timed to the eventual site and nursery programme. The first year of establishment care follows practical handover.",
+      "image": null,
+      "section": "delivery",
+      "kind": "timeline",
+      "points": []
+    },
+    {
+      "key": "care",
+      "title": "A garden is\nnever quite finished.",
+      "subtitle": "ESTABLISHMENT & CARE",
+      "body": "Beauty develops through attention. The €5,200 establishment package allows for eight visits, a seasonal review and a care handover. The final regime follows the actual species and site conditions.",
+      "image": "meadow",
+      "section": "delivery",
+      "kind": "split",
+      "points": [
+        "Observe establishment and respond to weather",
+        "Review irrigation and water-feature performance",
+        "Use seasonal cutbacks to retain chosen structure",
+        "Record replacements and refine the planting over time"
+      ]
+    },
+    {
+      "key": "scope",
+      "title": "Before the\nfirst spade.",
+      "subtitle": "DECISIONS & SCOPE",
+      "body": "Approve the design direction, commission the survey, review material and planting samples, then decide on the options. Final technical design and site evidence guide the build.",
+      "image": null,
+      "section": "delivery",
+      "kind": "principles",
+      "points": [
+        "Plans are conceptual, not construction documents",
+        "All suppliers, clients, quotations and prices are fictional",
+        "Images are generated concepts, not completed-project photos",
+        "Survey, permits, engineering and exceptional remediation excluded"
+      ]
+    },
+    {
+      "key": "closing",
+      "title": "Stay a little longer.",
+      "subtitle": "STILLWATER GARDEN / DEMO 02",
+      "body": "A landscape for gathering, wandering and doing very little at all. Prepared for the fictional de Wilde family by Stillwater Landscape Studio.",
+      "image": "night",
+      "section": "delivery",
+      "kind": "cover",
+      "points": []
+    }
+  ],
+  "base_total": 213400,
+  "max_total": 221400,
+  "all_options_total": 240600,
+  "quotes": [
+    {
+      "reference": "TF-260918",
+      "vendor": "Terra Forma",
+      "role": "Landscape main contractor",
+      "key": "landscape"
+    },
+    {
+      "reference": "GR-260918",
+      "vendor": "Ground Atelier",
+      "role": "Earthworks subcontractor",
+      "key": "earth"
+    },
+    {
+      "reference": "RC-260918",
+      "vendor": "Raincraft",
+      "role": "Drainage subcontractor",
+      "key": "drain"
+    },
+    {
+      "reference": "SL-260918",
+      "vendor": "Stone & Line",
+      "role": "Hardscape subcontractor",
+      "key": "hardscape"
+    },
+    {
+      "reference": "QN-260918",
+      "vendor": "Quarry North",
+      "role": "Stone sub-supplier to Stone & Line",
+      "key": "stone"
+    },
+    {
+      "reference": "TI-260918",
+      "vendor": "Timber Field",
+      "role": "Pavilion specialist",
+      "key": "pavilion"
+    },
+    {
+      "reference": "FR-260918",
+      "vendor": "Frame Studio",
+      "role": "Metalwork sub-supplier",
+      "key": "steel"
+    },
+    {
+      "reference": "WF-260918",
+      "vendor": "Wild Form Nursery",
+      "role": "Trees and planting",
+      "key": "planting"
+    },
+    {
+      "reference": "SW-260918",
+      "vendor": "Still Waterworks",
+      "role": "Decorative water-feature specialist",
+      "key": "water"
+    },
+    {
+      "reference": "AG-260918",
+      "vendor": "Afterglow Gardens",
+      "role": "Landscape lighting specialist",
+      "key": "lighting"
+    },
+    {
+      "reference": "OE-260918",
+      "vendor": "Outside Editions",
+      "role": "Furniture allowance",
+      "key": "furniture"
+    },
+    {
+      "reference": "KG-260918",
+      "vendor": "Kitchen Garden Co",
+      "role": "Productive-garden supplier",
+      "key": "potager"
+    },
+    {
+      "reference": "ST-260918",
+      "vendor": "Stillwater Landscape Studio",
+      "role": "Landscape designer",
+      "key": "design"
+    },
+    {
+      "reference": "WC-260918",
+      "vendor": "Wild Form Care",
+      "role": "Establishment care",
+      "key": "care"
+    },
+    {
+      "reference": "RW-260918",
+      "vendor": "Raincraft",
+      "role": "Optional water-storage package",
+      "key": "rain"
+    }
+  ]
+}

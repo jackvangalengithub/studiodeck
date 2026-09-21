@@ -1,5 +1,19 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "billing_go_to_checkout": "Go to checkout",
+  "billing_website_separate": "Website is already billed separately. Manage it in Stripe.",
+  "billing_trial_days": "{count} days left in your trial",
+  "billing_trial_days_one": "1 day left in your trial",
+  "billing_trial_ended": "Your trial has ended",
+  "billing_activate": "Activate",
+
+  "billing_projects": "Projects",
+  "billing_people": "People",
+  "billing_decrease": "Decrease {name}",
+  "billing_increase": "Increase {name}",
+  "billing_price_note": "Prices exclude VAT. Extra projects: €10/month each. Extra people: €20/month each.",
+  "billing_members_hint": "Each additional team member costs €20/month. Extra members do not add project slots.",
+
   "billing_pass_eyebrow": "PAY AS YOU GO",
   "billing_pass_title": "One project at a time",
   "billing_pass_description": "A single purchase for a single project.",

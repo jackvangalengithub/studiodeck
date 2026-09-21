@@ -3,7 +3,7 @@ declare(strict_types=1);
 function billing_reconcile_studio(string $sid): void {
     $b=billing_studio($sid);
     $website=one('SELECT subscription_id FROM websites WHERE studio_id=?',[$sid]);
-    if(!empty($website['subscription_id']))website_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($website['subscription_id']),['expand'=>['latest_invoice']]));
+    if(!empty($website['subscription_id'])&&$website['subscription_id']!==$b['subscription_id'])website_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($website['subscription_id']),['expand'=>['latest_invoice']]));
     if($b['subscription_id'])billing_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($b['subscription_id']),['expand'=>['latest_invoice']]));
     foreach(rows("SELECT * FROM billing_orders WHERE studio_id=? AND status='pending'",[$sid]) as $o){
         if(!$o['checkout_id'])continue;
@@ -16,7 +16,7 @@ function billing_reconcile_studio(string $sid): void {
 function billing_reconcile_changes(string $sid): void {
     $b=billing_studio($sid);$sub=json_decode($b['subscription_json'],true);
     foreach(rows("SELECT * FROM billing_changes WHERE studio_id=? AND subscription_id=? AND status IN ('scheduled','payment_pending')",[$sid,$b['subscription_id']]) as $c){
-        $matches=$b['plan']===$c['plan']&&(int)$b['extra_projects']===(int)$c['extra_projects']&&(int)$b['extra_seats']===(int)$c['extra_seats'];
+        $matches=$b['plan']===$c['plan']&&(int)$b['extra_projects']===(int)$c['extra_projects']&&(int)$b['extra_seats']===(int)$c['extra_seats']&&billing_package_website($b)===(bool)(json_decode($c['parameters'],true)['website']??false);
         if($matches&&empty($sub['pending_update'])&&($sub['latest_invoice']['status']??'')==='paid')query("UPDATE billing_changes SET status='applied' WHERE id=?",[$c['id']]);
         elseif(!$matches&&$c['status']==='payment_pending'&&empty($sub['pending_update']))query("UPDATE billing_changes SET status='expired' WHERE id=?",[$c['id']]);
     }

@@ -18,8 +18,10 @@ if(str_starts_with($action,'website_')||$action==='website'){
         if($action==='website_template_preview'){
             $template=website_template_id(text_field($_GET['template']??'',30));$sample=str_repeat('0',32);
             $studio=one('SELECT business_type,language FROM studios WHERE id=?',[$sid]);
-            $profile=studio_business_profile($studio['business_type'],$studio['language']);
-            $d=array_replace($d,website_empty_draft('Studio Forma',$studio['business_type'],$studio['language']),[
+            $definition=array_column(website_templates(),null,'id')[$template];
+            $exampleType=isset($definition['layout'])?$definition['business_types'][0]:$studio['business_type'];
+            $profile=studio_business_profile($exampleType,$studio['language']);
+            $d=array_replace($d,website_empty_draft('Studio Forma',$exampleType,$studio['language']),[
                 'email'=>'hello@example.com','logo'=>'','testimonials'=>[],
                 'about'=>$profile['intro'],
                 'projects'=>[['id'=>str_repeat('2',32),'title'=>$profile['projectTitle'],'description'=>$profile['projectIntro'],'category'=>$profile['label'],'location'=>'','included'=>true,'images'=>[['asset'=>$sample,'alt'=>$profile['alt']]]]]
@@ -54,7 +56,7 @@ if(str_starts_with($action,'website_')||$action==='website'){
     if($action==='website_chat')json_response(website_chat_edit($u,$b));
     if($action==='website_checkout')json_response(website_checkout($u));
     if($action==='website_refresh_billing'){
-        rate_limit('website-billing:'.$sid,10,60);billing_reconcile_studio($sid);$site=website_get($sid);if($site['subscription_id'])website_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($site['subscription_id']),['expand'=>['latest_invoice']]));json_response(website_payload($u));
+        rate_limit('website-billing:'.$sid,10,60);billing_reconcile_studio($sid);$site=website_get($sid);if($site['subscription_id'])billing_sync_subscription(stripe_request('GET','subscriptions/'.rawurlencode($site['subscription_id']),['expand'=>['latest_invoice']]));json_response(website_payload($u));
     }
     if($action==='website_domain'){
         require_once __DIR__.'/website_domains.php';website_domain($u,$b);json_response(website_payload($u));

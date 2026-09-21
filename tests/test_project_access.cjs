@@ -15,11 +15,13 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
    window.decision={project:{id:'p',name:'Garden <project>'},access:{source:'trial',active:false,archived:false},reason:'trial_expired',admin:true,can_manage:true,summary:{subscription_active:false,status:'none',usage:{projects:0},limits:{projects:1}},full:false,consumes_slot:true,can_use_subscription:false,can_use_pass:false,can_buy_pass:true,has_pass:false,other_passes:true,archive_candidates:[]};
    window.ui=projectAccessUi({state,api:async(a,b)=>{calls.push({a,b});if(a==='project_activate'&&window.failActivate)throw Error('The last slot was taken.');return structuredClone(decision);},esc,button,openModal:(title,body)=>document.querySelector('#modal').innerHTML=`<h1>${title}</h1>${body}`,closeModal:()=>document.querySelector('#modal').innerHTML='',toast:()=>{},billing:{load:async()=>{},open:async()=>billingCalls.push({a:'open'}),action:async(a,el)=>billingCalls.push({a,d:el.dataset})},openProject:async(pid,options)=>opened.push({pid,options}),newProject:async archive=>opened.push({newProject:true,archive}),back:async()=>{}});
    document.addEventListener('click',e=>{const el=e.target.closest('[data-action]');if(el)ui.action(el.dataset.action,el).catch(e=>{throw e;});});
-   await ui.gate('p','open',{preview:true,iteration:'i',slide:'budget'});
+   window.readOnly=await ui.gate('p','open',{preview:true,iteration:'i',slide:'budget'});
   });
-  await page.getByRole('heading',{name:'Your trial has ended'}).waitFor();await page.getByText('A pass on another project cannot be transferred to this one.').waitFor();
+  assert.equal(await page.evaluate(()=>readOnly),true);assert.equal(await page.locator('#modal').innerText(),'');
+  await page.evaluate(()=>ui.gate('p','reactivate',{preview:true,iteration:'i',slide:'budget'}));
+  await page.getByRole('heading',{name:'Review project access',exact:true}).waitFor();await page.getByText('A pass on another project cannot be transferred to this one.').waitFor();
   await page.getByRole('button',{name:'Open read-only',exact:true}).click();assert.equal(await page.evaluate(()=>opened[0].options.preview),true);
-  await page.evaluate(async()=>{decision.admin=false;await ui.gate('p');});
+  await page.evaluate(async()=>{decision.admin=false;await ui.gate('p','reactivate');});
   await page.getByText('Contact your studio admin to purchase access or change coverage.').waitFor();assert.equal(await page.locator('[data-action=billing-access-buy]').count(),0);
   await page.evaluate(async()=>{decision.admin=true;decision.reason='archived';decision.access={source:'subscription',active:true,archived:true};decision.summary={subscription_active:true,status:'active',plan:'solo',usage:{projects:3},limits:{projects:3}};decision.full=true;decision.can_use_subscription=true;decision.archive_candidates=[{id:'other',name:'Old project'}];await ui.gate('p','reactivate');});
   await page.getByText('Existing active projects remain usable.',{exact:false}).waitFor();assert.equal(await page.getByRole('button',{name:'Reactivate with current coverage'}).count(),0);

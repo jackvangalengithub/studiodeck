@@ -36,5 +36,7 @@ function complete_studio_setup(array $u,array $input): void {
     transaction(function()use($u,$name,$language,$type){
         // Retries and a second tab cannot overwrite a completed setup.
         query('UPDATE studios SET name=?,language=?,business_type=?,setup_completed_at=? WHERE id=? AND setup_completed_at IS NULL',[$name,$language,$type,now(),$u['studio_id']]);
+        $studio=one('SELECT setup_completed_at FROM studios WHERE id=?',[$u['studio_id']]);
+        billing_complete_onboarding($u['studio_id'],$u['user_id'],strtotime($studio['setup_completed_at'])?:time());
     });
 }

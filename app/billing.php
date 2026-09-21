@@ -13,7 +13,8 @@ function billing_catalog(): array {
         'studio'=>['name'=>'Studio','cents'=>19900,'seats'=>5,'projects'=>15],
         'practice'=>['name'=>'Practice','cents'=>39900,'seats'=>15,'projects'=>50],
         'extra_project'=>['name'=>'Extra active project','cents'=>1000],
-        'extra_seat'=>['name'=>'Extra Practice designer','cents'=>2000],
+        'extra_seat'=>['name'=>'Extra team member','cents'=>2000],
+        'website'=>['name'=>'Website','cents'=>3900],
     ];
     foreach($plans as $key=>&$plan)$plan['price_id']=env('STRIPE_PRICE_'.strtoupper($key));unset($plan);
     return $plans;
@@ -21,7 +22,23 @@ function billing_catalog(): array {
 function billing_addons(string $sid): array {
     // Listing modules must not create a website draft or copy studio assets.
     $site=one('SELECT paid_until,subscription_status,subscription_id FROM websites WHERE studio_id=?',[$sid]);
-    return [['id'=>'website','name'=>'Website',...website_billing_status($site??['paid_until'=>0,'subscription_status'=>'none','subscription_id'=>null])]];
+    $b=billing_studio($sid);
+    return [['id'=>'website','name'=>'Website','in_package'=>billing_package_website($b),'separate_subscription'=>!empty($site['subscription_id'])&&$site['subscription_id']!==$b['subscription_id']&&!in_array($site['subscription_status'],['canceled','incomplete_expired'],true),...website_billing_status($site??['paid_until'=>0,'subscription_status'=>'none','subscription_id'=>null])]];
+}
+function billing_package_website(array $b): bool {
+    $sub=json_decode($b['subscription_json']??'{}',true);$price=env('STRIPE_PRICE_WEBSITE');
+    foreach($sub['items']['data']??[] as $item)if($price&&stripe_id($item['price'])===$price&&(int)$item['quantity']===1)return true;
+    return false;
+}
+function billing_website_selection(array $input,array $b): bool {
+    if(!array_key_exists('website',$input))return billing_package_website($b);
+    $value=filter_var($input['website'],FILTER_VALIDATE_BOOLEAN,FILTER_NULL_ON_FAILURE);
+    if($value===null)fail('Choose a valid Website option.');return $value;
+}
+function billing_require_website_bundle(string $sid): void {
+    $b=billing_studio($sid);$site=one('SELECT subscription_id,subscription_status FROM websites WHERE studio_id=?',[$sid]);
+    if(!empty($site['subscription_id'])&&$site['subscription_id']!==$b['subscription_id']&&!in_array($site['subscription_status'],['canceled','incomplete_expired'],true))fail('Website is already billed separately. Manage that subscription before adding it to your package.',409);
+    if(one("SELECT 1 FROM billing_orders WHERE studio_id=? AND kind='website' AND status='pending'",[$sid]))fail('Finish or cancel the existing Website checkout first.',409);
 }
 function migrate_billing(PDO $db): void {
     $db->exec(file_get_contents(__DIR__.'/billing_schema.sql'));
@@ -83,7 +100,7 @@ function billing_require_project(string $pid,?string $uid=null,bool $client=fals
 }
 function billing_limits(array $b): array {
     if(billing_subscription_active($b)){
-        $p=billing_catalog()[$b['plan']];return billing_future_limits($b['studio_id'],['seats'=>$p['seats']+($b['plan']==='practice'?(int)$b['extra_seats']:0),'projects'=>$p['projects']+(int)$b['extra_projects']]);
+        $p=billing_catalog()[$b['plan']];return billing_future_limits($b['studio_id'],['seats'=>$p['seats']+(int)$b['extra_seats'],'projects'=>$p['projects']+(int)$b['extra_projects']]);
     }
     if($b['legacy_exempt'])return billing_future_limits($b['studio_id'],['seats'=>null,'projects'=>null]);
     return ['seats'=>1,'projects'=>1];
@@ -113,14 +130,30 @@ function billing_redeem_pass(array $u,string $pid): void {
     insert('project_access_grants',['order_id'=>$o['id'],'project_id'=>$pid,'paid_at'=>time(),'days'=>150]);
     query("UPDATE project_coverage SET designer_id=? WHERE project_id=? AND source='project_pass'",[$u['user_id'],$pid]);
 }
+// Call under the same write transaction as studio setup (or its one-time repair).
+function billing_complete_onboarding(string $sid,string $uid,int $at): void {
+    $b=billing_studio($sid);if($b['onboarded_at']||$b['legacy_exempt'])return;
+    $eligible=!one('SELECT 1 FROM billing_trials WHERE user_id=?',[$uid]);
+    if($eligible)insert('billing_trials',['user_id'=>$uid,'studio_id'=>$sid,'started_at'=>$at]);
+    query('UPDATE studio_billing SET onboarded_at=?,trial_started_at=?,trial_ends_at=? WHERE studio_id=?',[$at,$eligible?$at:null,$eligible?$at+7*BILLING_DAY:null,$sid]);
+}
+function migrate_studio_billing_setup(PDO $db): void {
+    if($db->query("SELECT 1 FROM migrations WHERE name='studio-billing-setup-v1'")->fetchColumn())return;
+    transaction(function(){
+        if(one("SELECT 1 FROM migrations WHERE name='studio-billing-setup-v1'"))return;
+        // Keep the original setup date; repairing the handoff never restarts a trial.
+        foreach(rows('SELECT s.id,s.setup_completed_at,b.origin_user_id FROM studios s JOIN studio_billing b ON b.studio_id=s.id WHERE s.setup_completed_at IS NOT NULL AND b.onboarded_at IS NULL AND b.legacy_exempt=0 AND b.origin_user_id IS NOT NULL ORDER BY s.setup_completed_at,s.id') as $s){
+            billing_complete_onboarding($s['id'],$s['origin_user_id'],strtotime($s['setup_completed_at'])?:time());
+        }
+        insert('migrations',['name'=>'studio-billing-setup-v1']);
+    });
+}
 function billing_onboard(array $u,array $input): void {
     studio_admin($u);$name=text_field($input['name']??'',100);$studio=text_field($input['studio_name']??'',100);
     if(!$name||!$studio)fail('Enter your name and studio name.');
     transaction(function()use($u,$name,$studio){
         $b=billing_studio($u['studio_id']);if($b['onboarded_at']||$b['legacy_exempt'])return;
-        $eligible=!one('SELECT 1 FROM billing_trials WHERE user_id=?',[$u['user_id']]);$at=time();
-        if($eligible)insert('billing_trials',['user_id'=>$u['user_id'],'studio_id'=>$u['studio_id'],'started_at'=>$at]);
-        query('UPDATE studio_billing SET onboarded_at=?,trial_started_at=?,trial_ends_at=? WHERE studio_id=?',[$at,$eligible?$at:null,$eligible?$at+7*BILLING_DAY:null,$u['studio_id']]);
+        billing_complete_onboarding($u['studio_id'],$u['user_id'],time());
         query('UPDATE studios SET name=? WHERE id=?',[$studio,$u['studio_id']]);
         query('UPDATE users SET name=? WHERE id=?',[$name,$u['user_id']]);
         query('UPDATE studio_members SET display_name=? WHERE studio_id=? AND user_id=?',[$name,$u['studio_id'],$u['user_id']]);
