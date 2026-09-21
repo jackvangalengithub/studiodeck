@@ -1,0 +1,147 @@
+[
+  {
+    "id": "interior",
+    "image": "/assets/studio-types/interior.webp",
+    "templates": [
+      "editorial",
+      "linen",
+      "atelier"
+    ],
+    "en": {
+      "label": "Interior design",
+      "description": "Rooms, materials & ways of living",
+      "headline": "Spaces made for living.",
+      "intro": "Thoughtful interiors, natural materials, and details that make a place your own.",
+      "alt": "A warm living room with natural materials and sculptural furniture",
+      "projectTitle": "A considered home",
+      "projectIntro": "Light, texture and space, brought together around everyday life.",
+      "welcomeIntro": "Bring your room concepts, material choices and client feedback together. Turn your design files into a presentation you’re proud to share."
+    },
+    "nl": {
+      "label": "Interieurontwerp",
+      "description": "Ruimtes, materialen & manieren van wonen",
+      "headline": "Ruimte om te leven.",
+      "intro": "Doordachte interieurs, natuurlijke materialen en details die een plek eigen maken.",
+      "alt": "Een warme woonkamer met natuurlijke materialen en sculpturale meubels",
+      "projectTitle": "Een doordacht thuis",
+      "projectIntro": "Licht, textuur en ruimte, afgestemd op het dagelijks leven.",
+      "welcomeIntro": "Breng je ruimteconcepten, materiaalkeuzes en feedback van klanten samen. Maak van je ontwerpbestanden een presentatie die je graag deelt."
+    }
+  },
+  {
+    "id": "landscape",
+    "image": "/assets/studio-types/landscape.webp",
+    "templates": [
+      "panorama",
+      "folio",
+      "terracotta"
+    ],
+    "en": {
+      "label": "Garden & landscape design",
+      "description": "Gardens, planting & outdoor spaces",
+      "headline": "A little closer to nature.",
+      "intro": "Gardens shaped around the seasons. Thoughtful planting, natural materials, and places to pause.",
+      "alt": "A lush woodland garden with a reflecting pool and layered planting",
+      "projectTitle": "The woodland garden",
+      "projectIntro": "Layered planting and quiet paths create a place to enjoy through the seasons.",
+      "welcomeIntro": "Bring your garden plans, planting ideas and client feedback together. Give every outdoor project a clear, beautiful presentation."
+    },
+    "nl": {
+      "label": "Tuin- & landschapsontwerp",
+      "description": "Tuinen, beplanting & buitenruimtes",
+      "headline": "Een beetje dichter bij de natuur.",
+      "intro": "Tuinen die meebewegen met de seizoenen. Doordachte beplanting, natuurlijke materialen en plekken om stil te staan.",
+      "alt": "Een weelderige bostuin met een spiegelvijver en gelaagde beplanting",
+      "projectTitle": "De bostuin",
+      "projectIntro": "Gelaagde beplanting en rustige paden maken een plek om elk seizoen van te genieten.",
+      "welcomeIntro": "Breng je tuinplannen, beplantingsideeën en feedback van klanten samen. Geef elk buitenproject een heldere, mooie presentatie."
+    }
+  },
+  {
+    "id": "architecture",
+    "image": "/assets/studio-types/architecture.webp",
+    "templates": [
+      "minimal",
+      "gallery",
+      "folio"
+    ],
+    "en": {
+      "label": "Architecture",
+      "description": "Buildings, places & new perspectives",
+      "headline": "Thoughtful places. Lasting possibilities.",
+      "intro": "Architecture rooted in its surroundings, shaped by light, proportion, and the people who use it.",
+      "alt": "A contemporary house with clean architectural lines opening onto its garden",
+      "projectTitle": "A house in the landscape",
+      "projectIntro": "An exploration of proportion, daylight and the relationship between building and landscape.",
+      "welcomeIntro": "Bring your plans, renders and client decisions together. Present the story behind your design, from first concept to the next revision."
+    },
+    "nl": {
+      "label": "Architectuur",
+      "description": "Gebouwen, plekken & nieuwe perspectieven",
+      "headline": "Doordachte plekken. Blijvende mogelijkheden.",
+      "intro": "Architectuur geworteld in haar omgeving, gevormd door licht, verhoudingen en de mensen die haar gebruiken.",
+      "alt": "Een eigentijds huis met heldere architecturale lijnen aan een tuin",
+      "projectTitle": "Een huis in het landschap",
+      "projectIntro": "Een onderzoek naar verhoudingen, daglicht en de relatie tussen gebouw en landschap.",
+      "welcomeIntro": "Breng je tekeningen, renders en beslissingen van klanten samen. Presenteer het verhaal achter je ontwerp, van eerste concept tot de volgende versie."
+    }
+  },
+  {
+    "id": "furniture",
+    "image": "/assets/studio-types/furniture.webp",
+    "templates": [
+      "atelier",
+      "minimal",
+      "linen"
+    ],
+    "en": {
+      "label": "Furniture & cabinetry design",
+      "description": "Bespoke pieces, kitchens & craftsmanship",
+      "headline": "Made with purpose. Made for you.",
+      "intro": "Bespoke furniture and cabinetry, with honest materials, careful proportions, and craftsmanship in every detail.",
+      "alt": "Bespoke timber kitchen cabinetry with a sculptural island and carefully finished details",
+      "projectTitle": "The crafted kitchen",
+      "projectIntro": "Warm timber, considered storage and precise joinery, designed around daily rituals.",
+      "welcomeIntro": "Bring your sketches, material samples and price options together. Help clients see the craftsmanship and choose the details."
+    },
+    "nl": {
+      "label": "Meubel- & maatwerkontwerp",
+      "description": "Maatwerk, keukens & vakmanschap",
+      "headline": "Met aandacht gemaakt. Voor jou.",
+      "intro": "Meubels en kasten op maat, met eerlijke materialen, zorgvuldige verhoudingen en vakmanschap in elk detail.",
+      "alt": "Houten keukenkasten op maat met een sculpturaal eiland en zorgvuldig afgewerkte details",
+      "projectTitle": "De ambachtelijke keuken",
+      "projectIntro": "Warm hout, doordachte opbergruimte en verfijnde verbindingen, ontworpen rond dagelijkse rituelen.",
+      "welcomeIntro": "Breng je schetsen, materiaalstalen en prijsopties samen. Laat klanten het vakmanschap zien en help ze de details te kiezen."
+    }
+  },
+  {
+    "id": "events",
+    "image": "/assets/studio-types/events.webp",
+    "templates": [
+      "noir",
+      "panorama",
+      "gallery"
+    ],
+    "en": {
+      "label": "Event & exhibition design",
+      "description": "Experiences, installations & occasions",
+      "headline": "Moments that become memories.",
+      "intro": "Immersive events and exhibitions, bringing together atmosphere, materials, and a story worth sharing.",
+      "alt": "An atmospheric exhibition with suspended fabric, sculptural plinths and warm lighting",
+      "projectTitle": "A gathering of ideas",
+      "projectIntro": "An immersive installation that brings people, objects and stories together.",
+      "welcomeIntro": "Bring your concepts, installations and supplier proposals together. Help clients picture the experience and decide with confidence."
+    },
+    "nl": {
+      "label": "Event- & tentoonstellingsontwerp",
+      "description": "Belevingen, installaties & bijzondere momenten",
+      "headline": "Momenten die herinneringen worden.",
+      "intro": "Sfeervolle events en tentoonstellingen waarin materialen, beleving en een bijzonder verhaal samenkomen.",
+      "alt": "Een sfeervolle tentoonstelling met hangende doeken, sculpturale sokkels en warm licht",
+      "projectTitle": "Waar ideeën samenkomen",
+      "projectIntro": "Een ruimtelijke installatie die mensen, objecten en verhalen samenbrengt.",
+      "welcomeIntro": "Breng je concepten, installaties en leveranciersvoorstellen samen. Help klanten de beleving voor zich te zien en keuzes te maken."
+    }
+  }
+]

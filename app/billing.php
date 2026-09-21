@@ -18,6 +18,11 @@ function billing_catalog(): array {
     foreach($plans as $key=>&$plan)$plan['price_id']=env('STRIPE_PRICE_'.strtoupper($key));unset($plan);
     return $plans;
 }
+function billing_addons(string $sid): array {
+    // Listing modules must not create a website draft or copy studio assets.
+    $site=one('SELECT paid_until,subscription_status,subscription_id FROM websites WHERE studio_id=?',[$sid]);
+    return [['id'=>'website','name'=>'Website',...website_billing_status($site??['paid_until'=>0,'subscription_status'=>'none','subscription_id'=>null])]];
+}
 function migrate_billing(PDO $db): void {
     $db->exec(file_get_contents(__DIR__.'/billing_schema.sql'));
     // CREATE TABLE IF NOT EXISTS does not upgrade an existing billing table.

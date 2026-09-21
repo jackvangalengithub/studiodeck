@@ -8,14 +8,16 @@ header('Referrer-Policy: no-referrer');
 header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 try {
     $action=$_GET['action']??'';
-    if(in_array($action,['website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($_GET['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($_GET['website_studio'],32);
+    if(in_array($action,['project_testimonial_photo','website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($_GET['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($_GET['website_studio'],32);
     // Every API is private unless explicitly part of the authentication flow.
     if(!in_array($action,['session','request_login','consume_login'],true))$apiUser=authenticated_user();
-    $read=['website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
+    $read=['mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the iteration lock check with simple metadata writes.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     if($action==='session')json_response(session_details(current_session()));
+    require __DIR__.'/../app/confirmations_api.php';
+    require __DIR__.'/../app/project_testimonials_api.php';
     require __DIR__.'/../app/website_api.php';
     require __DIR__.'/../app/billing_api.php';
     require __DIR__.'/../app/project_export_api.php';
@@ -32,9 +34,9 @@ try {
         $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
         $allowed=array_filter(array_map('trim',explode(',',env('DESIGNER_EMAILS'))));
-        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email])&&!one('SELECT 1 FROM shares WHERE email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
+        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email])&&!one('SELECT 1 FROM shares WHERE email=?',[$email])&&!one('SELECT 1 FROM conversation_grants WHERE email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
         $u=one('SELECT * FROM users WHERE email=?',[$email]);
-        if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);if(!one('SELECT 1 FROM project_client_members WHERE email=? UNION SELECT 1 FROM shares WHERE email=?',[$email,$email]))create_studio($u['id'],$u['name']."’s studio"); }
+        if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);if(!one('SELECT 1 FROM project_client_members WHERE email=? UNION SELECT 1 FROM shares WHERE email=? UNION SELECT 1 FROM conversation_grants WHERE email=?',[$email,$email,$email]))create_studio($u['id'],$u['name']."’s studio"); }
         $t=token();insert('login_tokens',['token_hash'=>hash_token($t),'user_id'=>$u['id'],'expires_at'=>time()+900]);
         $url=base_url().'/#/login/'.$t;
         $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to Studiodeck:\n\n".$url."\n\nThis link expires in 15 minutes and works once.");
@@ -51,6 +53,8 @@ try {
             $grant=one('SELECT share_id FROM client_login_grants WHERE token_hash=?',[$hash]);
             $redirect='/choose';
             if($grant){$user=one('SELECT * FROM users WHERE id=?',[$t['user_id']]);$share=account_client_share($user,'','',$grant['share_id']);$redirect='/client/projects/'.$share['project_id'].'?iteration='.$share['iteration_id'];}
+            $conversationGrant=one('SELECT g.root_id FROM conversation_login_grants l JOIN conversation_grants g ON g.id=l.grant_id WHERE l.token_hash=?',[$hash]);
+            if($conversationGrant){$user=one('SELECT * FROM users WHERE id=?',[$t['user_id']]);conversation_access($conversationGrant['root_id'],false,$user);$redirect='/conversations/'.$conversationGrant['root_id'];}
             query('DELETE FROM login_tokens WHERE token_hash=?',[$hash]);$session=token();$csrf=token();
             insert('sessions',['token_hash'=>hash_token($session),'user_id'=>$t['user_id'],'csrf'=>$csrf,'expires_at'=>time()+14*86400]);
             claim_client_profile(one('SELECT email FROM users WHERE id=?',[$t['user_id']])['email']);
@@ -117,6 +121,7 @@ try {
             ensure_iteration_slides($iid);
             $items=rows('SELECT * FROM budget_items WHERE iteration_id=?',[$base['id']]);$map=[];foreach($items as $r)$map[$r['id']]=id();
             foreach($items as $r){$r['id']=$map[$r['id']];$r['iteration_id']=$iid;$r['parent_id']=null;insert('budget_items',$r);}
+            foreach($items as $r){$link=one('SELECT comment_id FROM confirmation_budget_links WHERE budget_item_id=?',[$r['id']]);if($link)insert('confirmation_budget_links',['budget_item_id'=>$map[$r['id']],'comment_id'=>$link['comment_id']]);}
             foreach($items as $r){$choice=one('SELECT * FROM budget_choices WHERE budget_item_id=?',[$r['id']]);if($choice){$choice['budget_item_id']=$map[$r['id']];insert('budget_choices',$choice);}}
             foreach($items as $r)if($r['parent_id'])query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$r['parent_id']],$map[$r['id']]]);
             foreach(rows('SELECT * FROM budget_link_suggestions WHERE iteration_id=?',[$base['id']]) as $suggestion){$suggestion['id']=id();$suggestion['iteration_id']=$iid;$suggestion['child_id']=$map[$suggestion['child_id']];$suggestion['parent_id']=$map[$suggestion['parent_id']];insert('budget_link_suggestions',$suggestion);}
@@ -124,9 +129,11 @@ try {
             audit($base['project_id'],$iid,$u['email'],'iteration_created','Created iteration '.$n.' from iteration '.$base['number']);return ['id'=>$iid];
         });json_response($new,201);
     }
-    if($action==='upload') {
+    if($action==='upload'||$action==='communication_upload') {
         if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This upload is too large. Please choose fewer files: up to 100 MB per file and 120 MB in one batch.',413);
-        $u=owner(true);$iid=(string)($_POST['iteration']??'');$i=owned_iteration($iid,$u,true);$uploads=$_FILES['files']??null;
+        $communicationUpload=$action==='communication_upload';$iid=(string)($_POST['iteration']??'');
+        if($communicationUpload){[$i,$actor]=access_iteration($iid,true);if(!empty($i['locked']))fail('This iteration is locked.',409);$u=authenticated_user(true);$u['studio_id']=one('SELECT studio_id FROM projects WHERE id=?',[$i['project_id']])['studio_id'];}else{$u=owner(true);$i=owned_iteration($iid,$u,true);}
+        $uploads=$_FILES['files']??null;
         if(!$uploads || !is_array($uploads['name']))fail('Choose one or more files.');if(count($uploads['name'])>20)fail('Drop up to 20 files at a time.');
         $replace=(string)($_POST['replace_asset']??'');if($replace && count($uploads['name'])!==1)fail('Choose one replacement file.');$prepared=[];$totalBytes=0;
         foreach($uploads['name'] as $k=>$rawName) {
@@ -142,7 +149,8 @@ try {
             $prepared[]=['name'=>$name,'mime'=>validate_upload($name,$tmp),'data'=>file_get_contents($tmp)];
         }
         $uploadCategory=text_field($_POST['category']??'');if(!in_array($uploadCategory,['','legal'],true))fail('Unknown upload category.');
-        $result=save_project_uploads($prepared,$replace,$i,$u,$uploadCategory);json_response($result,201);
+        if($communicationUpload&&($replace||count($prepared)!==1))fail('Attach one new file at a time.');
+        $result=save_project_uploads($prepared,$replace,$i,$u,$communicationUpload?'legal':$uploadCategory,null,$communicationUpload);json_response($result,201);
     }
     if($action==='file') {
         [$i,$actor,$isOwner]=access_iteration((string)($_GET['iteration']??''));$vid=(string)($_GET['id']??'');$allowed=allowed_versions($i['id']);if(!isset($allowed[$vid]))fail('File not found in this iteration.',404);
@@ -189,6 +197,7 @@ try {
     }
     if($action==='studio_theme') {
         $u=owner(true);studio_admin($u);$b=input();$theme=fixed_studio_theme();
+        if(array_key_exists('business_type',$b))query('UPDATE studios SET business_type=? WHERE id=?',[studio_business_type_field($b['business_type']),$u['studio_id']]);
         if(array_key_exists('language',$b))query('UPDATE studios SET language=? WHERE id=?',[language_field($b['language'],false),$u['studio_id']]);
         $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
@@ -202,7 +211,7 @@ try {
     if($action==='save_budget') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',300);if(!$label)fail('Give the cost a name.');$bid=text_field($b['id']??'');
         if($bid&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$bid,$i['id']]))fail('Cost not found.',404);
-        $parent=text_field($b['parent_id']??'');if($parent&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$parent,$i['id']]))fail('Parent quote not found.');
+        $parent=text_field($b['parent_id']??'');if($parent&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$parent,$i['id']]))fail('Parent quote not found.');guard_confirmation_budget($bid);guard_confirmation_budget($parent);
         $cursor=$parent;$seen=[];while($cursor){if($cursor===$bid||isset($seen[$cursor]))fail('A quote cannot contain itself.');$seen[$cursor]=true;$cursor=one('SELECT parent_id FROM budget_items WHERE id=?',[$cursor])['parent_id']??'';}
         $amount=money_cents($b['amount']??'');$kind=in_array($b['kind']??'',['quote','estimate','unknown'],true)?$b['kind']:'estimate';if(($b['price_type']??'')==='unknown')$kind='unknown';if($kind==='unknown')$amount=null;
         if(($b['price_type']??'')==='fixed'&&$kind!=='unknown'&&$amount===null)fail('Enter the fixed price, or choose Still to be specified.');

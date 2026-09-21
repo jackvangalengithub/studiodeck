@@ -1,14 +1,23 @@
 // Fictional full-app fixture. No database, email, AI or billing services.
 const http=require('node:http'),fs=require('node:fs/promises'),path=require('node:path');
-exports.startOnboardingFixture=async function(){
+exports.startOnboardingFixture=async function({offline=false}={}){
   const {demoRequest}=await import('../../public/assets/demo.js');
   const root=path.resolve(__dirname,'../../public'),sample=(await demoRequest('projects')).projects[0];
-  const fixture={empty:true,visible:false,needsSetup:false,language:'en',studio:'demo',user:'onboarding-user',created:null,files:false,shared:false,calls:[]};
+  const fixture={setupCompleted:'existing',businessType:'interior',studioName:'Demo studio',setupFail:false,empty:true,visible:false,needsSetup:false,language:'en',studio:'demo',user:'onboarding-user',created:null,files:false,shared:false,calls:[]};
   const billing=()=>({needs_onboarding:fixture.needsSetup,trial_active:true,status:'trial',usage:{passes:0,projects:fixture.empty?0:1},limits:{projects:1}});
-  const session=async()=>{const s=await demoRequest('session');s.user.id=fixture.user;s.user.profile.language=fixture.language;s.studio.id=fixture.studio;s.studios=[s.studio];s.billing=billing();return s;};
+  const session=async()=>{const s=await demoRequest('session');s.user.id=fixture.user;s.user.profile.language=fixture.language;s.studio.id=fixture.studio;s.studio.setup_completed_at=fixture.setupCompleted;s.studio.business_type=fixture.businessType;s.studio.name=fixture.studioName;s.studio.language=fixture.language;s.studios=[s.studio];s.billing=billing();return s;};
   async function api(action,body){
     fixture.calls.push({action,body});
     if(action==='session')return session();
+    if(action==='complete_studio_setup'){
+      if(fixture.setupFail)throw Error('Temporary save failure. Please try again.');
+      fixture.setupCompleted='2026-09-19T12:00:00Z';fixture.businessType=body.business_type;fixture.studioName=body.name;fixture.language=body.language;return session();
+    }
+    if(action==='studio_theme'){fixture.businessType=body.business_type;fixture.studioName=body.name;fixture.language=body.language;return {ok:true};}
+    if(action==='website'){
+      const ids=['editorial','linen','noir','gallery','coast','atelier','panorama','folio','terracotta','minimal'];
+      return {studio_id:fixture.studio,draft:{started:false,name:fixture.studioName},templates:ids.map(id=>({id,name:id,description:'A considered design.',tone:'light'})),revision:1};
+    }
     if(action==='projects')return {studio_empty:fixture.empty,projects:fixture.visible?[{...sample,id:fixture.created?.project_id||sample.id,name:fixture.created?'My first project':sample.name,members:[]}]:[],billing:billing()};
     if(action==='project_access')return {reason:'ready'};
     if(action==='billing_onboard'){fixture.needsSetup=false;return session();}
@@ -28,6 +37,7 @@ exports.startOnboardingFixture=async function(){
   const server=http.createServer(async(req,res)=>{
     try{
       const url=new URL(req.url,'http://localhost');
+      if(url.searchParams.get('action')==='website_template_preview'){res.setHeader('Content-Type','text/html');res.end('<!doctype html><title>Example</title><h1>Studio example</h1>');return;}
       res.setHeader('X-Frame-Options',url.pathname==='/index.html'&&url.searchParams.get('app-tour')==='1'?'SAMEORIGIN':'DENY');
       if(url.pathname==='/api.php'){
         let data='';for await(const chunk of req)data+=chunk;
@@ -35,9 +45,29 @@ exports.startOnboardingFixture=async function(){
       }
       const file=url.pathname.startsWith('/assets/')?path.resolve(root,'.'+url.pathname):path.join(root,'index.html');
       if(!file.startsWith(root+path.sep))throw Error('Invalid fixture path');
-      res.setHeader('Content-Type',types[path.extname(file)]||'text/html');res.end(await fs.readFile(file));
+      const content=await fs.readFile(file);
+      if(path.extname(file)==='.webm'){
+        res.setHeader('Accept-Ranges','bytes');
+        const range=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range||'');
+        if(range){
+          const start=Number(range[1]),end=range[2]?Math.min(Number(range[2]),content.length-1):content.length-1;
+          if(start>end){res.statusCode=416;res.setHeader('Content-Range',`bytes */${content.length}`);res.end();return;}
+          res.statusCode=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${content.length}`);
+          res.setHeader('Content-Type','video/webm');res.setHeader('Content-Length',end-start+1);res.end(content.subarray(start,end+1));return;
+        }
+      }
+      res.setHeader('Content-Type',types[path.extname(file)]||'text/html');res.setHeader('Content-Length',content.length);res.end(content);
     }catch(e){res.statusCode=500;res.end(JSON.stringify({error:e.message}));}
   });
+  if(offline)return {fixture,sample,base:'http://localhost:19888',close:async()=>{},install:async page=>{
+    await page.route('http://localhost:19888/**',async route=>{
+      const request=route.request(),url=new URL(request.url()),headers={};
+      const req={url:url.pathname+url.search,headers:request.headers(),async *[Symbol.asyncIterator](){if(request.postData())yield request.postData();}};
+      let content='';const res={statusCode:200,setHeader:(name,value)=>{headers[name]=String(value);},end:value=>{content=value??'';}};
+      await server.listeners('request')[0](req,res);
+      await route.fulfill({status:res.statusCode,headers,body:content});
+    });
+  }};
   await new Promise(r=>server.listen(0,'127.0.0.1',r));
   return {fixture,sample,base:'http://127.0.0.1:'+server.address().port,close:()=>new Promise(r=>server.close(r))};
 };

@@ -1,0 +1,62 @@
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises');
+const {startOnboardingFixture}=require('./fixtures/onboarding-server.cjs');
+
+(async()=>{
+  const {fixture,base,close,install}=await startOnboardingFixture({offline:process.env.STUDIODECK_BROWSER_OFFLINE==='1'});let browser;
+  const artifacts=process.env.STUDIODECK_SETUP_ARTIFACTS||'/tmp/studiodeck-setup/browser';await fs.mkdir(artifacts,{recursive:true});
+  try{
+    fixture.setupCompleted=null;
+    browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE,args:['--no-sandbox']});
+    const page=await browser.newPage({viewport:{width:1440,height:1000}}),errors=[];
+    if(install)await install(page);
+    page.on('pageerror',e=>errors.push(e.message));page.setDefaultTimeout(12000);
+    await page.goto(base+'/demo/projects');await page.locator('.studio-setup').waitFor();
+    assert.equal(await page.locator('.onboarding-welcome').count(),0);
+    await page.screenshot({path:artifacts+'/language-desktop.png',fullPage:true});
+    await page.locator('[name=language][value=nl]').locator('..').click();await page.getByRole('heading',{name:'Laten we het eigen maken.'}).waitFor();
+    await page.locator('[name=language][value=en]').locator('..').click();
+    await page.locator('[data-studio-setup] [type=submit]').click();
+    await page.locator('.setup-name input').fill('  ');await page.locator('[data-studio-setup] [type=submit]').click();
+    assert.equal(await page.locator('.setup-name').count(),1);
+    await page.locator('.setup-name input').fill('Willow & Wild');
+    await page.locator('[data-studio-setup] [type=submit]').click();
+    assert.equal(await page.locator('.setup-type').count(),5);
+    assert.equal(await page.locator('[data-studio-setup] [type=submit]').isDisabled(),true);
+    await page.locator('[name=business_type][value=landscape]').locator('..').click();
+    await page.screenshot({path:artifacts+'/business-types-desktop.png',fullPage:true});
+    assert.equal(await page.locator('.setup-types img').evaluateAll(images=>images.every(i=>i.complete&&i.naturalWidth>0)),true);
+    await page.locator('[data-setup-back]').click();assert.equal(await page.locator('.setup-name input').inputValue(),'Willow & Wild');
+    await page.locator('[data-studio-setup] [type=submit]').click();assert.equal(await page.locator('[value=landscape]').isChecked(),true);
+    fixture.setupFail=true;await page.locator('[data-studio-setup] [type=submit]').click();
+    await page.getByRole('alert').filter({hasText:'Temporary save failure'}).waitFor();assert.equal(await page.locator('[value=landscape]').isChecked(),true);
+    fixture.setupFail=false;await page.locator('[data-studio-setup] [type=submit]').click();await page.locator('.onboarding-welcome').waitFor();
+    assert.equal(fixture.studioName,'Willow & Wild');assert.equal(fixture.businessType,'landscape');
+    assert.match(await page.locator('.onboarding-film img').getAttribute('src'),/landscape.webp/);
+    await page.reload();await page.locator('.onboarding-welcome').waitFor();assert.equal(await page.locator('.studio-setup').count(),0);
+    await page.locator('[data-action=website]').click();await page.locator('.website-welcome').waitFor();
+    assert.match(await page.locator('.website-cover-frame img').getAttribute('src'),/landscape.webp/);
+    await page.locator('[data-action=website-gallery]').click();await page.locator('.website-template-grid').waitFor();
+    assert.equal(await page.locator('.website-example-card').count(),10);
+    assert.equal(await page.locator('.website-recommendation').count(),3);
+    assert.equal(await page.locator('.website-example-preview').first().getAttribute('data-template'),'panorama');
+    await page.locator('[data-action=website-gallery-close]').click();
+    await page.locator('[data-action=settings]').click();await page.locator('[name=business_type]').selectOption('events');
+    await page.locator('[data-form=studio-theme] [type=submit]').click();await page.locator('.modal').waitFor({state:'detached'});
+    assert.equal(fixture.businessType,'events');assert.match(await page.locator('.website-cover-frame img').getAttribute('src'),/events.webp/);
+    await page.locator('[data-action=projects]').first().click();await page.locator('.onboarding-welcome').waitFor();
+    assert.match(await page.locator('.onboarding-film img').getAttribute('src'),/events.webp/);
+    // Every studio needs its own setup; a second studio starts at language again.
+    fixture.studio='second';fixture.setupCompleted=null;fixture.language='nl';
+    await page.setViewportSize({width:390,height:844});await page.goto(base+'/second/projects');await page.locator('.studio-setup').waitFor();
+    await page.locator('[data-studio-setup] [type=submit]').click();await page.locator('.setup-name input').fill('Studio Wilg');await page.locator('[data-studio-setup] [type=submit]').click();
+    await page.locator('[value=furniture]').focus();await page.keyboard.press('Space');assert.equal(await page.locator('[value=furniture]').isChecked(),true);
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.screenshot({path:artifacts+'/business-types-mobile-nl.png',fullPage:true});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No horizontal overflow on mobile');
+    await page.locator('[data-studio-setup] [type=submit]').click();await page.locator('.onboarding-welcome').waitFor();
+    assert.equal(await page.locator('html').getAttribute('lang'),'nl');
+    assert.match(await page.locator('.onboarding-film img').getAttribute('src'),/furniture.webp/);
+    assert.deepEqual(errors,[]);console.log('PASS Studio wizard, retry, persistence, settings, recommendations, Dutch and mobile layout');
+  }finally{await browser?.close();await close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

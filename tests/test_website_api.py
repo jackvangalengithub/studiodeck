@@ -31,7 +31,9 @@ def run(tmp):
             try:a.call('session');break
             except urllib.error.URLError:time.sleep(.1)
         session=a.login('admin@example.test',log);sid=session['studio']['id'];uid=session['user']['id']
+        a.call('complete_studio_setup',{'name':'Willow Studio','language':'en','business_type':'interior'})
         a.call('billing_onboard',{'name':'Admin','studio_name':'Willow Studio'})
+        project=a.call('create_project',{'name':'Miller family','description':'A carefully considered family home.'},expected=201);pid=project['project_id']
         site=a.call('website');check(site['billing']['local'] and not site['draft']['started'] and len(site['templates'])==10,'Welcome screen offers ten starting designs')
         example,eh=a.call('website_template_preview&template=noir&website_studio='+sid,raw=True)
         check(b'Studio Forma' in example and 'allow-scripts' in eh['Content-Security-Policy'] and 'allow-same-origin' not in eh['Content-Security-Policy'],'Full-screen examples are sandboxed')
@@ -50,6 +52,14 @@ def run(tmp):
         from PIL import Image
         image=Image.new('RGB',(1400,1000),'#a18f77');out=io.BytesIO();image.save(out,format='PNG')
         asset=a.call('website_upload',{'data':base64.b64encode(out.getvalue()).decode()})['id']
+        quote=a.call('project_testimonial_save',{'project_id':pid,'name':'Robin','title':'Homeowner','content':'Our home finally feels like us.','approved':True,'photo':base64.b64encode(out.getvalue()).decode()})['testimonials'][0]
+        member.call('project_testimonials&project_id='+pid,expected=404)
+        member.call('project_testimonial_photo&project_id='+pid+'&id='+quote['id'],expected=404)
+        a.call('project_testimonial_save',{'project_id':pid,'name':'No CSRF','content':'Denied'},csrf=False,expected=403)
+        a.call('project_testimonial_save',{'project_id':pid,'id':quote['id'],'revision':0,'name':'Stale','content':'Denied'},expected=409)
+        photo,photo_headers=a.call('project_testimonial_photo&project_id='+pid+'&id='+quote['id'],raw=True)
+        check(photo_headers['Content-Type']=='image/png' and photo==out.getvalue(),'Project testimonials and photos are scoped to authorized project access')
+
         d=site['draft'];d['projects']=[{'id':'a'*32,'source_id':'','slug':'willow-house','title':'Willow house','description':'A calm family home.','category':'Residential','location':'Amsterdam','included':True,'images':[{'asset':asset,'alt':'Warm oak furniture in the living room'}]}]
         site=a.call('website_save',{'draft':d,'revision':site['revision']})
         preview,headers=a.call('website_preview&website_studio='+sid,raw=True)
@@ -81,8 +91,9 @@ def run(tmp):
         try:urllib.request.urlopen(base+'/sites/'+sid+'/');raise AssertionError('Reset website remains public')
         except urllib.error.HTTPError as e:assert e.code==404
 
+        check(len(a.call('project_testimonials&project_id='+pid)['testimonials'])==1,'Website reset preserves original project testimonials')
         cookies=[{'name':c.name,'value':c.value,'domain':'127.0.0.1','path':'/'} for c in a.cookies]
-        (tmp/'fixture.json').write_text(json.dumps({'studio':sid,'user':uid,'csrf':a.csrf,'cookies':cookies,'asset':asset}))
+        (tmp/'fixture.json').write_text(json.dumps({'studio':sid,'user':uid,'csrf':a.csrf,'cookies':cookies,'asset':asset,'project':pid,'testimonial':quote['id']}))
         print('Website API checks passed.')
     finally:server.terminate();server.wait();output.close()
 if os.environ.get('STUDIODECK_TEST_EXPORT'):

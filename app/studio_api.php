@@ -1,5 +1,6 @@
 <?php
 // Included by the API router after method validation.
+if($action==='complete_studio_setup'){$u=owner(true);complete_studio_setup($u,input());json_response(session_details(current_session()));}
 if($action==='studio_users'){$u=owner();json_response(['users'=>studio_members($u['studio_id']??''),'billing'=>billing_summary($u['studio_id'])]);}
 if($action==='create_studio'){
     $u=owner(true);$b=input();$name=text_field($b['name']??'',100);if(!$name)fail('Give the studio a name.');

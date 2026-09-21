@@ -24,8 +24,14 @@ Portal plan changes must remain disabled. The app validates seats/project capaci
 - Subscription: Solo 1/3, Studio 5/15, Practice 15/50 designers/active projects. Only subscription-covered projects consume its project capacity. Every studio membership consumes a designer seat; client guests do not.
 - Admins select coverage explicitly. Moving a pass project onto a subscription does not pause its original pass clock or refund it. Moving back needs an unexpired pass and its single named designer. Payment never bypasses project membership.
 - Expired projects remain privately readable/exportable, but edits, uploads, AI and client access stop. Failed renewals have three days' grace; cancellation lasts through the paid period. Independently paid pass projects continue.
-- New projects require an unused trial allocation, an available subscription slot, or an unused paid Project Pass in the same studio. Billing offers three subscription cards alongside a prepaid Project Pass card. No unpaid project draft is created. Pending, failed or refunded orders provide no creation rights. Pass redemption and project creation share one transaction; rollback preserves the pass, and deleting a created project does not return it. Legacy exemptions preserve existing project access only, not permission to create new projects.
+- New projects require an unused trial allocation, an available subscription slot, or an unused paid Project Pass in the same studio. Billing shows Project Pass first in its own bordered group, then the three monthly packages together in a separate bordered group. Optional modules appear below in an Add-ons card grid. No unpaid project draft is created. Pending, failed or refunded orders provide no creation rights. Pass redemption and project creation share one transaction; rollback preserves the pass, and deleting a created project does not return it. Legacy exemptions preserve existing project access only, not permission to create new projects.
 - Full pass/extension refunds remove only that access grant. Partial refunds do not change access. Disputes are flagged for review. Subscription refunds require a separate cancellation/access decision in Stripe; refunding an old invoice does not revoke a later paid period.
+
+## Optional modules
+
+The Add-ons section is independent of project coverage. Website is a separate **$39 USD/month** subscription with its own activation status, available alongside passes or any monthly package. **Activate Website** reviews the recurring price and opens the existing Website Stripe Checkout; successful payment returns to Website. Active modules show **Open Website** and **Manage subscription**. Incomplete or overdue subscriptions link to payment management instead of creating a second subscription. Local free access and unavailable payment configuration are labeled explicitly.
+
+`billing_addons()` supplies the module list and verified entitlement status without creating drafts. `addonDefinitions` in `public/assets/billing.js` supplies translated descriptions, features, and actions; the shared card grid handles layout, activation, and status for additional registered modules. New modules should use their own validated checkout and entitlement checks. Module purchases do not alter a studio package or consume pending project-purchase navigation intent.
 
 ## Migration and retention
 
@@ -68,6 +74,6 @@ python3 tests/test_billing.py
 python3 tests/test_security.py -q
 ```
 
-Browser checks: `node tests/test_billing.cjs` and `node tests/test_project_access.cjs`, with `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` if needed. The browser test uses a local static server and fictional API responses.
+Module state checks: `node tests/test_billing_addons.mjs`. Browser checks: `node tests/test_billing.cjs` and `node tests/test_project_access.cjs`, with `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` if needed. The browser test uses a local static server and fictional API responses.
 
 References: [Checkout](https://docs.stripe.com/payments/checkout), [one-time invoices](https://docs.stripe.com/receipts), [Customer Portal](https://docs.stripe.com/customer-management), [subscription webhooks](https://docs.stripe.com/billing/subscriptions/webhooks), [pending subscription updates](https://docs.stripe.com/billing/subscriptions/pending-updates).

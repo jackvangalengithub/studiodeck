@@ -22,11 +22,11 @@ function account_destinations(array $user): array {
         $logo=one('SELECT data FROM studio_logos WHERE studio_id=?',[$project['studio_id']]);$project['studio_logo']=$logo?'data:image/png;base64,'.base64_encode($logo['data']):null;
         $project['has_cover']=(bool)project_cover($project['iteration_id']);$project['studio_access']=(bool)$project['studio_access'];
     }unset($project);
-    return ['studios'=>$studios,'projects'=>$projects];
+    return ['studios'=>$studios,'projects'=>$projects,'conversations'=>conversation_destinations($user)];
 }
 function claim_client_profile(string $email): void {
     $old='client:'.$email;$key='user:'.$email;
-    query('INSERT OR IGNORE INTO person_profiles(person_key,name,color,email_comments,avatar,language) SELECT ?,name,color,email_comments,avatar,language FROM person_profiles WHERE person_key=?',[$key,$old]);
+    query('INSERT OR IGNORE INTO person_profiles(person_key,name,color,email_comments,email_mentions_only,avatar,language) SELECT ?,name,color,email_comments,email_mentions_only,avatar,language FROM person_profiles WHERE person_key=?',[$key,$old]);
     // Reserve the account profile on first sign-in so later anonymous link edits cannot replace it.
     query('INSERT OR IGNORE INTO person_profiles(person_key) VALUES(?)',[$key]);
     query('INSERT OR IGNORE INTO comment_reads(comment_id,person_key,read_at) SELECT comment_id,?,read_at FROM comment_reads WHERE person_key=?',[$key,$old]);

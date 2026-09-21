@@ -1,5 +1,7 @@
 """Empty-studio detection through the real HTTP API, using an isolated SQLite DB."""
 import unittest
+import urllib.request
+import urllib.error
 from test_billing import BillingTests
 
 
@@ -34,10 +36,26 @@ class OnboardingTests(BillingTests):
             if policy == 'SAMEORIGIN':
                 self.assertEqual(response.headers['Content-Security-Policy'], "frame-ancestors 'self'")
         # Existing file authentication also covers the tour and its caption tracks.
-        for asset, mime in [('tour.webm', 'video/webm'), ('tour-en.vtt', 'text/vtt'), ('tour-nl.vtt', 'text/vtt')]:
+        for asset, mime in [('tour.webm', 'video/webm'), ('tour-nl.webm', 'video/webm'), ('tour-en.vtt', 'text/vtt'), ('tour-nl.vtt', 'text/vtt')]:
             response = self.client['opener'].open(self.base+'/assets/onboarding/'+asset)
             self.assertIn(mime, response.headers['Content-Type'])
             self.assertGreater(len(response.read()), 20)
+        # Narrated videos remain seekable through the authenticated asset gateway.
+        for name in ('tour.webm', 'tour-nl.webm'):
+            url = self.base+'/assets/onboarding/'+name
+            whole = self.client['opener'].open(url).read()
+            for value, start, end in [('bytes=0-99', 0, 99), ('bytes=-100', len(whole)-100, len(whole)-1), ('bytes=100-', 100, len(whole)-1)]:
+                response = self.client['opener'].open(urllib.request.Request(url, headers={'Range': value}))
+                self.assertEqual(response.status, 206)
+                self.assertEqual(response.headers['Content-Range'], f'bytes {start}-{end}/{len(whole)}')
+                self.assertEqual(response.read(), whole[start:end+1])
+            for value in (f'bytes={len(whole)}-', 'bytes=100-50', 'bytes=-0'):
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    self.client['opener'].open(urllib.request.Request(url, headers={'Range': value}))
+                self.assertEqual(error.exception.code, 416)
+            with self.assertRaises(urllib.error.HTTPError) as error:
+                self.new_client()['opener'].open(urllib.request.Request(url, headers={'Range': 'bytes=0-99'}))
+            self.assertEqual(error.exception.code, 401)
 
 
 if __name__ == '__main__':

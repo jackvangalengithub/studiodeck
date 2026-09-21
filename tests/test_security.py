@@ -34,6 +34,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PHP = os.environ.get('PHP_BIN', 'php')
 DENIED = (401, 403, 404)
 READ_ACTIONS = {
+    'project_testimonials', 'project_testimonial_photo',
+    'mention_people',
+    'conversation', 'conversation_file',
     'website', 'website_sources', 'website_source_image', 'website_asset', 'website_preview', 'website_template_preview', 'website_export',
     'project_access', 'billing', 'billing_invoices', 'project_export',
     'drive_status', 'drive_list', 'drive_callback', 'session', 'projects',
@@ -45,6 +48,9 @@ READ_ACTIONS = {
 }
 PUBLIC_ACTIONS = {'session', 'request_login', 'consume_login'}
 WRITE_ACTIONS = {
+    'project_testimonial_save', 'project_testimonial_delete',
+    'conversation_revoke',
+    'communication_post', 'confirmation_decide', 'communication_upload',
     'website_reset', 'website_start', 'website_save', 'website_import', 'website_upload', 'website_publish', 'website_restore', 'website_undo',
     'website_chat', 'website_checkout', 'website_refresh_billing', 'website_domain',
     'project_activate', 'billing_checkout', 'billing_resume_checkout', 'billing_cancel_checkout', 'billing_cancel_change',
@@ -508,7 +514,7 @@ class SecurityTests(SecurityFixture):
                                 'image_version_id': 'variant-' + project}))
 
     def test_client_cannot_call_studio_write_endpoints(self):
-        excluded = PUBLIC_ACTIONS | {'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
+        excluded = PUBLIC_ACTIONS | {'communication_post', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
                                      'save_profile', 'upload_avatar', 'remove_avatar', 'read_comments', 'comment_answered', 'reply_open_question', 'add_client_question'}
         # Successful forbidden operations must not alter the identity of later
         # cases (e.g. create_studio could otherwise grant admin to this client).

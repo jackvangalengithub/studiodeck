@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__.'/studios.php';
+require_once __DIR__.'/studio_setup.php';
 require_once __DIR__.'/languages.php';
 require_once __DIR__.'/stripe.php';
 require_once __DIR__.'/project_access.php';
@@ -14,11 +15,15 @@ require_once __DIR__.'/slide_editor.php';
 require_once __DIR__.'/people.php';
 require_once __DIR__.'/project_directory.php';
 require_once __DIR__.'/comments.php';
+require_once __DIR__.'/mentions.php';
 require_once __DIR__.'/project_details.php';
 require_once __DIR__.'/communications.php';
+require_once __DIR__.'/confirmations.php';
+require_once __DIR__.'/conversation_access.php';
 require_once __DIR__.'/enhancements.php';
 require_once __DIR__.'/starting_pack.php';
 require_once __DIR__.'/website.php';
+require_once __DIR__.'/project_testimonials.php';
 require_once __DIR__.'/website_render.php';
 require_once __DIR__.'/website_source.php';
 require_once __DIR__.'/website_billing.php';
@@ -48,11 +53,14 @@ function db(): PDO {
     migrate_comment_threads($db);
     migrate_studios($db);
     migrate_languages($db);
+    migrate_studio_setup($db);
+    migrate_mentions($db);
     migrate_billing($db);
     $db->exec(file_get_contents(__DIR__.'/website_schema.sql'));
     migrate_project_team_roles($db);
     migrate_project_clients($db);
     migrate_budget($db);
+    $db->exec(file_get_contents(__DIR__.'/confirmation_schema.sql'));
     migrate_slide_groups($db);
     migrate_manual_slides($db);
     @chmod($path, 0600);
@@ -145,6 +153,7 @@ function allowed_versions(string $iid): array {
         $v=$r['version_id'];
         while($v && !isset($allowed[$v])) { $allowed[$v]=true; $r=one('SELECT parent_id FROM file_versions WHERE id=?',[$v]); $v=$r['parent_id']??null; }
     }
+    foreach(rows('SELECT a.version_id FROM comment_attachments a JOIN comments c ON c.id=a.comment_id WHERE c.iteration_id=?',[$iid]) as $r)$allowed[$r['version_id']]=true;
     return $allowed;
 }
 function capabilities(): array { return ['ai'=>env('OPENAI_API_KEY')!=='','mail'=>env('MAIL_TRANSPORT','log')==='mail','demo'=>false]; }
@@ -188,6 +197,7 @@ function deck_payload(array $i, bool $isOwner): array {
     }
     require_once __DIR__.'/slides.php';
     $result=['project'=>$p,'iteration'=>$i,'files'=>$files,'slides'=>project_slides($i['id']),'slide_layout'=>rows('SELECT slide_id,hidden,deleted,position FROM slide_layout WHERE iteration_id=?',[$i['id']]),'budget'=>$items,'total_cents'=>budget_total($items),'changes'=>$changes,'previous_total_cents'=>$previous?budget_total(budget_rows($previous['id'])):null,'contacts'=>rows('SELECT * FROM contacts WHERE project_id=?'.($isOwner?'':" AND role <> 'Client'"),[$p['id']]),'comments'=>rows('SELECT *,rowid AS comment_order FROM comments WHERE iteration_id=? ORDER BY created_at ASC,rowid ASC',[$i['id']]),'capabilities'=>capabilities()];
+    $result['communication']=communication_payload($i);
     $result['system_slides']=rows('SELECT id,type FROM system_slides WHERE iteration_id=? ORDER BY rowid',[$i['id']]);
     $result=array_merge($result,budget_payload($i['id'],$isOwner));
     $result['open_questions']=open_questions_payload($i['id'],$isOwner);

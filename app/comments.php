@@ -27,6 +27,7 @@ function add_comment(array $i,string $actor,array $input): array {
         if($parent&&$slide!==$parent['slide'])fail('A reply must stay on the same slide as its original comment.');
         $comment=['id'=>id(),'iteration_id'=>$i['id'],'parent_id'=>$parentId?:null,'slide'=>$slide,'author'=>$actor,'body'=>$body,'created_at'=>now()];
         insert('comments',$comment);
+        save_comment_mentions($i,$comment,$input);
         audit($i['project_id'],$i['id'],$actor,'change_requested',$slide.': '.($parent?'Reply: ':'').$body);
         queue_comment_notifications($i,$comment);
         return $comment;

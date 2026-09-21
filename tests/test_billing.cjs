@@ -12,6 +12,7 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   const stamp=Math.floor(Date.now()/1000),studio={id:'test-studio',name:'Test studio',role:'admin'};
   let summary={needs_onboarding:true,legacy_exempt:false,package:'7-day trial',trial_ends_at:null,trial_active:false,subscription_active:false,plan:null,status:'none',paid_until:0,cancel_at_period_end:false,limits:{seats:1,projects:1},usage:{seats:1,projects:0,passes:0}};
   const session=()=>({user:{id:'admin',name:'Designer',email:'designer@example.test'},csrf:'test',studio,studios:[studio],studio_theme:{palette:'warmgray',style:'editorial'},capabilities:{ai:false,mail:false},billing:summary});
+  let addon={id:'website',name:'Website',price:3900,currency:'USD',active:false,until:0,status:'none',local:false,available:true,has_subscription:false};
   const coverage={source:'trial',active:false,expires_at:stamp-1,pass_expires_at:null,delete_after:null};
   const catalog=Object.fromEntries([['pass','Project Pass',1900,1,1],['extension','Pass extension',1500,1,1],['solo','Solo',3900,1,3],['studio','Studio',19900,5,15],['practice','Practice',39900,15,50]].map(([k,name,cents,seats,projects])=>[k,{name,cents,seats,projects,available:true}]));
   await page.route('**/api.php?**',async route=>{
@@ -20,9 +21,10 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
     if(a==='projects')result={projects:[],billing:summary};
     if(a==='project_access')result={project:{id:'project-1',name:'Garden project'},access:coverage,reason:'trial_expired',admin:true,can_manage:true,summary,full:false,consumes_slot:true,can_use_subscription:false,can_use_pass:false,can_buy_pass:true,has_pass:false,other_passes:false,archive_candidates:[]};
     if(a==='billing_onboard'){assert.equal(body.studio_name,'My studio');summary={...summary,needs_onboarding:false,trial_active:true,trial_ends_at:stamp+7*86400};result=session();}
-    if(a==='billing')result={summary,catalog,projects:[{id:'project-1',name:'Garden project',coverage,has_pass:false}],orders:[],changes:[],extra_projects:summary.plan?2:0,extra_seats:0,has_customer:true};
+    if(a==='billing')result={summary,catalog,addons:[addon],projects:[{id:'project-1',name:'Garden project',coverage,has_pass:false}],orders:[],changes:[],extra_projects:summary.plan?2:0,extra_seats:0,has_customer:true};
     if(a==='billing_change_preview'){assert.equal(body.plan,'practice');assert.equal(body.extra_seats,2);assert.equal(Number(body.extra_projects),2);result={change_id:'change-1',amount:24000,currency:'eur',scheduled:false,monthly_amount:45900};}
     if(a==='billing_invoices')result={invoices:[{id:'inv_1',number:'SD-001',created:stamp,amount:1900,currency:'eur',status:'paid',url:'https://invoice.stripe.com/example',pdf:'https://pay.stripe.com/example.pdf'}]};
+    if(a==='website_checkout'){assert.deepEqual(body,{});addon={...addon,active:true,status:'active',has_subscription:true,until:stamp+30*86400};result={url:base+'/test-studio/billing?addon_test=activated'};}
     if(a==='billing_checkout'){assert(!body.project_id,'Prepaid checkout must not need a project');assert.equal(body.plan,'pass');result={url:base+'/checkout-confirmed'};}
     await route.fulfill({contentType:'application/json',body:JSON.stringify(result)});
   });
@@ -30,7 +32,7 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   await page.locator('[name=studio_name]').fill('My studio');await page.locator('[data-form=billing-onboard] button[type=submit]').click();
   await page.getByText('7 days left in your trial',{exact:false}).waitFor();assert(calls.some(x=>x.a==='billing_onboard'));
   await page.locator('.sidebar [data-action=billing]').click();await page.getByRole('heading',{name:'Billing',exact:true}).waitFor();
-  assert.equal(await page.getByRole('heading',{name:'Project coverage'}).count(),0);await page.getByRole('heading',{name:'Or buy a project pass'}).waitFor();assert.equal(await page.locator('.billing-offers .billing-plan').count(),4);await page.getByText('SD-001',{exact:true}).waitFor();assert.equal(await page.locator('[data-action=billing-plan]').count(),3);
+  assert.equal(await page.getByRole('heading',{name:'Project coverage'}).count(),0);await page.getByRole('heading',{name:'One project at a time'}).waitFor();assert.equal(await page.locator('.billing-offers > :first-child').getAttribute('class'),'billing-pass-group billing-offer-group');assert.equal(await page.locator('.billing-package-group .billing-plan').count(),3);assert.equal(await page.locator('.billing-pass-group .billing-plan').count(),1);await page.getByRole('heading',{name:'Add-ons',exact:true}).waitFor();await page.getByRole('button',{name:'Activate Website',exact:true}).waitFor();assert.match(await page.locator('[data-addon=website] .billing-price').first().innerText(),/39.*USD/);assert.equal(await page.locator('.billing-offers .billing-plan').count(),4);await page.getByText('SD-001',{exact:true}).waitFor();assert.equal(await page.locator('[data-action=billing-plan]').count(),3);
   summary={...summary,trial_active:false,plan:'studio',package:'Studio',status:'active',paid_until:stamp+30*86400,subscription_active:true,limits:{seats:5,projects:17},usage:{seats:5,projects:2,passes:0}};
   await page.reload();await page.locator('.billing-plan.is-selected').waitFor();
   assert.equal(await page.locator('.billing-plan.is-selected').count(),1);
@@ -45,6 +47,7 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   await page.screenshot({path:'/tmp/studiodeck-billing-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(400);await page.screenshot({path:'/tmp/studiodeck-billing-mobile.png',fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Mobile page must not overflow horizontally');
+  await page.getByRole('button',{name:'Activate Website',exact:true}).click();await page.locator('[data-form=billing-addon-checkout]').waitFor();assert.match(await page.locator('.modal').innerText(),/separate monthly subscription/);await page.getByRole('button',{name:'Continue to Stripe',exact:true}).click();await page.waitForURL('**/billing?addon_test=activated');await page.getByRole('button',{name:'Open Website',exact:true}).waitFor();assert(calls.some(x=>x.a==='website_checkout'));assert.equal(summary.plan,'studio');assert.equal(await page.getByRole('button',{name:'Activate Website',exact:true}).count(),0);await page.getByRole('button',{name:'Manage subscription',exact:true}).waitFor();
   await page.getByRole('button',{name:'Buy Project Pass · €19',exact:true}).click();await page.getByRole('heading',{name:'Buy a Project Pass',exact:true}).waitFor();
   await page.getByRole('button',{name:'Continue to Stripe',exact:true}).click();await page.waitForURL('**/checkout-confirmed');
   // An expired trial offers a dismissible upgrade prompt, and still exposes Billing.
@@ -52,6 +55,6 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   await page.getByRole('heading',{name:'Your trial has ended',exact:true}).waitFor();await page.getByRole('button',{name:'Continue in read-only mode',exact:true}).click();
   await page.getByRole('button',{name:'View packages',exact:true}).click();await page.getByRole('heading',{name:'Billing',exact:true}).waitFor();
   await page.goto(base+'/test-studio/projects/project-1');await page.getByRole('heading',{name:'Your trial has ended',exact:true}).waitFor();await page.getByRole('button',{name:'Open read-only',exact:true}).waitFor();await page.getByRole('button',{name:'Buy Project Pass · €19',exact:true}).click();await page.getByRole('heading',{name:'Buy a Project Pass',exact:true}).waitFor();assert(calls.some(x=>x.a==='project_access'));
-  assert.deepEqual(errors,[]);console.log('PASS onboarding, trial banner, admin Billing, four offers, prepaid checkout, invoices, mobile layout, purchase handoff and dismissible expiry prompt');
+  assert.deepEqual(errors,[]);console.log('PASS onboarding, trial banner, admin Billing, grouped offers, Website activation, prepaid checkout, invoices, mobile layout, purchase handoff and dismissible expiry prompt');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -16,10 +16,16 @@ if(str_starts_with($action,'website_')||$action==='website'){
     if($action==='website_preview'||$action==='website_template_preview'){
         $d=website_with_source(json_decode($site['draft'],true));$assets=[];
         if($action==='website_template_preview'){
-            $template=website_template_id(text_field($_GET['template']??'',30));$sample=str_repeat('0',32);$sample2=str_repeat('1',32);
-            $d=array_replace($d,['name'=>'Studio Forma','headline'=>'Spaces that stay with you.','title'=>'Studio Forma · Interior design','description'=>'A considered collection of interiors.','intro'=>'We shape spaces around the way you live. Natural materials, thoughtful details, and room to be yourself.','about'=>'A small studio with a considered approach. We bring together architecture, interiors, and the everyday rituals that make a place feel like home.','email'=>'hello@example.com','logo'=>'','testimonials'=>[], 'projects'=>[['id'=>str_repeat('2',32),'title'=>'The garden house','description'=>'Soft light, quiet materials, and a connection to the outdoors.','category'=>'Residential','location'=>'','included'=>true,'images'=>[['asset'=>$sample,'alt'=>'A warm and carefully considered interior']]],['id'=>str_repeat('3',32),'title'=>'A slower pace','description'=>'A palette inspired by the textures of everyday living.','category'=>'Interior concept','location'=>'','included'=>true,'images'=>[['asset'=>$sample2,'alt'=>'A palette of natural textures and materials']]]]]);
+            $template=website_template_id(text_field($_GET['template']??'',30));$sample=str_repeat('0',32);
+            $studio=one('SELECT business_type,language FROM studios WHERE id=?',[$sid]);
+            $profile=studio_business_profile($studio['business_type'],$studio['language']);
+            $d=array_replace($d,website_empty_draft('Studio Forma',$studio['business_type'],$studio['language']),[
+                'email'=>'hello@example.com','logo'=>'','testimonials'=>[],
+                'about'=>$profile['intro'],
+                'projects'=>[['id'=>str_repeat('2',32),'title'=>$profile['projectTitle'],'description'=>$profile['projectIntro'],'category'=>$profile['label'],'location'=>'','included'=>true,'images'=>[['asset'=>$sample,'alt'=>$profile['alt']]]]]
+            ]);
             $d['files']=website_seed_files($d,$template,$sample);
-            foreach([$sample=>'interior.webp',$sample2=>'moodboard.webp'] as $id=>$file){$raw=file_get_contents(ROOT.'/public/assets/'.$file);$info=getimagesizefromstring($raw);$url='data:image/webp;base64,'.base64_encode($raw);$assets[$id]=['jpeg'=>$url,'webp'=>$url,'width'=>$info[0],'height'=>$info[1]];}
+            $raw=file_get_contents(ROOT.'/public'.$profile['image']);$info=getimagesizefromstring($raw);$url='data:image/webp;base64,'.base64_encode($raw);$assets[$sample]=['jpeg'=>$url,'webp'=>$url,'width'=>$info[0],'height'=>$info[1]];
         }else $assets=website_preview_assets($sid,$d['files']);
         header('Content-Type: text/html; charset=utf-8');header('X-Robots-Tag: noindex, nofollow');header('X-Frame-Options: SAMEORIGIN');header('Content-Security-Policy: '.website_code_policy(true));
         $compiled=website_source_compile($d,$assets,website_origin($site),true,text_field($_GET['channel']??'',100));echo $compiled['index.html'];exit;

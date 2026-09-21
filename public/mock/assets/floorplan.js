@@ -1,0 +1,11 @@
+export function installFloorplans(){
+ function update(view,zoom=Number(view.dataset.zoom||1),x=Number(view.dataset.x||0),y=Number(view.dataset.y||0)){
+  zoom=Math.max(1,Math.min(5,zoom));const maxX=view.clientWidth*(zoom-1)/2,maxY=view.clientHeight*(zoom-1)/2;x=Math.max(-maxX,Math.min(maxX,x));y=Math.max(-maxY,Math.min(maxY,y));view.dataset.zoom=zoom;view.dataset.x=x;view.dataset.y=y;view.querySelector('.floorplan-image').style.transform=`translate(${x}px,${y}px) scale(${zoom})`;view.classList.toggle('zoomed',zoom>1);view.closest('.floorplan-interactive').querySelector('output').textContent=Math.round(zoom*100)+'%';
+ }
+ document.addEventListener('click',e=>{const control=e.target.closest('[data-plan-zoom]');if(!control)return;const view=control.closest('.floorplan-interactive').querySelector('.floorplan-viewport'),value=control.dataset.planZoom;update(view,value==='fit'?1:Number(view.dataset.zoom||1)+Number(value),value==='fit'?0:undefined,value==='fit'?0:undefined);});
+ let drag=null;
+ document.addEventListener('pointerdown',e=>{const view=e.target.closest('.floorplan-viewport');if(!view||Number(view.dataset.zoom||1)<=1||e.button!==0)return;e.preventDefault();view.focus({preventScroll:true});drag={view,id:e.pointerId,x:e.clientX,y:e.clientY,panX:Number(view.dataset.x||0),panY:Number(view.dataset.y||0)};view.setPointerCapture(e.pointerId);});
+ document.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;update(drag.view,undefined,drag.panX+e.clientX-drag.x,drag.panY+e.clientY-drag.y);});
+ for(const event of ['pointerup','pointercancel'])document.addEventListener(event,e=>{if(drag?.id===e.pointerId){if(drag.view.hasPointerCapture(e.pointerId))drag.view.releasePointerCapture(e.pointerId);drag=null;}});
+ document.addEventListener('keydown',e=>{const view=e.target.closest('.floorplan-viewport');if(!view)return;const offsets={ArrowLeft:[40,0],ArrowRight:[-40,0],ArrowUp:[0,40],ArrowDown:[0,-40]};if(offsets[e.key]){e.preventDefault();e.stopImmediatePropagation();update(view,undefined,Number(view.dataset.x||0)+offsets[e.key][0],Number(view.dataset.y||0)+offsets[e.key][1]);}else if(['+','=','-','0'].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();update(view,e.key==='0'?1:Number(view.dataset.zoom||1)+(e.key==='-'?-.25:.25));}},true);
+}

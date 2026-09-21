@@ -1,0 +1,173 @@
+import {systemSlides,visualSlides,presentationSlides,slideSections} from './slides.js';
+import {budgetAmount,budgetIsRange,budgetTotal} from './budget.js';
+import {uploadSelectionError} from './upload-limits.js';
+// In-memory, fictional pitch content. No client records or production credentials.
+export const uid = () => [...crypto.getRandomValues(new Uint8Array(16))].map(v=>v.toString(16).padStart(2,'0')).join('');
+const stamp = () => new Date().toISOString();
+const theme={style:'Warm minimalism',font:'serif',colors:['#e9e3d7','#bc9f7c','#7d705c','#535e4c','#3b352f']};
+const project={id:'van-galen',name:'Villa Auren',location:'Amsterdam, Netherlands',description:'A considered home. Natural materials, soft light, and room for everyday life.',theme,created_at:'2026-09-01T09:00:00Z'};
+const contacts=[{id:'c1',name:'Emma de Vries',role:'Client',email:'emma@example.test',phone:''},{id:'c2',name:'Sophie van Dijk',role:'Interior designer',email:'sophie@example.test',phone:''},{id:'c3',name:'Thomas Bakker',role:'Joiner',email:'thomas@example.test',phone:''}];
+const f=(id,asset,name,category,mime,url,number=1)=>({id,asset_id:asset,name,category,mime,url,preview_url:url,has_preview:1,number,size:241800,metadata:{review_required:false,summary:'Fictional demonstration source'},created_at:'2026-09-17T08:30:00Z',history:[{id,name,number,url}]});
+const files=[f('v-living-2','a-living','Living room — concept 02.webp','renders','image/webp','assets/interior.webp',2),f('v-mood','a-mood','Materials & mood.webp','moodboard','image/webp','assets/moodboard.webp'),f('v-plan','a-plan','Ground floor — concept plan.pdf','drawings','application/pdf','assets/concept-plan.pdf'),f('v-budget-2','a-budget','Project budget — revision 02.csv','budget','text/csv','assets/example-budget.csv',2)];
+files[2].preview_url='assets/floorplan.svg';
+files[3].preview_url=null;files[3].has_preview=0;
+files[0].history.push({id:'v-living-1',name:'Living room — concept 01.webp',number:1,url:'assets/interior.webp'});
+files[3].history.push({id:'v-budget-1',name:'Project budget — revision 01.csv',number:1,url:'assets/example-budget-v1.csv'});
+const b=(id,label,vendor,amount,kind='quote',parent=null,included=0,note='')=>({id,label,vendor,amount_cents:amount,kind,parent_id:parent,included,note,source_version_id:'v-budget-2'});
+const budget=[b('b1','Construction & installation','Van Dijk Bouw',5400000,'quote',null,0,'Total contractor quote. Includes the electrical and plumbing subquotes below. Demo amounts include 21% VAT.'),b('b2','Electrical installation','Licht & Lijn',950000,'quote','b1',1,'Included in Van Dijk Bouw’s total. Do not add again.'),b('b3','Plumbing & heating','Warmtewerk',720000,'quote','b1',1,'Included in the main contractor’s quote.'),b('b4','Kitchen & joinery','Bakker Joinery',3280000,'quote',null,0,'Oak cabinetry, stone worktop and built-in appliances. Demo amount includes VAT.'),b('b5','Furniture & styling','Studio selection',1895000,'estimate'),b('b6','Lighting','Licht & Lijn',680000,'estimate'),b('b7','Flooring & finishes','Vloerwerk',1280000,'quote'),b('b8','Design & supervision','Your studio',390000,'quote'),b('b9','Window treatments','Vendor to be selected',null,'unknown',null,0,'Fabric and measurements to be confirmed.'),b('b10','Garden connection','Quote pending',null,'unknown',null,0,'External terrace and threshold detailing.')];
+files.push(f('v-kitchen','a-kitchen','Kitchen design — V3.webp','renders','image/webp','assets/kitchen.webp',3));
+const events=[{id:'e1',actor:'Sophie van Dijk',type:'file_uploaded',detail:'Updated the living room render',created_at:'2026-09-17T08:30:00Z'},{id:'e2',actor:'emma@example.test',type:'change_requested',detail:'Could we explore a warmer finish for the kitchen?',created_at:'2026-09-16T14:20:00Z'},{id:'e3',actor:'emma@example.test',type:'presentation_viewed',detail:'Viewed concept 01',created_at:'2026-09-15T18:42:00Z'},{id:'e4',actor:'Sophie van Dijk',type:'presentation_sent',detail:'Shared concept 01 with the family',created_at:'2026-09-14T10:00:00Z'}];
+const current={project,slides:[],slide_content:[],iteration:{id:'it-2',project_id:project.id,number:2,title:'Design development',status:'draft',theme:JSON.stringify(theme),created_at:'2026-09-17T08:00:00Z'},files,budget,contacts,comments:[{id:'cm1',slide:'renders',author:'emma@example.test',body:'Could we explore a warmer finish for the kitchen?',created_at:'2026-09-16T14:20:00Z'}],events,shares:[],jobs:[],changes:[{type:'updated',name:'Living room render'},{type:'updated',name:'Kitchen & joinery budget'}],previous_total_cents:12480000,capabilities:{demo:true,ai:false,mail:false}};
+const previous=structuredClone(current);previous.iteration={...previous.iteration,id:'it-1',number:1,title:'First concept',status:'shared',created_at:'2026-09-14T10:00:00Z'};previous.budget.find(x=>x.id==='b4').amount_cents-=365000;previous.files[0].id='v-living-1';previous.files[0].number=1;previous.files[0].name='Living room — concept 01.webp';previous.files[0].history=[previous.files[0].history[1]];previous.files[3].id='v-budget-1';previous.files[3].number=1;previous.files[3].url='assets/example-budget-v1.csv';previous.files[3].history=[previous.files[3].history[1]];previous.changes=[];previous.previous_total_cents=null;
+const decks=new Map([['it-2',current],['it-1',previous]]);
+let selected='it-2',studioTheme={palette:'sage',style:'modern'};
+const demoStudio={id:'demo',name:'Atelier North',role:'admin',language:'en'};
+const demoProfile={name:'Sophie van Dijk',email_comments:true,language:'',avatar:null};
+const total=budgetTotal;
+function enrich(d,page=0){d.total_cents=total(d.budget);d.iterations=[...decks.values()].filter(x=>x.project.id===d.project.id).map(x=>x.iteration).sort((a,b)=>b.number-a.number);const copy=structuredClone(d);copy.project.language??='';copy.project.studio_language=demoStudio.language;copy.profile={...demoProfile};const eventCount=copy.events.length;page=Math.min(Math.max(0,Number(page)||0),Math.max(0,Math.ceil(eventCount/20)-1));copy.events=copy.events.slice(page*20,page*20+20);copy.events_pagination={page,per_page:20,total:eventCount};return copy;}
+export function demoFile(id){for(const d of decks.values())for(const file of d.files){if(file.id===id)return file;const h=file.history.find(v=>v.id===id);if(h)return h;}return null;}
+export async function demoRequest(action,body={}) {
+  if(['save_slide','project_settings'].includes(action)&&body instanceof FormData)body=Object.fromEntries(body);
+  const iid=body.iteration||selected;let d=decks.get(iid)||decks.get(selected);
+  if(action==='session')return {studio:{...demoStudio},studios:[{...demoStudio}],user:{name:demoProfile.name,profile:{...demoProfile},email:'sophie@example.test'},csrf:'demo',studio_theme:studioTheme,capabilities:{demo:true,ai:false,mail:false}};
+  if(action==='profile')return {profile:{...demoProfile}};
+  if(action==='save_profile'){if(!['','en','nl'].includes(body.language??''))throw Error('Choose English or Dutch.');Object.assign(demoProfile,body);return {profile:{...demoProfile}};}
+  if(action==='projects'){const map=new Map();for(const d of [...decks.values()].sort((a,b)=>a.iteration.number-b.iteration.number))map.set(d.project.id,{...d.project,iteration:d.iteration,file_count:d.files.length});return {projects:[...map.values()]};}
+  if(action==='project'){d=body.iteration?decks.get(body.iteration):[...decks.values()].filter(x=>x.project.id===body.id).sort((a,b)=>b.iteration.number-a.iteration.number)[0];if(!d)throw Error('Project not found.');selected=d.iteration.id;return enrich(d,body.events_page);}
+  if(action==='deck'){const result=enrich(decks.get(body.iteration||selected));result.open_questions=(result.open_questions||[]).filter(q=>Number(q.published)&&!Number(q.dismissed));return result;}
+  if(action==='project_settings'){if(typeof body.tags==='string')body.tags=body.tags.split(/[,;\n]/).map(t=>t.trim()).filter(Boolean);if(body.logo?.size){const logo=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(body.logo);});d.branding={...d.branding,logo,has_project_logo:true};}else if(body.remove_logo)d.branding={...d.branding,logo:null,has_project_logo:false};for(const key of ['visibility','location','tags','deadline','archived','language'])if(key in body)for(const deck of decks.values())if(deck.project.id===d.project.id)deck.project[key]=body[key];return {ok:true};}
+  if(action==='create_project'){const pid=uid(),iid=uid();d={project:{...project,id:pid,name:body.name,visibility:body.visibility||'team',location:body.location||'',description:body.description||'',theme:{},created_at:stamp()},iteration:{id:iid,project_id:pid,number:1,title:'First concept',status:'draft',created_at:stamp()},files:[],budget:[],contacts:[{id:uid(),name:'Sophie van Dijk',role:'Interior designer',email:'sophie@example.test'},...(body.emails||[]).map(email=>({id:uid(),email,name:email.split('@')[0],role:'Client'}))],comments:[],events:[],shares:[],jobs:[],changes:[],previous_total_cents:null,capabilities:{demo:true,ai:false,mail:false}};decks.set(iid,d);selected=iid;return {project_id:pid,iteration_id:iid};}
+  if(action==='new_iteration'){const copy=structuredClone(d),n=Math.max(...[...decks.values()].filter(x=>x.project.id===d.project.id).map(x=>x.iteration.number))+1;copy.iteration={...d.iteration,id:uid(),number:n,title:body.title||'Design development',status:'draft',locked:0,created_at:stamp()};copy.previous_total_cents=total(d.budget);copy.changes=[];copy.shares=[];copy.open_questions=(copy.open_questions||[]).filter(q=>!Number(q.resolved));decks.set(copy.iteration.id,copy);selected=copy.iteration.id;return {id:selected};}
+  if(action==='upload'){
+    d=decks.get(body.get('iteration'));if(Number(d.iteration.locked))throw Error('Create a new iteration to add files.');
+    for(const file of body.getAll('files[]')){
+      const allowed=/\.(pdf|pptx?|xlsx?|csv|jpe?g|png|webp)$/i;if(!allowed.test(file.name))throw Error('Please choose PDF, PowerPoint, Excel or image files.');const sizeError=uploadSelectionError([file]);if(sizeError)throw Error(sizeError);
+      const old=d.files.find(x=>x.asset_id===body.get('replace_asset')||x.name===file.name),name=file.name.toLowerCase();const category=/mood|material|styling/.test(name)?'moodboard':/budget|quote|offerte|\.xlsx?$|\.csv$/.test(name)?'budget':/plan|drawing|detail|tekening/.test(name)?'drawings':file.type.startsWith('image/')?'renders':/\.pptx?$/.test(name)?'presentation':'other';
+      const url=URL.createObjectURL(file),entry=f(uid(),old?.asset_id||uid(),file.name,category,file.type,url,(old?.number||0)+1);entry.has_preview=file.type.startsWith('image/');entry.preview_url=entry.has_preview?url:null;entry.size=file.size;entry.metadata={review_required:true,warnings:file.type.startsWith('image/')?[]:['In this demo, document contents are not extracted. The PHP app processes this file with its worker.']};entry.history=[...entry.history,...old?.history||[]];
+      if(old)d.files[d.files.indexOf(old)]=entry;else d.files.push(entry);d.changes.push({type:old?'updated':'added',name:file.name});d.events.unshift({id:uid(),actor:'You',type:'file_uploaded',detail:file.name,created_at:stamp()});
+    }return {message:'Files added to this demo session. Document extraction runs in the PHP app.'};
+  }
+  if(action==='add_system_slide'){
+    if(Number(d.iteration.locked))throw Error('Create a new iteration to edit slides.');
+    if(!systemSlides().some(s=>s.type===body.type))throw Error('Choose a valid system slide.');
+    const groups=d.slide_groups||slideSections;let section=body.section||({budget:'budget','open-questions':'questions'}[body.type]||'story');
+    if(body.section&&!Object.hasOwn(groups,section))throw Error('Choose a valid group.');
+    if(!Object.hasOwn(groups,section))section=Object.keys(groups)[0];
+    const id='system-'+uid(),position=Math.max(100000+presentationSlides(d,{includeHidden:true,includeDeleted:true}).length,...(d.slide_layout||[]).map(s=>s.position||0))+1;
+    (d.system_slides??=[]).push({id,type:body.type});(d.slide_layout??=[]).push({slide_id:id,position,hidden:0,deleted:0});(d.slide_sections??=[]).push({slide_id:id,section});return {id};
+  }
+  if(action==='save_slide'){
+    if(Number(d.iteration.locked))throw Error('Create a new iteration to edit slides.');
+    if(!body.title?.trim())throw Error('Give the slide a title.');
+    let id=body.slide_id;
+    const systemType=systemSlides().some(s=>s.type===id)?id:d.system_slides?.find(s=>s.id===id)?.type;
+    if(systemType){
+      d.slide_content??=[];const content={slide_id:systemType,title:body.title,description:body.description||''};const old=d.slide_content.find(s=>s.slide_id===systemType);if(old)Object.assign(old,content);else d.slide_content.push(content);
+    }else{
+      d.slides??=visualSlides(d).map(s=>s.record);const old=d.slides.find(s=>s.id===id);let source=old;
+      if(body.type!=='text'){
+        if(body.image?.size){const file=body.image,url=URL.createObjectURL(file),entry=f(uid(),uid(),file.name,'renders',file.type,url);d.files.push(entry);source={source_version_id:entry.id,page_number:0,image_number:0};}
+        else if(body.image_source?.startsWith('file:'))source={source_version_id:body.image_source.slice(5),page_number:0,image_number:0};
+        else if(body.image_source?.startsWith('slide:'))source=d.slides.find(s=>s.id===body.image_source.slice(6));
+        if(!source?.source_version_id)throw Error('Choose a project image or upload a photo.');
+      }else source={source_version_id:null,page_number:0,image_number:0};
+      id||=uid();const record={...source,id,type:body.type,title:body.title,description:body.description??old?.description??'',situation:body.situation||'unknown',manual:1,legacy:false,metadata:{confidence:'manual'}};
+      if(old)Object.assign(old,record);else d.slides.push(record);id='visual-'+id;
+    }
+    if(body.section){d.slide_sections??=[];const old=d.slide_sections.find(s=>s.slide_id===id);if(old)old.section=body.section;else d.slide_sections.push({slide_id:id,section:body.section});}
+    return {id};
+  }
+  if(action==='slide_layout'){
+    if(Number(d.iteration.locked))throw Error('Create a new iteration to edit slides.');
+    d.slide_layout??=[];const row=id=>{let s=d.slide_layout.find(s=>s.slide_id===id);if(!s){s={slide_id:id,hidden:0,deleted:0,position:null};d.slide_layout.push(s);}return s;};
+    if(body.operation==='section'){d.slide_sections??=[];const old=d.slide_sections.find(s=>s.slide_id===body.slide_id);if(old)old.section=body.section;else d.slide_sections.push({slide_id:body.slide_id,section:body.section});return {ok:true};}
+    if(body.operation==='reorder')body.order.forEach((id,n)=>row(id).position=n);
+    else {const s=row(body.slide_id);if(['hide','show'].includes(body.operation))s.hidden=body.operation==='hide'?1:0;else s.deleted=body.operation==='delete'?1:0;}
+    return {ok:true};
+  }
+  if(Number(d.iteration.locked)&&['theme','category','save_budget','budget_choice','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups'].includes(action))throw Error('This iteration is locked. Ask a studio admin to unlock it, or create a new iteration to make changes.');
+  if(['add_slide_group','remove_slide_group','reorder_slide_groups'].includes(action)){
+    d.slide_groups??={...slideSections};const groups=d.slide_groups;
+    if(action==='add_slide_group'){
+      const label=String(body.label||'').trim();if(!label)throw Error('Give the group a name.');
+      if(Object.keys(groups).length>=35)throw Error('Use up to 35 slide groups.');
+      if(Object.values(groups).some(value=>value.toLowerCase()===label.toLowerCase()))throw Error('A group with this name already exists.');
+      const id=uid();groups[id]=label;return {id};
+    }
+    if(action==='reorder_slide_groups'){
+      if(!Array.isArray(body.order)||body.order.length!==Object.keys(groups).length||new Set(body.order).size!==body.order.length||body.order.some(id=>!Object.hasOwn(groups,id)))throw Error('Include every group exactly once.');
+      d.slide_groups=Object.fromEntries(body.order.map(id=>[id,groups[id]]));return {ok:true};
+    }
+    if(!Object.hasOwn(groups,body.group))throw Error('Group not found.');
+    if(Object.keys(groups).length<2)throw Error('Keep at least one slide group.');
+    const members=presentationSlides(d,{includeHidden:true}).filter(slide=>slide.section===body.group),destination=body.destination||'';
+    if((destination||members.length)&&(body.group===destination||!Object.hasOwn(groups,destination)))throw Error('Choose another group for the slides.');
+    const assignments=new Map((d.slide_sections||[]).map(s=>[s.slide_id,s.section]));
+    for(const slide of members)assignments.set(slide.id,destination);
+    for(const [id,section] of assignments)if(section===body.group){if(destination)assignments.set(id,destination);else assignments.delete(id);}
+    d.slide_sections=[...assignments].map(([slide_id,section])=>({slide_id,section}));delete groups[body.group];return {ok:true};
+  }
+  if(action==='studio_theme'){if(body.language){if(!['en','nl'].includes(body.language))throw Error('Choose English or Dutch.');demoStudio.language=body.language;}if(body.name)demoStudio.name=body.name;studioTheme=body.theme;return {studio_theme:studioTheme};}
+  if(action==='category'){d.files.find(x=>x.asset_id===body.asset_id).category=body.category;return {ok:true};}
+  if(action==='lock_iteration'){const locked=body.locked??true;if(typeof locked!=='boolean')throw Error('Choose whether to lock this iteration.');if(locked&&d.jobs.some(j=>['queued','running'].includes(j.status)))throw Error('Wait for processing to finish before locking this iteration.');if(!!Number(d.iteration.locked)!==locked){d.iteration.locked=Number(locked);d.events.unshift({id:uid(),actor:'Demo designer',type:locked?'iteration_locked':'iteration_unlocked',detail:(locked?'Locked':'Unlocked')+' iteration '+d.iteration.number,created_at:stamp()});}return {ok:true};}
+  if(action==='theme'){d.project.theme=body.theme;d.iteration.theme=JSON.stringify(body.theme);return {ok:true};}
+  if(action==='budget_choice'){const row=d.budget.find(x=>x.id===body.id);if(!row)throw Error('Budget item not found.');if('selected' in body)row.selected=body.selected;if('range_percent' in body)row.range_percent=body.range_percent;return {budget:structuredClone(d.budget),total_cents:total(d.budget)};}
+  if(action==='save_budget'){const row={...body,id:body.id||uid(),amount_cents:body.price_type==='range'||body.price_type==='unknown'||body.kind==='unknown'||body.amount===''?null:Math.round(Number(body.amount)*100),min_amount_cents:body.price_type==='range'?Math.round(Number(body.min_amount)*100):null,max_amount_cents:body.price_type==='range'?Math.round(Number(body.max_amount)*100):null,is_optional:body.is_optional?1:0,included:body.parent_id&&body.included?1:0,parent_id:body.parent_id||null,source_version_id:null};const old=d.budget.find(x=>x.id===row.id);if(old)Object.assign(old,row);else d.budget.push(row);return {ok:true};}
+  if(action==='save_contact'){d.contacts.push({...body,id:uid()});if(body.role==='Client'&&d.clients&&!d.clients.some(c=>c.email===body.email))d.clients.push({name:body.name,email:body.email});return {ok:true};}
+  if(['save_project_client','remove_project_client'].includes(action)){
+    const clients=structuredClone(d.clients??d.contacts.filter(c=>c.role==='Client'));const email=body.email.trim().toLowerCase();const old=clients.find(c=>c.email===email);
+    if(action==='save_project_client'){if(old)old.name=body.name;else clients.push({email,name:body.name});}else if(old)clients.splice(clients.indexOf(old),1);
+    for(const deck of decks.values())if(deck.project.id===d.project.id){deck.clients=structuredClone(clients);if(action==='remove_project_client')deck.contacts=deck.contacts.filter(c=>c.role!=='Client'||c.email!==email);}
+    return {clients};
+  }
+  if(action==='comment_answered'){const c=d.comments.find(c=>c.id===body.id);if(!c||c.parent_id)throw Error('Choose an original comment.');c.answered=body.answered;return {id:c.id,answered:c.answered};}
+  if(action==='comment'){const parent=body.parent_id?d.comments.find(c=>c.id===body.parent_id):null;if(body.parent_id&&(!parent||parent.parent_id||parent.slide!==body.slide))throw Error('Reply to an original comment on this slide.');const comment={id:uid(),comment_order:d.comments.length+1,answered:false,iteration_id:d.iteration.id,parent_id:body.parent_id||null,slide:body.slide,body:body.body,author:body._mock_author||'Demo viewer',created_at:stamp()};d.comments.push(comment);d.events.unshift({id:uid(),actor:'Demo viewer',type:'change_requested',detail:body.body,created_at:stamp()});return {ok:true,id:comment.id};}
+  if(['generate_open_questions','save_open_question'].includes(action)&&Number(d.iteration.locked))throw Error('This iteration is locked.');
+  d.open_questions??=[];
+  if(action==='generate_open_questions'){
+    const existing=new Set(d.open_questions.map(q=>q.question));
+    for(const row of d.budget.filter(r=>budgetAmount(r)===null||r.is_optional).slice(0,6)){
+      const question=budgetAmount(row)===null?'What should we allow for '+row.label+'?':'Would you like to include '+row.label+'?';
+      if(!existing.has(question))d.open_questions.push({id:uid(),question,kind:budgetAmount(row)===null?'clarification':'preference',reason:'Based on the recorded demo budget.',answer:'',published:0,dismissed:0,resolved:0,origin:'source_helper',citations:[],replies:[]});
+    }return {ok:true};
+  }
+  if(action==='save_open_question'){
+    let q=d.open_questions.find(q=>q.id===body.id);
+    if(body.operation){if(!q)throw Error('Question not found.');q[['dismiss','restore'].includes(body.operation)?'dismissed':'resolved']=Number(['dismiss','resolve'].includes(body.operation));}
+    else{if(body.kind==='answered'&&!body.answer?.trim())throw Error('Add an answer, or choose Needs clarification.');if(!q){q={id:uid(),citations:[],replies:[],origin:'designer'};d.open_questions.push(q);}Object.assign(q,{...body,id:q.id});}return {id:q.id};
+  }
+  if(action==='reply_open_question'){const q=d.open_questions.find(q=>q.id===body.id);if(!q)throw Error('Question not found.');q.replies.push({id:uid(),author:'Demo viewer',body:body.body,created_at:stamp()});d.events.unshift({id:uid(),actor:'Demo viewer',type:'open_question_reply',detail:q.question+': '+body.body,created_at:stamp()});return {ok:true};}
+  if(action==='add_client_question'){d.open_questions.push({id:uid(),question:body.question,kind:'clarification',published:1,origin:'conversation',citations:[],replies:[]});return {ok:true};}
+  if(action==='view_event')return {ok:true};
+  if(action==='share'){const emails=body.client_emails??body.emails??[];if(!emails.length||emails.length>20)throw Error('Choose between 1 and 20 clients.');d.iteration.status='shared';return {links:emails.map(email=>({email,sent:false,url:location.origin+location.pathname+'#/view/demo',id:uid()}))};}
+  if(action==='budget_chat'){
+    const q=body.question.toLowerCase(),unknown=d.budget.filter(x=>budgetAmount(x)===null),included=d.budget.filter(x=>Number(x.included));let answer;
+    if(/unknown|unspecified|missing|tbd|not included/.test(q))answer=unknown.length?'Still to be specified: '+unknown.map(x=>x.label).join(' and ')+'. These are excluded from the known total. Their final prices may change the project total; amounts already included in a parent quote are not added again.':'There are no recorded unknown costs. Check the source quotes for exclusions.';
+    else if(/subquote|included|double|vendor|contractor/.test(q))answer=included.length?included.map(x=>x.label+' (€'+(x.amount_cents/100).toLocaleString('en-IE')+')').join(' and ')+' are already included in their parent quote. They are shown for transparency and are not added twice.':'No included subquotes are recorded.';
+    else if(/kitchen/.test(q)){const k=d.budget.find(x=>/kitchen/i.test(x.label));answer=k?`${k.label} is €${(k.amount_cents/100).toLocaleString('en-IE')}, quoted by ${k.vendor}. ${k.note}`:'No separate kitchen cost is recorded.';}
+    else if(/total|budget|cost|how much/.test(q))answer='The known total is €'+(total(d.budget)/100).toLocaleString('en-IE')+'. '+unknown.length+' costs are still unspecified. Vendor subquotes included in their parent quote are not added again.';
+    else answer='This demo helper can explain the known total, kitchen quote, unknown costs and included subquotes. Connect AI in the PHP app for free-form questions grounded in your actual budget.';
+    const event={id:uid(),project_id:d.project.id,iteration_id:d.iteration.id,actor:'Demo viewer',type:'question_answered',detail:body.question,created_at:stamp(),question_answer:{question:body.question,answer,slide:body.slide||'budget',slide_title:'The investment',status:'answered'}};d.events.unshift(event);
+    return {answer,mode:'budget_helper',sources:d.files.filter(x=>x.category==='budget').map(x=>x.id),activity_event:structuredClone(event)};
+  }
+  if(action==='image_edit')throw Error('Image generation needs the AI connection in the PHP app. The original will be preserved and the result saved as another version.');
+  if(action==='revoke_share')return {ok:true};
+  if(action==='logout')return {ok:true};
+  throw Error('This action is available in the PHP application.');
+}
+
+// Local mock additions enter the same data used by the real budget renderer and helper.
+export function syncMockAdditions(rows, uploads, comments = []) {
+  for (const row of rows) {
+    const deck = decks.get(row.iteration_id);
+    if (deck && !deck.budget.some(existing => existing.id === row.id)) deck.budget.push(structuredClone(row));
+  }
+  for (const comment of comments) {
+    const deck = decks.get(comment.iteration);
+    if (deck && !deck.comments.some(existing => existing.id === comment.id)) deck.comments.push(structuredClone(comment));
+  }
+  for (const file of uploads) {
+    const deck = decks.get(file.iteration_id);
+    if (deck && !deck.files.some(existing => existing.id === file.id)) deck.files.push(structuredClone(file));
+  }
+}

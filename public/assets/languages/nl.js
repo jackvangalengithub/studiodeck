@@ -1,5 +1,10 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"notify_me_about":"Stuur mij meldingen over",
+"all_conversation_messages":"Alle berichten in gesprekken",
+"only_explicit_mentions":"Alleen als ik met @ word vermeld",
+"mentions_only_explanation":"Geldt voor e-mails over gesprekken, inclusief bevestigingsverzoeken. Bij alleen vermeldingen moet iemand je met @ vermelden om een e-mail te sturen. Alle berichten blijven zichtbaar in Communicatie.",
+
   "your_account": "Je account",
   "your_profile": "Je profiel",
   "switch_workspace_project": "Andere werkruimte of ander project",

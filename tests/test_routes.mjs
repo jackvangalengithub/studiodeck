@@ -13,3 +13,8 @@ assert.equal(parse('/client/projects/p123'),null);
 console.log('PASS Studio-scoped URLs preserve projects, tabs, iterations, slides, feeds, search and archive filters.');
 
 assert.equal(readWorkspaceRoute({pathname:'/studio/projects/project',search:'?tab=people'}).tab,'people');
+
+assert.deepEqual(parse('/200/website?edit=1'),{studioId:'200',view:'website',editing:true});
+assert.deepEqual(parse('/200/website'),{studioId:'200',view:'website',editing:false});
+assert.equal(workspaceUrl({studioId:'200',view:'website',websiteEditing:true}),'/200/website?edit=1');
+assert.equal(workspaceUrl({studioId:'200',view:'website',websiteEditing:false}),'/200/website');

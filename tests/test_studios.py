@@ -59,6 +59,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
             except (ConnectionError,urllib.error.URLError):time.sleep(.1)
         admin.login('admin@example.test',log)
         session=admin.call('session');studio=session['studio']['id'];aid=session['user']['id']
+        check(bool(session['studio']['setup_completed_at']),'Established studio migration skips first-time setup')
         check(session['studio']['role']=='admin' and session['user']['id']=='legacy-admin','Existing account owns its migrated studio')
         check(admin.call('project',query='&id=legacy-project')['can_edit'] and session['studio_theme']['palette']=='warmgray','Migration preserves legacy project access with the fixed studio palette')
         admin.call('save_studio_user',{'email':'member@example.test','name':'Member','role':'member'},csrf=False,expected=403)

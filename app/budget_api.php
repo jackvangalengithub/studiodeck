@@ -26,6 +26,7 @@ if($action==='review_subquote'){
         $s=one("SELECT * FROM budget_link_suggestions WHERE id=? AND iteration_id=? AND status='pending'",[text_field($b['id']??''),$i['id']]);if(!$s)fail('This suggestion has already been reviewed or changed.',409);
         if($decision!=='dismiss'){
             $child=one('SELECT * FROM budget_items WHERE id=? AND iteration_id=?',[$s['child_id'],$i['id']]);$parent=one('SELECT * FROM budget_items WHERE id=? AND iteration_id=?',[$s['parent_id'],$i['id']]);
+            guard_confirmation_budget($s['child_id']);guard_confirmation_budget($s['parent_id']);
             if(!$child||!$parent||$child['parent_id']||$child['relationship_locked'])fail('The quote relationship changed. Refresh to see its current state.',409);
             if(subquote_would_cycle(rows('SELECT id,parent_id FROM budget_items WHERE iteration_id=?',[$i['id']]),$child['id'],$parent['id']))fail('A quote cannot contain itself.');
             query("UPDATE budget_items SET parent_id=?,included=?,relationship_origin='manual',relationship_locked=1,relationship_evidence=? WHERE id=?",[$parent['id'],$decision==='included'?1:0,$s['evidence'],$child['id']]);

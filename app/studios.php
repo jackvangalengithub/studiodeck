@@ -22,7 +22,7 @@ function migrate_studios(PDO $db): void {
         $db->exec('COMMIT');
     }catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
 }
-function user_studios(string $uid): array {return rows('SELECT s.id,s.name,s.theme,s.language,m.role,EXISTS(SELECT 1 FROM studio_logos l WHERE l.studio_id=s.id) AS has_logo FROM studios s JOIN studio_members m ON m.studio_id=s.id WHERE m.user_id=? ORDER BY s.name,s.id',[$uid]);}
+function user_studios(string $uid): array {return rows('SELECT s.id,s.name,s.theme,s.language,s.business_type,s.setup_completed_at,m.role,EXISTS(SELECT 1 FROM studio_logos l WHERE l.studio_id=s.id) AS has_logo FROM studios s JOIN studio_members m ON m.studio_id=s.id WHERE m.user_id=? ORDER BY s.name,s.id',[$uid]);}
 function session_details(?array $s): array {
     if(!$s)return ['user'=>null,'csrf'=>null,'studio'=>null,'studios'=>[],'studio_theme'=>null,'capabilities'=>capabilities()];
     $studios=user_studios($s['user_id']);$studio=null;foreach($studios as $v)if($v['id']===$s['studio_id'])$studio=$v;

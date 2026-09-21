@@ -1,3 +1,4 @@
+import {studioBusiness} from './studio-business.js';
 import {getLanguage} from './i18n.js';
 import {onboardingText as t} from './onboarding-copy.js';
 
@@ -11,15 +12,16 @@ export function onboardingUi({state,esc,icon,button,openModal,closeModal,render,
   function remember(patch){write(localStorage,':progress',{...prefs(),...patch});}
   const createButton=()=>button(t(state.studioEmpty?'create':'startProject'),'onboarding-create','primary','','arrow');
   function welcome(){
+    const business=studioBusiness(state.studio?.business_type);
     const name=(state.user?.profile?.name||state.user?.name||'').trim().split(/\s+/)[0];
     return `<section class="onboarding-welcome" aria-labelledby="welcome-title">
       <div class="onboarding-hero"><div class="onboarding-copy">
         <p class="onboarding-eyebrow">${name?t('hello',{name:esc(name)}):t('welcome')}</p>
-        <h1 id="welcome-title">${t('title')}</h1><p class="onboarding-intro">${t('intro')}</p>
-        <div class="onboarding-actions">${createButton()}${button(t('example'),'onboarding-example','onboarding-secondary','','play')}</div>
+        <h1 id="welcome-title">${t('title')}</h1><p class="onboarding-intro">${esc(business.welcomeIntro)}</p>
+        <div class="onboarding-actions">${createButton()}${button(t('example'),'onboarding-example','onboarding-secondary','','compass')}</div>
         <p class="onboarding-reassurance">${t('reassurance')}</p>
       </div><button class="onboarding-film" data-action="onboarding-video" aria-label="${t('play')}">
-        <img src="assets/interior.webp" alt="${t('interiorAlt')}" fetchpriority="high">
+        <img src="${business.image}" alt="${esc(business.alt)}" fetchpriority="high">
         <span class="onboarding-film-top"><span>STUDIODECK / ${getLanguage()==='nl'?'EEN EERSTE BLIK':'A FIRST LOOK'}</span><span>${t('duration')}</span></span>
         <span class="onboarding-film-play">${icon('play')}</span>
         <span class="onboarding-film-caption"><strong>${t('watch')}</strong><span>${t('watchSub')}</span></span>
@@ -27,13 +29,14 @@ export function onboardingUi({state,esc,icon,button,openModal,closeModal,render,
     </section>`;
   }
   function help(){
-    openModal(t('help'),`<p>${t('helpIntro')}</p><div class="onboarding-help-actions">${button(t('watch'),'onboarding-video','','','play')}${button(t('example'),'onboarding-example','','','spark')}</div>`,true);
+    openModal(t('help'),`<p>${t('helpIntro')}</p><div class="onboarding-help-actions">${button(t('watch'),'onboarding-video','','','play')}${button(t('example'),'onboarding-example','','','compass')}</div>`,true);
   }
   function video(){
     remember({learned:true});
-    openModal(t('tour'),`<div class="onboarding-video"><video controls playsinline preload="metadata" poster="assets/onboarding/poster.jpg" aria-label="${t('tour')}"><source src="assets/onboarding/tour.webm" type="video/webm"><track kind="captions" src="assets/onboarding/tour-${getLanguage()}.vtt" srclang="${getLanguage()}" label="${getLanguage()==='nl'?'Nederlands':'English'}" default></video><p data-video-error role="status" hidden>${t('videoError')}</p></div>
+    openModal(t('tour'),`<div class="onboarding-video"><video controls playsinline preload="metadata" poster="assets/onboarding/poster.jpg" aria-label="${t('tour')}"><source src="assets/onboarding/${getLanguage()==='nl'?'tour-nl':'tour'}.webm" type="video/webm"><track kind="captions" src="assets/onboarding/tour-${getLanguage()}.vtt" srclang="${getLanguage()}" label="${getLanguage()==='nl'?'Nederlands':'English'}" default></video><p data-video-error role="status" hidden>${t('videoError')}</p></div>
+      <p class="onboarding-audio-note">${t('audioNote')}</p>
       <details class="onboarding-transcript"><summary>${t('transcript')}</summary>${[1,2,3,4,5].map(n=>`<p>${t('transcript'+n)}</p>`).join('')}</details>
-      <div class="modal-footer onboarding-footer">${button(t('example'),'onboarding-example','ghost')}${createButton()}</div>`,true);
+      <div class="modal-footer onboarding-footer">${button(t('example'),'onboarding-example','ghost','','compass')}${createButton()}</div>`,true);
     const player=document.querySelector('.onboarding-video video');
     player.querySelector('source').addEventListener('error',()=>{document.querySelector('[data-video-error]')?.removeAttribute('hidden');});
     player.addEventListener('error',()=>{document.querySelector('[data-video-error]')?.removeAttribute('hidden');});

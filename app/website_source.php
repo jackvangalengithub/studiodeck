@@ -1,8 +1,8 @@
 <?php
 declare(strict_types=1);
 
-function website_templates(): array {
-    return [
+function website_templates(?string $type=null): array {
+    $templates=[
         ['id'=>'editorial','name'=>'The Editorial','description'=>'Confident typography and generous photography.','tone'=>'light'],
         ['id'=>'linen','name'=>'Linen','description'=>'Warm neutrals, soft shapes, thoughtful details.','tone'=>'warm'],
         ['id'=>'noir','name'=>'Noir','description'=>'Dark, cinematic, and quietly dramatic.','tone'=>'dark'],
@@ -14,6 +14,13 @@ function website_templates(): array {
         ['id'=>'terracotta','name'=>'Terracotta','description'=>'Earthy color and a tactile Mediterranean mood.','tone'=>'clay'],
         ['id'=>'minimal','name'=>'Essential','description'=>'Precise, understated, and beautifully simple.','tone'=>'light'],
     ];
+    if($type!==null){
+        $recommended=studio_business_profile($type)['templates'];
+        foreach($templates as &$template)$template['recommended']=in_array($template['id'],$recommended,true);
+        unset($template);
+        usort($templates,fn($a,$b)=>(array_search($a['id'],$recommended,true)===false?99:array_search($a['id'],$recommended,true))<=>(array_search($b['id'],$recommended,true)===false?99:array_search($b['id'],$recommended,true)));
+    }
+    return $templates;
 }
 function website_template_id(string $id): string {
     if($id==='warm')$id='linen';if(!in_array($id,array_column(website_templates(),'id'),true))fail('Choose a starting design.');return $id;
@@ -36,20 +43,24 @@ function website_source_project(array $p): string {
     $e='website_html';$out='<section class="work-detail" id="project-'.$p['id'].'" data-project="'.$p['id'].'"><div class="section-heading"><p class="eyebrow">'.$e($p['category']?:'Selected work').'</p><h2>'.$e($p['title']).'</h2><p>'.$e($p['description']).'</p>'.($p['location']?'<p>'.$e($p['location']).'</p>':'').'</div><div class="project-gallery">';
     foreach($p['images'] as $im)$out.=website_source_image($im['asset'],$im['alt']);return $out.'</div></section>';
 }
+function website_testimonial_enabled(array $d,array $t): bool {
+    if(!$t['approved'])return false;if(empty($t['project']))return true;foreach($d['projects'] as $p)if($p['id']===$t['project'])return (bool)$p['included'];return false;
+}
 function website_source_testimonial(array $t): string {
-    if(!$t['approved'])return '';return '<blockquote data-testimonial="'.$t['id'].'">'.website_source_image($t['photo'],$t['name']).'<p>“'.website_html($t['content']).'”</p><footer><strong>'.website_html($t['name']).'</strong><span>'.website_html($t['title']).'</span>'.($t['video']?'<a href="'.website_html($t['video']).'" target="_blank" rel="noopener">Watch testimonial ↗</a>':'').'</footer></blockquote>';
+    if(!$t['approved'])return '';return '<blockquote data-testimonial="'.$t['id'].'" data-testimonial-project="'.website_html($t['project']??'').'">'.website_source_image($t['photo'],$t['name']).'<p>“'.website_html($t['content']).'”</p><footer><strong>'.website_html($t['name']).'</strong><span>'.website_html($t['title']).'</span>'.($t['video']?'<a href="'.website_html($t['video']).'" target="_blank" rel="noopener">Watch testimonial ↗</a>':'').'</footer></blockquote>';
 }
 function website_seed_files(array $d,string $template,?string $hero=null): array {
+    $profile=studio_business_profile($d['business_type']??'interior',$d['language']??'en');
     $template=website_template_id($template);$e='website_html';$name=$e($d['name']);$headline=$e($d['headline']?:'Spaces with a story.');$hero??=$d['projects'][0]['images'][0]['asset']??$d['hero_asset']??'';
     $nav='<a href="#work">Our work</a><a href="#studio">The studio</a><a href="#contact">Let’s talk ↗</a>';
     $brand=$d['logo']?website_source_image($d['logo'],$d['name']):$name;
-    $html='<!doctype html><html lang="'.($d['language']??'en').'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.$e($d['title']).'</title><meta name="description" content="'.$e($d['description']?:($d['intro']?:$d['headline'])).'"><link rel="stylesheet" href="styles.css"><script src="script.js" defer></script></head><body class="'.$template.'"><a class="skip" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="#main">'.$brand.'</a><nav aria-label="Main navigation">'.$nav.'</nav></header><main id="main"><section class="hero"><div class="hero-copy"><p class="eyebrow">'.$name.' · Interior design</p><h1>'.$headline.'</h1><p class="intro">'.$e($d['intro']?:'Thoughtful spaces. Considered details. A place to feel at home.').'</p><a class="text-link" href="#work">Explore our work <span>↓</span></a></div><div class="hero-image">'.website_source_image($hero,'A considered interior with natural materials',true).'<span class="image-caption">Spaces for everyday life</span></div></section><section class="work" id="work"><div class="section-heading"><p class="eyebrow">01 / Selected work</p><h2>A sense of place.</h2></div><div class="work-grid">';
+    $html='<!doctype html><html lang="'.($d['language']??'en').'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.$e($d['title']).'</title><meta name="description" content="'.$e($d['description']?:($d['intro']?:$d['headline'])).'"><link rel="stylesheet" href="styles.css"><script src="script.js" defer></script></head><body class="'.$template.'"><a class="skip" href="#main">Skip to content</a><header class="site-header"><a class="brand" href="#main">'.$brand.'</a><nav aria-label="Main navigation">'.$nav.'</nav></header><main id="main"><section class="hero"><div class="hero-copy"><p class="eyebrow">'.$name.' · '.$e($profile['label']).'</p><h1>'.$headline.'</h1><p class="intro">'.$e($d['intro']?:$profile['intro']).'</p><a class="text-link" href="#work">Explore our work <span>↓</span></a></div><div class="hero-image">'.website_source_image($hero,$profile['alt'],true).'<span class="image-caption">'.$e($profile['label']).'</span></div></section><section class="work" id="work"><div class="section-heading"><p class="eyebrow">01 / Selected work</p><h2>A sense of place.</h2></div><div class="work-grid">';
     foreach($d['projects'] as $p)if($p['included'])$html.='<a class="work-card" data-project-card="true" href="#project-'.$p['id'].'">'.website_source_image($p['images'][0]['asset']??'',$p['images'][0]['alt']??$p['title']).'<span>'.$e($p['category']).'</span><h3>'.$e($p['title']).' ↗</h3></a>';
     if(!array_filter($d['projects'],fn($p)=>$p['included']))$html.='<p class="empty-work">A collection of our work is coming soon.</p>';
-    $html.='</div></section><section class="studio" id="studio"><div><p class="eyebrow">02 / The studio</p><h2>Good design starts<br>with a conversation.</h2></div><p>'.$e($d['about']?:'We believe the best spaces feel personal. Tell us what matters to you, and let’s imagine what comes next.').'</p></section><section class="quotes" id="testimonials"><div class="section-heading"><p class="eyebrow">In good company</p><h2>Words from our clients.</h2></div><div class="quote-grid">';
-    $hasQuotes=false;foreach($d['testimonials'] as $t)if($t['approved']){$html.=website_source_testimonial($t);$hasQuotes=true;}
+    $html.='</div></section><section class="studio" id="studio"><div><p class="eyebrow">02 / The studio</p><h2>Good design starts<br>with a conversation.</h2></div><p>'.$e($d['about']?:$profile['intro']).'</p></section><section class="quotes" id="testimonials"><div class="section-heading"><p class="eyebrow">In good company</p><h2>Words from our clients.</h2></div><div class="quote-grid">';
+    $hasQuotes=false;foreach($d['testimonials'] as $t)if(website_testimonial_enabled($d,$t)&&$t['placement']!=='project'){$html.=website_source_testimonial($t);$hasQuotes=true;}
     $html.='</div></section>';if(!$hasQuotes)$html=preg_replace('~<section class="quotes".*?</section>~s','',$html);
-    foreach($d['projects'] as $p)if($p['included'])$html.=website_source_project($p);
+    foreach($d['projects'] as $p)if($p['included']){$section=website_source_project($p);$quotes='';foreach($d['testimonials'] as $t)if(website_testimonial_enabled($d,$t)&&$t['project']===$p['id']&&$t['placement']==='project')$quotes.=website_source_testimonial($t);$html.=substr($section,0,-10).$quotes.'</section>';}
     $html.='<section class="contact" id="contact"><p class="eyebrow">Your next chapter</p><h2>Let’s make room<br>for something good.</h2>'.($d['email']?'<a class="contact-link" href="mailto:'.$e($d['email']).'">'.$e($d['email']).' ↗</a>':'<p>Contact details coming soon.</p>').'</section></main><footer class="site-footer"><a href="#main">'.$name.'</a><span>© '.gmdate('Y').'</span><a href="#main">Back to top ↑</a></footer></body></html>';
     $css=<<<'CSS'
 *,*::before,*::after{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:24px}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.7 Arial,sans-serif;--paper:#f8f7f2;--ink:#292b26;--muted:#67695f;--accent:#667252;--line:#d9d9cf}a{color:inherit;text-decoration:none}a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:6px}img{display:block;width:100%;height:auto}picture{display:block}h1,h2,h3,p{margin:0}h1,h2,h3{font-family:Georgia,serif;font-weight:400;line-height:1.04;letter-spacing:-.045em}h1{font-size:clamp(48px,6.8vw,108px)}h2{font-size:clamp(38px,4.6vw,70px)}h3{font-size:28px}.site-header,.site-footer,main{width:min(1400px,90%);margin:auto}.site-header{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:30px 0;border-bottom:1px solid var(--line)}.brand{font-size:22px;letter-spacing:-.05em;font-weight:600}.brand img{max-width:150px;max-height:65px;object-fit:contain}nav{display:flex;gap:30px;font-size:13px}.hero{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:7%;padding:80px 0}.hero-copy{padding:24px 0}.eyebrow{font-size:11px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;margin-bottom:28px}.intro{max-width:400px;color:var(--muted);margin-top:30px;font-size:18px}.text-link{display:inline-flex;gap:45px;border-bottom:1px solid var(--ink);padding:14px 0;margin-top:36px;font-size:13px}.hero-image{position:relative}.hero-image img{aspect-ratio:4/5;object-fit:cover}.image-caption{display:block;font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-top:12px}.work,.studio,.quotes,.work-detail{padding:90px 0;border-top:1px solid var(--line)}.section-heading{margin-bottom:42px}.section-heading>p:not(.eyebrow){max-width:700px;margin-top:20px;color:var(--muted);white-space:pre-line}.work-grid{display:grid;grid-template-columns:1fr 1fr;gap:50px 32px}.work-card img{aspect-ratio:4/3;object-fit:cover}.work-card>span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.13em;margin:20px 0 10px}.studio{display:grid;grid-template-columns:1fr 1fr;gap:10%;align-items:center}.studio>p{font-size:20px;white-space:pre-line;max-width:600px}.quote-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:30px}blockquote{margin:0;border-top:2px solid var(--accent);padding:28px 0}blockquote>p{font:28px/1.4 Georgia,serif;margin-bottom:20px}blockquote img{width:60px;height:60px;object-fit:cover;border-radius:50%;margin-bottom:20px}blockquote footer{display:grid;font-size:12px;gap:4px}.project-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:24px}.project-gallery img{aspect-ratio:4/3;object-fit:cover}.contact{text-align:center;padding:110px 0;border-top:1px solid var(--line)}.contact-link{display:inline-block;border-bottom:1px solid currentColor;margin-top:40px;font-size:20px}.site-footer{padding:26px 0;display:flex;justify-content:space-between;border-top:1px solid var(--line);font-size:12px}.skip{position:absolute;top:-100px;background:var(--paper);padding:12px;z-index:10}.skip:focus{top:12px}.empty-work{color:var(--muted)}
@@ -125,7 +136,14 @@ function website_preview_assets(string $sid,array $files): array {
 }
 function website_start(array $u,array $b): array {
     $site=website_get($u['studio_id']);$d=json_decode($site['draft'],true);$template=website_template_id(text_field($b['template']??'',30));
-    if(empty($d['hero_asset']))$d['hero_asset']=website_store_image($u['studio_id'],file_get_contents(ROOT.'/public/assets/interior.webp'));
+    $studio=one('SELECT * FROM studios WHERE id=?',[$u['studio_id']]);
+    $profile=studio_business_profile($studio['business_type'],$studio['language']);
+    if(empty($d['started'])){
+        $defaults=website_empty_draft($studio['name'],$studio['business_type'],$studio['language']);
+        foreach(['name','headline','intro','title','language','business_type'] as $key)$d[$key]=$defaults[$key];
+    }
+    $d['business_type']=$studio['business_type'];
+    if(empty($d['hero_asset']))$d['hero_asset']=website_store_image($u['studio_id'],file_get_contents(ROOT.'/public'.$profile['image']));
     $d['template']=$template;$d['started']=true;$d['files']=website_seed_files($d,$template);$d['conversation']=[];return website_save($u,$d,(int)($b['revision']??0));
 }
 function website_source_replace_result(array $files,array $result): array {
@@ -136,7 +154,7 @@ function website_source_replace_result(array $files,array $result): array {
 }
 function website_sync_materials(array $before,array $after): array {
     $old=website_with_source($before);if($after['files']!==$old['files'])return $after;
-    $dom=website_source_document($after['files']['index.html']);$xp=new DOMXPath($dom);$main=$dom->getElementsByTagName('main')->item(0)??$dom->getElementsByTagName('body')->item(0);$changed=false;
+    $dom=website_source_document($after['files']['index.html']);$xp=new DOMXPath($dom);$main=$dom->getElementsByTagName('main')->item(0)??$dom->getElementsByTagName('body')->item(0);$changed=false;$changedProjects=[];
     $insert=function(DOMNode $parent,string $html,?DOMNode $replace=null,?DOMNode $before=null)use($dom){
         $part=website_source_document('<html><body>'.$html.'</body></html>');$fragment=$dom->createDocumentFragment();foreach(iterator_to_array($part->getElementsByTagName('body')->item(0)->childNodes) as $node)$fragment->appendChild($dom->importNode($node,true));
         if($replace)$parent->replaceChild($fragment,$replace);elseif($before)$parent->insertBefore($fragment,$before);else $parent->appendChild($fragment);
@@ -145,9 +163,10 @@ function website_sync_materials(array $before,array $after): array {
     foreach(['projects','testimonials'] as $type){
         $previous=array_column($old[$type],null,'id');$current=array_column($after[$type],null,'id');
         foreach(array_unique([...array_keys($previous),...array_keys($current)]) as $id){
-            $a=$previous[$id]??null;$b=$current[$id]??null;if($a===$b)continue;$changed=true;
+            $a=$previous[$id]??null;$b=$current[$id]??null;$projectChanged=$type==='testimonials'&&isset($changedProjects[$b['project']??$a['project']??'']);if($a===$b&&!$projectChanged)continue;$changed=true;if($type==='projects')$changedProjects[$id]=true;
             $attribute=$type==='projects'?'data-project':'data-testimonial';$nodes=iterator_to_array($xp->query('//*[@'.$attribute.'="'.$id.'"]'));
-            $enabled=$b&&($type==='projects'?$b['included']:$b['approved']);$snippet=$enabled?($type==='projects'?website_source_project($b):website_source_testimonial($b)):'';
+            $enabled=$b&&($type==='projects'?$b['included']:website_testimonial_enabled($after,$b));$snippet=$enabled?($type==='projects'?website_source_project($b):website_source_testimonial($b)):'';
+            if($type==='testimonials'&&$a&&$b&&($a['placement']!==$b['placement']||$a['project']!==$b['project'])){foreach($nodes as $n)$n->parentNode->removeChild($n);$nodes=[];}
             if($nodes){foreach($nodes as $n){if($snippet)$insert($n->parentNode,$snippet,$n);else $n->parentNode->removeChild($n);}}
             elseif($snippet){
                 if($type==='projects')$appendToPage($snippet);

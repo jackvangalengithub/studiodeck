@@ -2,8 +2,8 @@
 declare(strict_types=1);
 function person_key(string $email,bool $owner): string {return ($owner?'user:':'client:').strtolower($email);}
 function profile_for(string $key,string $fallback=''): array {
-    $p=one('SELECT name,color,email_comments,avatar,language FROM person_profiles WHERE person_key=?',[$key])?:['name'=>'','color'=>'','email_comments'=>1,'avatar'=>null,'language'=>''];
-    $p['color']='';$p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
+    $p=one('SELECT name,color,email_comments,email_mentions_only,avatar,language FROM person_profiles WHERE person_key=?',[$key])?:['name'=>'','color'=>'','email_comments'=>1,'email_mentions_only'=>0,'avatar'=>null,'language'=>''];
+    $p['email_mentions_only']=(bool)$p['email_mentions_only'];$p['color']='';$p['name']=$p['name']?:$fallback;$p['email_comments']=(bool)$p['email_comments'];$p['avatar']=$p['avatar']?'data:image/png;base64,'.base64_encode($p['avatar']):null;return $p;
 }
 function profile_identity(bool $write=false): array {
     if(str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client ')){access_iteration('', $write);$u=authenticated_user($write);return [person_key($u['email'],true),$u['email'],$u['name']];}
@@ -18,7 +18,7 @@ function normalized_upload(string $field,int $size=640): string {
     $scale=min(1,$size/max(imagesx($im),imagesy($im)));$out=imagecreatetruecolor(max(1,(int)(imagesx($im)*$scale)),max(1,(int)(imagesy($im)*$scale)));imagealphablending($out,false);imagesavealpha($out,true);imagecopyresampled($out,$im,0,0,0,0,imagesx($out),imagesy($out),imagesx($im),imagesy($im));ob_start();imagepng($out);$data=ob_get_clean();imagedestroy($im);imagedestroy($out);return $data;
 }
 function decorate_comments(array $comments,string $key): array {
-    foreach($comments as &$c){$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
+    foreach($comments as &$c){$c['mentions']=comment_mentions($c['id']);$c['confirmation']=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']])?:null;$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
         $account=one('SELECT name FROM users WHERE email=?',[$c['author']]);$c['profile']=profile_for(person_key($c['author'],(bool)$account),$account['name']??explode('@',$c['author'])[0]);}
     return $comments;
 }

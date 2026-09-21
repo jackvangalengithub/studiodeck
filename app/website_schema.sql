@@ -18,3 +18,12 @@ CREATE TABLE IF NOT EXISTS website_ai_usage (
  PRIMARY KEY(studio_id,month)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS billing_pending_website ON billing_orders(studio_id) WHERE kind='website' AND status='pending';
+-- Project-owned originals are independent of website drafts and reset operations.
+CREATE TABLE IF NOT EXISTS project_testimonials (
+ id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+ name TEXT NOT NULL, title TEXT NOT NULL DEFAULT '', content TEXT NOT NULL,
+ video TEXT NOT NULL DEFAULT '', approved INTEGER NOT NULL DEFAULT 0,
+ data BLOB, mime TEXT NOT NULL DEFAULT '', revision INTEGER NOT NULL DEFAULT 1,
+ updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS project_testimonials_project ON project_testimonials(project_id);

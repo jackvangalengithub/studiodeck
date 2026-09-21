@@ -1,0 +1,113 @@
+/* Run against fixtures/communication-server.py; all writes are to its temporary DB. */
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
+const assert=require('node:assert/strict');
+const base=process.env.COMMUNICATION_BASE||'http://127.0.0.1:18496';
+(async()=>{
+ const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
+ const errors=[];
+ async function account(session){const context=await browser.newContext({viewport:{width:1440,height:1000}});await context.addCookies([{name:'studiodeck_session',value:session,url:base}]);const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));return {context,page};}
+ const {context:studio,page}=await account('editor'),{context:client,page:cp}=await account('client');
+ try{
+  await page.goto(base+'/studio-a/projects/shared?iteration=iteration-shared&tab=comments');
+  await page.locator('#comm-reply').waitFor();
+  assert.equal(await page.getByRole('heading',{name:'Communication',exact:true}).count(),1);
+  await page.locator('[data-action=comm-new]').click();
+  await page.locator('#comm-thread-form [name=thread_title]').fill('Paint options');
+  await page.locator('#comm-thread-form [name=body]').fill('Which finish should we use?');
+  await page.locator('#comm-thread-form button[type=submit]').click();
+  await page.getByRole('heading',{name:'Paint options',exact:true}).waitFor();
+  assert.equal(await page.locator('[data-action=comm-source]').count(),0);
+  await page.locator('#comm-reply').fill('Keep this reply in the paint thread.');
+  await page.locator('#comm-reply-form button[type=submit]').click();
+  await page.getByText('Keep this reply in the paint thread.',{exact:true}).waitFor();
+  await page.reload();await page.locator('.comm-topic').filter({hasText:'Paint options'}).click();
+  assert(await page.getByText('Keep this reply in the paint thread.',{exact:true}).isVisible());
+  await page.locator('[data-action=comm-thread][data-id=general]').click();
+  await page.locator('#comm-reply').fill('Please confirm durable paint.');
+  await page.locator('[data-action=comm-ask]').click();
+  const recipients=page.locator('#comm-confirmation-form [name=recipient]');
+  assert.equal(await recipients.locator('optgroup').count(),2);
+  assert.match(await recipients.textContent(),/Bakker Joinery.*Invite to this conversation/);
+  assert.match(await recipients.textContent(),/Painter without email.*Email address missing/);
+  assert.match(await recipients.textContent(),/Unshared client.*Invite to this conversation/);
+  assert.equal(await recipients.locator('option:enabled').count(),3);
+  await page.locator('#comm-has-cost').check();
+  await page.locator('#comm-cost').fill('1000');
+  await page.locator('.comm-help').focus();
+  assert(await page.getByRole('tooltip').isVisible());
+  assert.match(await page.getByRole('tooltip').textContent(),/negative amount/);
+  await page.locator('#comm-confirmation-form button[type=submit]').click();
+  const request=page.locator('.comm-confirmation').filter({hasText:'Please confirm durable paint.'});
+  await request.waitFor();assert.match(await request.textContent(),/Pending confirmation/);
+  assert.equal(await request.locator('[data-action=comm-confirm]').count(),0);
+  await cp.goto(base+'/client/projects/shared?iteration=iteration-shared');
+  await cp.locator('[data-action=comm-show]').first().click();
+  const clientRequest=cp.locator('.comm-confirmation').filter({hasText:'Please confirm durable paint.'});
+  await clientRequest.locator('[data-action=comm-confirm]').click();
+  await cp.getByText('Confirmation recorded.',{exact:true}).waitFor();
+  assert.match(await clientRequest.textContent(),/Confirmed by/);
+  await page.reload();await page.locator('#comm-reply').waitFor();
+  await request.locator('[data-action=comm-budget]').click();
+  const budget=page.locator('.comm-budget-source').filter({hasText:'Client'});await budget.waitFor();
+  await budget.locator('[data-action=comm-budget-source]').click();
+  assert.match(await page.locator('.modal').textContent(),/Please confirm durable paint/);
+  await page.locator('.modal [data-action=comm-open]').click();
+  await page.locator('#comm-reply').fill('Legacy thread still works.');
+  await page.locator('[data-action=comm-thread][data-id=comment-shared]').click();
+  await page.locator('#comm-reply').fill('Reply to the original slide.');
+  await page.locator('#comm-reply-form button[type=submit]').click();
+  await page.getByText('Reply to the original slide.',{exact:true}).waitFor();
+  await page.locator('[data-action=comm-source]').click();
+  await page.locator('[data-action=feedback]').click();
+  assert.match(await page.locator('.feedback-list').textContent(),/Reply to the original slide/);
+  await page.locator('.modal [data-action=comm-show]').click();
+  await page.locator('[data-action=comm-thread][data-id=general]').click();
+  // Reverse direction, signed reduction, durable uploaded file.
+  await cp.locator('#comm-reply').fill('Please use the cheaper paint.');
+  await cp.locator('[data-action=comm-ask]').click();
+  await cp.locator('#comm-has-cost').check();await cp.locator('#comm-cost').fill('-250.05');
+  await cp.locator('#comm-confirmation-form summary').click();
+  await cp.locator('[data-comm-upload]').last().setInputFiles({name:'paint-note.csv',mimeType:'text/csv',buffer:Buffer.from('Material,Finish\nRAL 9010,Matte\n')});
+  await cp.getByText('Linked · processing in the background',{exact:true}).waitFor();
+  await cp.locator('#comm-confirmation-form button[type=submit]').click();
+  await cp.getByText('Request sent.',{exact:true}).waitFor();
+  await page.reload();await page.locator('#comm-reply').waitFor();
+  const reduction=page.locator('.comm-confirmation').filter({hasText:'Please use the cheaper paint.'});
+  await reduction.locator('[data-action=comm-confirm]').click();
+  await page.getByText('Confirmation recorded.',{exact:true}).waitFor();
+  assert.match(await reduction.textContent(),/−.*250/);
+  const download=page.waitForEvent('download');await reduction.locator('[data-action=comm-download]').click();
+  assert.equal((await download).suggestedFilename(),'paint-note.csv');
+  // Filtering includes completed requests, then hides them when pending-only is selected.
+  await page.locator('[data-action=comm-view][data-view=confirmations]').click();
+  assert.equal(await page.locator('.comm-confirmation').count(),2);
+  await page.locator('#comm-pending').check();assert.equal(await page.locator('.comm-confirmation').count(),0);
+  await page.locator('#comm-pending').uncheck();
+  await page.screenshot({path:'/tmp/studiodeck-communication-browser/checklist.png',fullPage:true});
+  await page.locator('[data-action=comm-view][data-view=all]').click();
+  for(const width of [1440,1024,768,390,320]){
+   await page.setViewportSize({width,height:1000});
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Communication overflows at '+width);
+   await page.locator('[data-action=comm-ask]').click();
+   await page.locator('#comm-has-cost').check();await page.locator('.comm-help').focus();
+   const bounds=await page.getByRole('tooltip').boundingBox();assert(bounds.x>=0&&bounds.x+bounds.width<=width+1,'Tooltip overflows at '+width);
+   await page.locator('.modal [data-action=close-modal]').last().click();
+  }
+  await page.screenshot({path:'/tmp/studiodeck-communication-browser/mobile.png',fullPage:true});
+  await page.setViewportSize({width:1440,height:1000});
+  await page.screenshot({path:'/tmp/studiodeck-communication-browser/communication.png',fullPage:true});
+  // Real Dutch client headers must keep the protocol scheme 'Client'.
+  const profile=await client.request.post(base+'/api.php?action=save_profile',{headers:{'X-CSRF-Token':'csrf-client','Authorization':'Client client-share'},data:{name:'Client',language:'nl',email_comments:true}});
+  assert(profile.ok());await cp.reload();await cp.locator('[data-action=comm-show]').first().click();
+  assert.equal(await cp.getByRole('heading',{name:'Communicatie',exact:true}).count(),1);
+  await cp.locator('#comm-reply').fill('Graag de verfkleur bevestigen.');await cp.locator('[data-action=comm-ask]').click();
+  await cp.locator('#comm-confirmation-form button[type=submit]').click();await cp.getByText('Verzoek verstuurd.',{exact:true}).waitFor();
+  const dutchRequest=cp.locator('.comm-confirmation').filter({hasText:'Graag de verfkleur bevestigen.'});
+  await dutchRequest.locator('[data-action=comm-withdraw]').click();await cp.locator('[data-action=comm-do-withdraw]').click();
+  await cp.getByText('Verzoek ingetrokken.',{exact:true}).waitFor();assert.match(await dutchRequest.textContent(),/Ingetrokken/);
+  await page.goto(base+'/studio-a/comments');await page.locator('[data-action=comm-location]').first().click();
+  await page.locator('#comm-reply').waitFor();
+  assert.deepEqual(errors,[]);
+  console.log('PASS real studio/client confirmation, exact signed changes, upload, legacy replies, filters, provenance and responsive layouts');
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e);process.exit(1);});

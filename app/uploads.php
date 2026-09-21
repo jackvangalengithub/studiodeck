@@ -2,16 +2,16 @@
 declare(strict_types=1);
 
 // Both computer uploads and Drive imports use the same versioning and ingest path.
-function save_project_uploads(array $prepared,string $replace,array $i,array $u,string $uploadCategory='',?callable $beforeSave=null): array {
+function save_project_uploads(array $prepared,string $replace,array $i,array $u,string $uploadCategory='',?callable $beforeSave=null,bool $communication=false): array {
     if(!in_array($uploadCategory,['','legal'],true))fail('Unknown upload category.');
     if(!$prepared||count($prepared)>20)fail('Choose between 1 and 20 files.');
     if($replace&&count($prepared)!==1)fail('Choose one replacement file.');
-    return transaction(function()use($prepared,$replace,$i,$u,$uploadCategory,$beforeSave){
+    return transaction(function()use($prepared,$replace,$i,$u,$uploadCategory,$beforeSave,$communication){
         if($beforeSave)$beforeSave();
-        owned_iteration($i['id'],$u,true);billing_reserve_usage($i['project_id'],'uploads',count($prepared));billing_reserve_usage($i['project_id'],'upload_bytes',array_sum(array_map(fn($f)=>strlen($f['data']),$prepared)));$ids=[];
+        if($communication){[$current]=access_iteration($i['id'],true);if(!empty($current['locked']))fail('This iteration is locked.',409);}else owned_iteration($i['id'],$u,true);billing_reserve_usage($i['project_id'],'uploads',count($prepared));billing_reserve_usage($i['project_id'],'upload_bytes',array_sum(array_map(fn($f)=>strlen($f['data']),$prepared)));$ids=[];
         billing_trial_storage($u['studio_id'],array_sum(array_map(fn($f)=>strlen($f['data']),$prepared)));
         foreach($prepared as $f){
-            $old=$replace?one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND f.asset_id=?',[$i['id'],$replace]):one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND v.name=?',[$i['id'],$f['name']]);
+            $old=$communication?null:($replace?one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND f.asset_id=?',[$i['id'],$replace]):one('SELECT v.id,v.asset_id,v.sha256 FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND v.name=?',[$i['id'],$f['name']]));
             if($replace&&!$old)fail('The file to replace was not found.',404);
             $sha=hash('sha256',$f['data']);if($old&&$old['sha256']===$sha){$ids[]=$old['id'];continue;}
             $asset=$old['asset_id']??id();$vid=id();$category=$uploadCategory?:category_for($f['name'],$f['mime']);

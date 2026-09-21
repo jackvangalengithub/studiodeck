@@ -24,7 +24,7 @@ function budget_total(array $items,?int $percent=null): int {
 }
 function budget_rows(string $iid): array {
     $items=rows('SELECT b.*,c.selected AS choice_selected,c.range_percent,c.updated_at AS choice_updated_at,c.updated_by AS choice_updated_by FROM budget_items b LEFT JOIN budget_choices c ON c.budget_item_id=b.id WHERE b.iteration_id=? ORDER BY b.rowid',[$iid]);
-    foreach($items as &$item){$item['selected']=empty($item['is_optional'])||!empty($item['choice_selected']);$item['range_percent']=(int)($item['range_percent']??0);$item['effective_amount_cents']=budget_amount($item);unset($item['choice_selected']);}unset($item);
+    foreach($items as &$item){$link=one('SELECT l.comment_id,c.iteration_id,r.recipient_name,r.decided_at,c.body,c.author,r.amount_cents FROM confirmation_budget_links l JOIN comments c ON c.id=l.comment_id JOIN comment_confirmations r ON r.comment_id=c.id WHERE l.budget_item_id=?',[$item['id']]);$item['confirmation']=$link?:null;$item['selected']=empty($item['is_optional'])||!empty($item['choice_selected']);$item['range_percent']=(int)($item['range_percent']??0);$item['effective_amount_cents']=budget_amount($item);unset($item['choice_selected']);}unset($item);
     foreach($items as &$item)$item['line_total_cents']=budget_line_total($item,$items);unset($item);
     return $items;
 }

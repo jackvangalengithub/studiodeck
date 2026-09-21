@@ -2,11 +2,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path');
 const {startOnboardingFixture}=require('./fixtures/onboarding-server.cjs');
 (async()=>{
-  const {fixture,base,close}=await startOnboardingFixture();let browser,page;
+  const {fixture,base,close,install}=await startOnboardingFixture({offline:process.env.STUDIODECK_BROWSER_OFFLINE==='1'});let browser,page;
   const artifacts=process.env.STUDIODECK_ONBOARDING_ARTIFACTS||'/tmp/studiodeck-onboarding';await fs.mkdir(artifacts,{recursive:true});
   try{
     browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE,args:['--no-sandbox']});
     page=await browser.newPage({viewport:{width:1440,height:1100}});const errors=[];page.setDefaultTimeout(12000);page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error:',e.message);});
+    if(install)await install(page);
     await page.goto(base+'/demo/projects');await page.locator('.onboarding-welcome').waitFor();
     assert.equal(await page.locator('#project-search').count(),0);
     await page.screenshot({path:path.join(artifacts,'welcome-desktop.png'),fullPage:true});
@@ -55,9 +56,21 @@ const {startOnboardingFixture}=require('./fixtures/onboarding-server.cjs');
     await page.locator('.onboarding-checklist').waitFor();assert.match(await page.locator('.onboarding-checklist').innerText(),/2 of 3 complete/);
     fixture.shared=true;await page.reload();await page.getByText('Your first presentation is out in the world.').waitFor();
     await page.locator('[data-action=onboarding-dismiss]').click();await page.reload();await page.locator('.project-head').waitFor();assert.equal(await page.locator('.onboarding-checklist').count(),0);
-    await page.locator('[data-action=onboarding-help]').click();await page.getByRole('button',{name:'Meet Studiodeck in 60 seconds',exact:true}).click();
+    fixture.empty=true;fixture.visible=false;await page.goto(base+'/demo/projects');await page.locator('.onboarding-film').click();
     const video=page.locator('.onboarding-video video');await video.waitFor();await video.evaluate(el=>new Promise((resolve,reject)=>{setTimeout(()=>reject(Error('Video metadata timed out')),10000);if(el.readyState>=1)return resolve();el.addEventListener('loadedmetadata',resolve,{once:true});el.addEventListener('error',reject,{once:true});}));
     assert.ok(Math.abs(await video.evaluate(el=>el.duration)-60)<1);assert.equal(await video.locator('track[srclang=en]').count(),1);
+    async function checkAudio(filename){
+      await page.waitForFunction(()=>document.querySelector('.onboarding-video video')?.webkitAudioDecodedByteCount>0);
+      assert.equal(await video.evaluate(el=>el.muted),false);
+      assert.ok((await video.evaluate(el=>el.currentSrc)).endsWith('/'+filename));
+      await video.evaluate(el=>{el.pause();el.currentTime=30;});
+      await page.waitForFunction(()=>{const el=document.querySelector('.onboarding-video video');return !el.seeking&&Math.abs(el.currentTime-30)<1;});
+      const decoded=await video.evaluate(el=>el.webkitAudioDecodedByteCount);
+      await video.evaluate(el=>el.play());
+      await page.waitForFunction(before=>document.querySelector('.onboarding-video video').webkitAudioDecodedByteCount>before,decoded);
+      assert.equal(await page.locator('[data-video-error]').isVisible(),false);
+    }
+    await checkAudio('tour.webm');
     await page.keyboard.press('Escape');assert.equal(await page.locator('video').count(),0);
     // A new studio starts fresh, with Dutch copy and a usable mobile layout.
     fixture.studio='second';fixture.created=null;fixture.empty=true;fixture.visible=false;fixture.language='nl';
@@ -80,10 +93,11 @@ const {startOnboardingFixture}=require('./fixtures/onboarding-server.cjs');
     await tour.locator('[data-guide=exit]').focus();await page.keyboard.press('Escape');await page.locator('.guided-app-tour').waitFor({state:'detached'});assert.equal(await page.locator('.guided-app-tour').count(),0);
     assert.equal(new URL(page.url()).pathname,'/second/projects');
     await page.locator('.onboarding-film').click();assert.equal(await page.locator('track[srclang=nl]').count(),1);
+    await checkAudio('tour-nl.webm');
     await page.keyboard.press('Escape');
     await page.locator('.onboarding-actions [data-action=onboarding-create]').click();
     assert.match(await page.locator('.project-wizard-steps [aria-current=step]').innerText(),/Zo werkt het/);
     assert.deepEqual(errors,[]);
-    console.log('PASS welcome eligibility, setup handoff, isolated actual-app tour, automatic advancement, skip/back, real creation, checklist persistence, captions and Dutch mobile layout. Screenshots: '+artifacts);
+    console.log('PASS welcome eligibility, setup handoff, isolated actual-app tour, automatic advancement, skip/back, real creation, checklist persistence, English/Dutch audio playback and seeking, captions and Dutch mobile layout. Screenshots: '+artifacts);
   }catch(error){if(page){await page.screenshot({path:path.join(artifacts,'failure.png'),fullPage:true});for(const frame of page.frames())console.error((await frame.locator('body').innerText()).slice(-4500));}throw error;}finally{if(browser)await browser.close();await close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

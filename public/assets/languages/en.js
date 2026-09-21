@@ -1,5 +1,10 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"notify_me_about":"Notify me about",
+"all_conversation_messages":"All conversation messages",
+"only_explicit_mentions":"Only when I’m @mentioned",
+"mentions_only_explanation":"Applies to conversation emails, including confirmation requests. With mentions only, someone must @mention you to trigger an email. All messages remain visible in Communication.",
+
   "your_account": "Your account",
   "your_profile": "Your profile",
   "switch_workspace_project": "Switch workspace / project",

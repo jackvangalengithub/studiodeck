@@ -1,5 +1,22 @@
 <?php
 declare(strict_types=1);
+// Temporary, self-contained product concept. No application session or data access.
+$mockPath=rawurldecode(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)??'/');
+if($mockPath==='/mock'||str_starts_with($mockPath,'/mock/')){
+    $mockFiles=['/mock'=>'index.html','/mock/'=>'index.html','/mock/index.html'=>'index.html','/mock/mock.css'=>'mock.css','/mock/mock.js'=>'mock.js'];
+    header('Cache-Control: no-store');header('X-Content-Type-Options: nosniff');
+    header('X-Robots-Tag: noindex, nofollow');header('Referrer-Policy: no-referrer');
+    header('X-Frame-Options: DENY');
+    header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'");
+    $mockFile=$mockFiles[$mockPath]??null;
+    if(!$mockFile&&preg_match('~^/mock/assets/[a-zA-Z0-9_./-]+\.(?:js|css|svg|webp|png|jpg|csv|pdf|woff2|vtt)$~D',$mockPath)&&!str_contains($mockPath,'..'))$mockFile=substr($mockPath,6);
+    $mockReal=$mockFile?realpath(__DIR__.'/mock/'.$mockFile):false;
+    if($mockReal&&!str_starts_with($mockReal,__DIR__.'/mock/'))$mockFile=null;
+    if(!$mockFile||!is_file(__DIR__.'/mock/'.$mockFile)){http_response_code(404);header('Content-Type: text/plain; charset=utf-8');echo 'Not found.';return;}
+    $mockTypes=['html'=>'text/html; charset=utf-8','css'=>'text/css; charset=utf-8','js'=>'text/javascript; charset=utf-8','webp'=>'image/webp','ttf'=>'font/ttf','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','csv'=>'text/csv; charset=utf-8','pdf'=>'application/pdf','woff2'=>'font/woff2','vtt'=>'text/vtt; charset=utf-8'];
+    header('Content-Type: '.$mockTypes[pathinfo($mockFile,PATHINFO_EXTENSION)]);
+    readfile(__DIR__.'/mock/'.$mockFile);return;
+}
 // All pages AND static assets must pass through this gateway in production.
 require_once __DIR__.'/../app/bootstrap.php';
 $path=rawurldecode(parse_url($_SERVER['REQUEST_URI'],PHP_URL_PATH)??'/');
@@ -28,16 +45,18 @@ try {
         header('Content-Type: '.(str_ends_with($path,'.js')?'text/javascript':'text/css').'; charset=utf-8');readfile(__DIR__.$path);return;
     }
     $appPage=$path==='/'||$path==='/index.html'||$path==='/choose';
+    $conversationPage=preg_match('~^/conversations/([A-Za-z0-9_-]+)/?$~',$path,$conversationRoute);
     $clientPage=preg_match('~^/client/projects/([A-Za-z0-9_-]+)/?$~',$path,$clientRoute);
     $studioPage=!$clientPage && preg_match('~^/([A-Za-z0-9_-]+)/(projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|activity|comments|settings|billing|website|profile)/?$~',$path,$studioRoute);
     $file=realpath(__DIR__.$path);
     $asset=$file && str_starts_with($file,__DIR__.'/assets/') && is_file($file) && !str_contains($path,'..');
-    if(!$appPage&&!$clientPage&&!$studioPage&&!$asset)fail('Not found.',404);
+    if(!$appPage&&!$clientPage&&!$studioPage&&!$conversationPage&&!$asset)fail('Not found.',404);
     $user=current_session();
     if(!$user){
         if($asset)fail('Please sign in.',401);
         header('Location: /login?returnTo='.rawurlencode($_SERVER['REQUEST_URI']),true,302);return;
     }
+    if($conversationPage)conversation_access($conversationRoute[1]);
     if($clientPage)account_client_share($user,$clientRoute[1],text_field($_GET['iteration']??''));
     if($studioPage){
         $user['studio_id']=$studioRoute[1];require_studio_member($user);
@@ -62,13 +81,28 @@ try {
         }
     }
     if($asset){
-        $types=['js'=>'text/javascript','css'=>'text/css','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','csv'=>'text/csv','pdf'=>'application/pdf','woff2'=>'font/woff2','webm'=>'video/webm','vtt'=>'text/vtt; charset=utf-8'];
+        $types=['json'=>'application/json','js'=>'text/javascript','css'=>'text/css','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','csv'=>'text/csv','pdf'=>'application/pdf','woff2'=>'font/woff2','webm'=>'video/webm','vtt'=>'text/vtt; charset=utf-8'];
         $ext=strtolower(pathinfo($file,PATHINFO_EXTENSION));if(!isset($types[$ext]))fail('Not found.',404);
-        header('Content-Type: '.$types[$ext]);readfile($file);return;
+        header('Content-Type: '.$types[$ext]);
+        $size=filesize($file);
+        if($ext==='webm'){
+            header('Accept-Ranges: bytes');
+            if(preg_match('/^bytes=(\d*)-(\d*)$/',$_SERVER['HTTP_RANGE']??'',$range)&&($range[1]!==''||$range[2]!=='')){
+                $start=$range[1]===''?max(0,$size-(int)$range[2]):(int)$range[1];
+                $end=$range[1]===''||$range[2]===''?$size-1:min($size-1,(int)$range[2]);
+                if($start>$end||$start>=$size){http_response_code(416);header('Content-Range: bytes */'.$size);header('Content-Length: 0');return;}
+                http_response_code(206);header("Content-Range: bytes $start-$end/$size");header('Content-Length: '.($end-$start+1));
+                $stream=fopen($file,'rb');fseek($stream,$start);$remaining=$end-$start+1;
+                while($remaining>0&&!feof($stream)){$chunk=fread($stream,min(65536,$remaining));if($chunk===false||$chunk==='')break;echo $chunk;$remaining-=strlen($chunk);}
+                fclose($stream);return;
+            }
+        }
+        header('Content-Length: '.$size);readfile($file);return;
     }
     header('Content-Type: text/html; charset=utf-8');
     $html=file_get_contents(__DIR__.'/index.html');
     foreach(['app.js','app.css'] as $asset){$version=substr(hash_file('sha256',__DIR__.'/assets/'.$asset),0,16);$html=str_replace('assets/'.$asset.'"','assets/'.$asset.'?v='.$version.'"',$html);}
+    if($conversationPage)$html=preg_replace('~<script type="module" src="assets/app.js[^"]*"></script>~','<script type="module" src="assets/conversation.js"></script>',$html);
     echo $html;
 } catch(Throwable $e){
     $status=$e instanceof RuntimeException && in_array($e->getCode(),[400,401,403,404],true)?$e->getCode():500;
