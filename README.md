@@ -273,3 +273,13 @@ Studios with no projects, including archived projects, see a welcome page with a
 ### Studio websites
 
 Studio admins can open **Website** to build a portfolio from curated project copies and approved testimonials. Ten one-page starting designs with full-screen previews, freely editable HTML/CSS/JavaScript, chat-driven source edits, sandboxed private previews, explicit static publication, optimized images, SEO metadata, ZIP export and version restore are implemented. Publishing requires the €39/month Website add-on entitlement (or explicit local development mode). Project changes and deletion never alter published snapshots. See [website setup, limits and deployment](docs/website.md) for Stripe and custom-domain HTTPS configuration.
+
+### Needs attention
+
+Open **Needs attention** in the studio sidebar to see published open questions, pending confirmations, unread feedback and project deadlines in one place. It includes active projects where you are a team member. Deadlines cover overdue projects and the next 14 days (UTC); overdue projects and confirmations assigned to you appear first.
+
+Category cards filter the queue and show totals. Filters survive refresh and browser navigation at `/{studioId}/attention?kind=feedback`. **Load more** pages through 50 items at a time, and **Refresh** checks for updates. Opening an item takes you to its question, conversation or project. Merely viewing this dashboard never marks comments as read.
+
+Unanswered published questions use their latest copy to avoid listing copied questions twice; new questions on older shared iterations still appear. Pending confirmations and unread conversations retain their original iteration. Replies are grouped into one unread item per conversation; messages you wrote are excluded. Resolved/dismissed questions, completed/withdrawn confirmations and archived projects drop out on refresh.
+
+Checks: `python3 -m unittest discover -s tests -p test_attention.py -v`, `node tests/test_routes.mjs`, and `tests/test_attention_browser.cjs` against the isolated Communication fixture. No real email or external API calls are needed.

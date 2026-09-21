@@ -1,5 +1,5 @@
 const tabs=new Set(['overview','slides','files','budget','people','comments','activity']);
-const viewPaths={'studio-users':'users','all-activity':'activity','all-comments':'comments',settings:'settings',profile:'profile',billing:'billing',website:'website'};
+const viewPaths={attention:'attention','studio-users':'users','all-activity':'activity','all-comments':'comments',settings:'settings',profile:'profile',billing:'billing',website:'website'};
 export function readWorkspaceRoute(location){
     const parts=location.pathname.split('/').filter(Boolean).map(decodeURIComponent),q=new URLSearchParams(location.search);
     if(parts.length<2||parts[0]==='client')return null;
@@ -7,13 +7,13 @@ export function readWorkspaceRoute(location){
     if(section==='projects'&&parts.length<=3)return {studioId,view:key?'project':'projects',projectId:key||null,iteration:q.get('iteration'),tab:tabs.has(q.get('tab'))?q.get('tab'):'overview',search:q.get('search')||'',archived:q.get('archived')==='1'};
     if(section==='slide'&&parts.length===3)return {studioId,view:'slide',slide:key,projectId:q.get('project'),iteration:q.get('iteration')};
     const view=Object.keys(viewPaths).find(view=>viewPaths[view]===section);
-    return view&&parts.length===2?{studioId,view,...(view==='website'?{editing:q.get('edit')==='1'}:{})}:null;
+    return view&&parts.length===2?{studioId,view,...(view==='website'?{editing:q.get('edit')==='1'}:view==='attention'?{kind:['questions','confirmations','feedback','deadlines'].includes(q.get('kind'))?q.get('kind'):'all'}:{})}:null;
 }
-export function workspaceUrl({studioId,view,projectId,iteration,tab,slide,search,archived,websiteEditing}){
+export function workspaceUrl({studioId,view,projectId,iteration,tab,slide,search,archived,websiteEditing,attentionFilter}){
     const root='/'+encodeURIComponent(studioId),q=new URLSearchParams();let path=root+'/projects';
     if(view==='project'&&projectId){path+='/'+encodeURIComponent(projectId);if(iteration)q.set('iteration',iteration);if(tab&&tab!=='overview')q.set('tab',tab);}
     else if(view==='slide'){path=root+'/slide/'+encodeURIComponent(slide);if(projectId)q.set('project',projectId);if(iteration)q.set('iteration',iteration);}
-    else if(viewPaths[view]){path=root+'/'+viewPaths[view];if(view==='website'&&websiteEditing)q.set('edit','1');}
+    else if(viewPaths[view]){path=root+'/'+viewPaths[view];if(view==='website'&&websiteEditing)q.set('edit','1');if(view==='attention'&&attentionFilter&&attentionFilter!=='all')q.set('kind',attentionFilter);}
     else{if(search)q.set('search',search);if(archived)q.set('archived','1');}
     return path+(q.size?'?'+q:'');
 }

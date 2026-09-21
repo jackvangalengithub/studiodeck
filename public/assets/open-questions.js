@@ -33,5 +33,5 @@ export function openQuestions({state,esc,button,openModal,closeModal,formFooter,
     if(type==='client-open-question')await api('add_client_question',{...data,iteration});
     closeModal();await refresh(true);if(type==='open-question-reply')discuss(data.id);else toast(tr("question_saved"));
   }
-  return {slide,action,submit};
+  return {discuss,slide,action,submit};
 }

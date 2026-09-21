@@ -18,3 +18,7 @@ assert.deepEqual(parse('/200/website?edit=1'),{studioId:'200',view:'website',edi
 assert.deepEqual(parse('/200/website'),{studioId:'200',view:'website',editing:false});
 assert.equal(workspaceUrl({studioId:'200',view:'website',websiteEditing:true}),'/200/website?edit=1');
 assert.equal(workspaceUrl({studioId:'200',view:'website',websiteEditing:false}),'/200/website');
+assert.deepEqual(parse('/200/attention'),{studioId:'200',view:'attention',kind:'all'});
+assert.deepEqual(parse('/200/attention?kind=feedback'),{studioId:'200',view:'attention',kind:'feedback'});
+assert.equal(parse('/200/attention?kind=invalid').kind,'all');
+assert.equal(workspaceUrl({studioId:'200',view:'attention',attentionFilter:'questions'}),'/200/attention?kind=questions');

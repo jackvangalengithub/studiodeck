@@ -1,4 +1,9 @@
 <?php
+if($action==='attention'){
+    $u=owner();require_once __DIR__.'/attention.php';
+    json_response(studio_attention($u,text_field($_GET['kind']??'all',30),max(0,(int)($_GET['offset']??0))));
+}
+
 if($action==='project_settings'){
     $u=owner(true);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();
     if($multipart&&isset($b['tags'])&&is_string($b['tags']))$b['tags']=preg_split('/[,;\r\n]+/',$b['tags']);

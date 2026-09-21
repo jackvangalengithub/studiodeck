@@ -64,5 +64,5 @@ export function communicationUi({state,api,render,refresh,openModal,closeModal,t
   function badge(c){const r=c.confirmation;if(!r)return '';return `<div class="comm-confirmation-bottom"><span class="comm-status ${r.status==='confirmed'?'done':r.status==='withdrawn'?'closed':'pending'}">${t(r.status==='confirmed'?'Confirmed':r.status==='withdrawn'?'Withdrawn':'Pending confirmation')}${r.amount_cents!==null?' · '+signed(r.amount_cents):''}</span>${btn('View confirmation','location','small ghost',`data-id="${esc(c.id)}" data-project="${esc(c.project_id||state.data?.project.id||'')}" data-iteration="${esc(c.iteration_id)}"`)}</div>`;}
   setInterval(()=>{if(state.client&&state.communicationOpen&&!document.hidden&&!busy&&!document.querySelector('.modal')&&!document.activeElement?.closest('form'))refresh().catch(()=>{});},15000);
   function mentionContext(form){const reply=replyTo&&comments().find(c=>c.id===replyTo);return {iteration:state.data.iteration.id,parent_id:form.id==='comm-thread-form'?'':reply?rootFor(reply).id:thread==='general'?'':thread};}
-  return {mentionContext,enabled,page,afterRender,overview,clientPage,budgetSource,badge,t};
+  return {open,mentionContext,enabled,page,afterRender,overview,clientPage,budgetSource,badge,t};
 }

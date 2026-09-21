@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PHP = os.environ.get('PHP_BIN', 'php')
 DENIED = (401, 403, 404)
 READ_ACTIONS = {
+    'attention',
     'project_testimonials', 'project_testimonial_photo',
     'mention_people',
     'conversation', 'conversation_file',
@@ -48,6 +49,7 @@ READ_ACTIONS = {
 }
 PUBLIC_ACTIONS = {'session', 'request_login', 'consume_login'}
 WRITE_ACTIONS = {
+    'website_page', 'billing_change_checkout', 'complete_studio_setup',
     'project_testimonial_save', 'project_testimonial_delete',
     'conversation_revoke',
     'communication_post', 'confirmation_decide', 'communication_upload',

@@ -47,7 +47,7 @@ try {
     $appPage=$path==='/'||$path==='/index.html'||$path==='/choose';
     $conversationPage=preg_match('~^/conversations/([A-Za-z0-9_-]+)/?$~',$path,$conversationRoute);
     $clientPage=preg_match('~^/client/projects/([A-Za-z0-9_-]+)/?$~',$path,$clientRoute);
-    $studioPage=!$clientPage && preg_match('~^/([A-Za-z0-9_-]+)/(projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|activity|comments|settings|billing|website|profile)/?$~',$path,$studioRoute);
+    $studioPage=!$clientPage && preg_match('~^/([A-Za-z0-9_-]+)/(projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|activity|comments|attention|settings|billing|website|profile)/?$~',$path,$studioRoute);
     $file=realpath(__DIR__.$path);
     $asset=$file && str_starts_with($file,__DIR__.'/assets/') && is_file($file) && !str_contains($path,'..');
     if(!$appPage&&!$clientPage&&!$studioPage&&!$conversationPage&&!$asset)fail('Not found.',404);
