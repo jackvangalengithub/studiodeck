@@ -125,7 +125,7 @@ document.querySelector('#expand-demo').addEventListener('click', () => {
   expanded.src = source.src;
   expanded.alt = source.alt;
   document.querySelector('#image-dialog-title').textContent = document.querySelector('#demo-title').textContent;
-  document.querySelector('#expanded-image-credit').textContent = (source.src.includes('/villas/') || source.src.includes('/architecture.jpg') || source.src.includes('/garden.jpg')) ? 'Original AI-generated architectural concept · Created for Studiodeck.' : 'Illustrative stock photograph · Your own project images take center stage in Studiodeck.';
+  document.querySelector('#expanded-image-credit').textContent = (source.src.includes('/studio-types/') || source.src.includes('/villas/') || source.src.includes('/architecture.jpg') || source.src.includes('/garden.jpg')) ? 'Original AI-generated architectural concept · Created for Studiodeck.' : 'Illustrative stock photograph · Your own project images take center stage in Studiodeck.';
   openDialog(document.querySelector('#image-dialog'));
 });
 document.querySelector('#privacy-button').addEventListener('click', () => openDialog(document.querySelector('#privacy-dialog')));

@@ -73,6 +73,30 @@ def run(tmp):
         old=site['live']['release'];site['draft']['files']['index.html']=site['draft']['files']['index.html'].replace('Spaces made for living.','Draft only headline');site=a.call('website_save',{'draft':site['draft'],'revision':site['revision']});check(urllib.request.urlopen(base+'/sites/'+sid+'/').read()==published,'Saving through the API leaves public output unchanged')
         site=a.call('website_undo',{'revision':site['revision']});check('Draft only headline' not in site['draft']['files']['index.html'],'Undo restores previous draft')
         site=a.call('website_restore',{'release':old,'revision':site['revision']});check(site['live']['release']==old,'Restore changes draft without publishing')
+        # Optional pages: real HTTP routing, preview permissions, export and whole-site restoration.
+        member.call('website_page',{'operation':'add','name':'Denied','slug':'denied','revision':site['revision']},expected=403)
+        a.call('website_page',{'operation':'add','name':'Denied','slug':'denied','revision':site['revision']},csrf=False,expected=403)
+        created=a.call('website_page',{'operation':'add','kind':'contact','name':'Contact','slug':'contact','navigation':True,'revision':site['revision']});site=created['website'];page_id=created['page']
+        preview,_=a.call('website_preview&page='+page_id+'&channel=page-test',raw=True)
+        check(b'website-page-navigation' in preview and b'page-test' in preview and b'aria-current="page"' in preview and b'>Contact</a>' in preview,'Page preview includes safe navigation and active menu state')
+        a.call('website_preview&page='+'0'*32,expected=404)
+        page_file='pages/'+page_id+'.html';site['draft']['files'][page_file]=site['draft']['files'][page_file].replace('</main>','<img src="assets/'+asset+'.webp" alt="Studio"></main>')
+        site=a.call('website_save',{'draft':site['draft'],'revision':site['revision']});site=a.call('website_publish',{'revision':site['revision']});multi=site['live']['release']
+        public_base=base+'/sites/'+sid
+        nested=urllib.request.urlopen(public_base+'/contact');check(nested.geturl().endswith('/contact/') and b'Contact |' in nested.read(),'Clean addresses normalize to a trailing slash and serve the correct page')
+        html=urllib.request.urlopen(public_base+'/contact/').read();check(b'src="../assets/' in html and urllib.request.urlopen(public_base+'/contact/styles.css').code==200,'Nested pages resolve their styles and portable images')
+        package,_=a.call('website_export',raw=True);z=zipfile.ZipFile(io.BytesIO(package));check('contact/index.html' in z.namelist() and 'contact/styles.css' in z.namelist() and 'header.html' not in z.namelist() and not any(x.startswith('pages/') for x in z.namelist()),'ZIP includes every compiled page without shared source files')
+        for path in ['/pages/'+page_id+'.html','/contact/../../draft.json','/contact/%2e%2e/draft.json','/header.html']:
+            try:urllib.request.urlopen(public_base+path);raise AssertionError('Source file exposed')
+            except urllib.error.HTTPError as e:assert e.code==404
+        site=a.call('website_page',{'operation':'update','id':page_id,'name':'Contact us','slug':'studio/contact','navigation':True,'revision':site['revision']})['website'];site=a.call('website_publish',{'revision':site['revision']})
+        moved=urllib.request.urlopen(public_base+'/contact/');check(moved.geturl().endswith('/studio/contact/') and b'Contact us' in moved.read(),'Published old addresses redirect to renamed nested pages')
+        pointer=tmp/'sites'/sid/'current.json';previous_pointer=pointer.read_text();domain_pointer=json.loads(previous_pointer);domain_pointer['domain']='pages.example.test';pointer.write_text(json.dumps(domain_pointer))
+        try:
+            custom=urllib.request.urlopen(urllib.request.Request(base+'/studio/contact/',headers={'Host':'pages.example.test'}));check(custom.code==200 and b'Contact us' in custom.read(),'Verified custom-domain routing serves nested pages from the same snapshot')
+        finally:pointer.write_text(previous_pointer)
+        site=a.call('website_restore',{'release':multi,'revision':site['revision']});check(len(site['draft']['pages'])==2 and site['draft']['pages'][1]['slug']=='contact' and site['live']['release']!=multi,'Restore recovers all pages and shared source without changing live output')
+        site=a.call('website_restore',{'release':old,'revision':site['revision']});check(len(site['draft']['pages'])==1 and 'header.html' not in site['draft']['files'],'Restoring an older one-page release restores its original source layout')
         a.call('website_domain',{'name':'javascript:alert(1)'},expected=400)
         site=a.call('website_domain',{'name':'www.example.test'});a.call('website_domain',{'name':'www.example.test'},expected=503)
         check(not site['domain']['verified'],'Unconfigured DNS does not pretend a domain is connected')

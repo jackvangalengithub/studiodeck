@@ -18,7 +18,8 @@ Upload the contents of `www/` to any static host. All assets and internal refere
 
 - Editorial design using the exact seven Warm grayscale colors from `public/assets/studio.js`, with locally hosted fonts and imagery.
 - Original AI-generated luxury villa exterior and architectural garden in `assets/architecture.jpg` and `assets/garden.jpg`, plus three original AI-generated villa interiors: Mediterranean, Japandi and contemporary classic. Panoramic hero and supporting project imagery. Prompts are in `assets/villas/PROMPTS.md`.
-- Specific positioning for interior design, architecture and landscape/garden design.
+- An opening business-type selector with the same five choices and exact image files as studio setup: interiors, gardens/landscapes, architecture, furniture/cabinetry and events/exhibitions. Selection updates the hero, presentation, approval and portfolio examples. The `audience` URL parameter preserves a choice on refresh or when shared; no cookies or local storage are used.
+- Dedicated customer communication/approval and Website add-on sections, with illustrative project conversations and connected portfolio showcases. Website pricing remains €39/month.
 - Interactive sample presentation: vision, palette, budget sources and client feedback.
 - Expanded image viewing, keyboard-accessible tabs and dialogs, mobile navigation, native FAQ disclosures, and reduced-motion support.
 - Monthly-only subscriptions at €39/€199/€399, plan details and downloadable text summaries. All AI features are included. Image alterations have an allowance of 10 per project per calendar month, or 10 total with a Project Pass.
@@ -35,6 +36,8 @@ See [PRICING.md](PRICING.md) for the recommended packages, alternatives, economi
 
 Before enabling purchasing, configure the application origin, Stripe products, tax handling and production billing terms. Plan dialogs link into signup; payment happens in the authenticated app.
 
+Audience labels and image files are copied from `public/assets/studio-types.json` and `public/assets/studio-types/` so this site stays independently deployable. Keep `audience.js`, selector labels and `assets/studio-types/` aligned with that catalog.
+
 Plan amounts are in `script.js` and the static HTML in `index.html`; keep those in sync when editing. Plan features are in `index.html`. Exact app color tokens and base styling are in `styles.css`; the editorial layout is in `luxury.css`. Photograph and font provenance is in [assets/SOURCES.md](assets/SOURCES.md).
 
 ## Validation
@@ -46,3 +49,5 @@ No changes or tests are required in the separate PHP application for this static
 ## Signup connection
 
 Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`). Empty uses the marketing page’s origin. The trial CTA and plan dialog link to `/login`; payment is handled inside the PHP app through Stripe. For separate local preview servers, set this to the PHP server origin. See [billing setup](../docs/billing.md).
+
+`tests/test_marketing_browser.mjs` checks audience switching, shared wizard images/labels, refresh and direct links, responsive layouts, example interactions and unchanged pricing. Serve `www/` and supply `MARKETING_TEST_URL`, `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` as needed.

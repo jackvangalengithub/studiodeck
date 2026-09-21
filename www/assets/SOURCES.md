@@ -38,3 +38,7 @@ Additional typography: [Cormorant Garamond](https://fonts.google.com/specimen/Co
 - `garden.jpg`: original AI-generated landscape-architecture concept with limestone stepping stones, reflecting water, terraced planting and a garden pavilion. Original: `villas/architectural-garden.png`. [Exact prompt](villas/PROMPTS.md#architectural-garden). The JPEG preserves the 1536 × 1024 composition.
 
 The site uses locally hosted `dm-sans-variable.ttf` from the [Google Fonts variable source](https://github.com/google/fonts/blob/main/ofl/dmsans/DMSans%5Bopsz%2Cwght%5D.ttf), with true light headings (weight 300) and regular body text. The older static and serif font files are retained as unused assets.
+
+## Shared studio setup imagery
+
+`studio-types/{interior,landscape,architecture,furniture,events}.webp` are unmodified copies of `public/assets/studio-types/`. The selector and audience-specific examples use the same images as the app’s setup wizard. Interior, landscape, architecture and furniture imagery comes from the generated Villa Auren and Stillwater Garden demo assets; the event concept was generated for studio setup. See [studio setup provenance](../../docs/studio-setup.md). These are illustrative generated concepts, not completed customer projects.

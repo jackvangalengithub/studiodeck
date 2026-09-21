@@ -26,6 +26,7 @@ require_once __DIR__.'/website.php';
 require_once __DIR__.'/project_testimonials.php';
 require_once __DIR__.'/website_render.php';
 require_once __DIR__.'/website_source.php';
+require_once __DIR__.'/website_pages.php';
 require_once __DIR__.'/website_billing.php';
 
 const ROOT = __DIR__ . '/..';

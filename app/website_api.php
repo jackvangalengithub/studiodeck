@@ -26,11 +26,11 @@ if(str_starts_with($action,'website_')||$action==='website'){
                 'about'=>$profile['intro'],
                 'projects'=>[['id'=>str_repeat('2',32),'title'=>$profile['projectTitle'],'description'=>$profile['projectIntro'],'category'=>$profile['label'],'location'=>'','included'=>true,'images'=>[['asset'=>$sample,'alt'=>$profile['alt']]]]]
             ]);
-            $d['files']=website_seed_files($d,$template,$sample);
+            unset($d['pages']);$d['files']=website_seed_files($d,$template,$sample);
             $raw=file_get_contents(ROOT.'/public'.$profile['image']);$info=getimagesizefromstring($raw);$url='data:image/webp;base64,'.base64_encode($raw);$assets[$sample]=['jpeg'=>$url,'webp'=>$url,'width'=>$info[0],'height'=>$info[1]];
-        }else $assets=website_preview_assets($sid,$d['files']);
+        }else{$page=website_page_find($d,text_field($_GET['page']??'home',32));if(!website_page_enabled($d,$page))fail('This project is hidden from the website.',404);$assets=website_preview_assets($sid,website_page_files($d,$page));}
         header('Content-Type: text/html; charset=utf-8');header('X-Robots-Tag: noindex, nofollow');header('X-Frame-Options: SAMEORIGIN');header('Content-Security-Policy: '.website_code_policy(true));
-        $compiled=website_source_compile($d,$assets,website_origin($site),true,text_field($_GET['channel']??'',100));echo $compiled['index.html'];exit;
+        $d=website_with_source($d);$page=website_page_find($d,$action==='website_template_preview'?'home':text_field($_GET['page']??'home',32));if(!website_page_enabled($d,$page))fail('This project is hidden from the website.',404);$compiled=website_compile_page($d,$assets,website_origin($site),$page,true,text_field($_GET['channel']??'',100));echo $compiled['index.html'];exit;
     }
     if($action==='website_export'){
         website_require_paid($site);$live=website_live($sid);if(!$live)fail('Publish a version before downloading it.');if(!class_exists('ZipArchive'))fail('ZIP export is unavailable on this server.',503);
@@ -39,6 +39,7 @@ if(str_starts_with($action,'website_')||$action==='website'){
     }
     $b=input();
     if($action==='website_reset'){if(($b['confirm']??false)!==true)fail('Confirm that you want to remove this website and start from scratch.');website_reset($u,(int)($b['revision']??0));json_response(website_payload($u));}
+    if($action==='website_page')json_response(website_page_change($u,$b));
     if($action==='website_start'){website_start($u,$b);json_response(website_payload($u));}
     if($action==='website_save'){website_save($u,is_array($b['draft']??null)?$b['draft']:[],(int)($b['revision']??0));json_response(website_payload($u));}
     if($action==='website_import'){website_import($u,$b);json_response(website_payload($u));}

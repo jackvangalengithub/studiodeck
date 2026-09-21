@@ -64,20 +64,31 @@ function website_publish(array $u,int $revision): array {
     $dir=null;
     try{
         $site=website_get($sid);website_require_paid($site);if((int)$site['revision']!==$revision)fail('Reload before publishing the latest draft.',409);$d=website_clean($sid,json_decode($site['draft'],true));
-        $d=website_with_source($d);$checks=website_source_checks($sid,$d['files']);if($checks['errors'])fail('Fix these before publishing: '.implode(' ',$checks['errors']));
+        $d=website_with_source($d);$checks=website_all_checks($sid,$d);if($checks['errors'])fail('Fix these before publishing: '.implode(' ',$checks['errors']));
         $id=id();$dir=$root.'/releases/'.$id;if(!mkdir($dir.'/public/assets',0700,true))fail('Website storage is unavailable.',503);
-        $assets=[];foreach(website_source_assets($sid,$d['files']) as $aid){$a=one('SELECT * FROM website_assets WHERE id=? AND studio_id=?',[$aid,$sid]);$optimized=website_optimize($a,$dir.'/public');$last=end($optimized['variants']);$assets[$aid]=[...$optimized,'jpeg'=>'assets/'.$aid.'.jpg','webp'=>'assets/'.$aid.'.webp'];if(!copy($dir.'/public/'.$last['jpeg'],$dir.'/public/assets/'.$aid.'.jpg')||!copy($dir.'/public/'.$last['webp'],$dir.'/public/assets/'.$aid.'.webp'))throw new RuntimeException('Could not copy website images.');}
-        $origin=website_origin($site);$compiled=website_source_compile($d,$assets,$origin);foreach($compiled as $file=>$content)website_write($dir.'/public/'.$file,$content);
-        $paths=[];foreach($d['projects'] as $p)if($p['included'])$paths[$p['id']]='index.html#project-'.$p['id'];
+        $assets=[];foreach(website_source_assets($sid,website_page_assets($d)) as $aid){$a=one('SELECT * FROM website_assets WHERE id=? AND studio_id=?',[$aid,$sid]);$optimized=website_optimize($a,$dir.'/public');$last=end($optimized['variants']);$assets[$aid]=[...$optimized,'jpeg'=>'assets/'.$aid.'.jpg','webp'=>'assets/'.$aid.'.webp'];if(!copy($dir.'/public/'.$last['jpeg'],$dir.'/public/assets/'.$aid.'.jpg')||!copy($dir.'/public/'.$last['webp'],$dir.'/public/assets/'.$aid.'.webp'))throw new RuntimeException('Could not copy website images.');}
+        $origin=website_origin($site);$pagePaths=[];$outputFiles=[];
+        foreach($d['pages'] as $page)if(website_page_enabled($d,$page)){
+            $pagePaths[$page['id']]=website_page_output($page);$folder=$page['slug']?$page['slug'].'/':'';
+            if($folder&&!is_dir($dir.'/public/'.$folder)&&!mkdir($dir.'/public/'.$folder,0700,true))fail('Website storage is unavailable.',503);
+            foreach(website_compile_page($d,$assets,$origin,$page) as $file=>$content){website_write($dir.'/public/'.$folder.$file,$content);$outputFiles[]=$folder.$file;}
+        }
+        $paths=[];foreach($d['projects'] as $p)if($p['included']){$detail=website_project_page($d,$p['id']);$paths[$p['id']]=$detail?website_page_output($detail):'index.html#project-'.$p['id'];}
         $redirects=[];$live=website_live($sid);$previous=$live?json_decode(@file_get_contents($root.'/releases/'.$live['release'].'/release.json')?:'{}',true):[];
-        foreach($previous['paths']??[] as $pid=>$old)if(str_starts_with($old,'projects/'))$redirects[$old]=$paths[$pid]??'index.html';
-        foreach($previous['redirects']??[] as $old=>$to)if(str_starts_with($old,'projects/'))$redirects[$old]=str_starts_with($to,'index.html')?$to:'index.html';
-        foreach($redirects as $old=>$to){if(!preg_match('~^projects/[a-z0-9-]+\.html$~D',$old)){unset($redirects[$old]);continue;}if(!is_dir($dir.'/public/projects'))mkdir($dir.'/public/projects',0700);website_write($dir.'/public/'.$old,'<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url=../'.website_html($to).'"><title>Page moved</title></head><body><a href="../'.website_html($to).'">Continue</a></body></html>');}
-        website_write($dir.'/public/_redirects',implode("\n",array_map(fn($old,$to)=>'/'.$old.' /'.$to.' 301',array_keys($redirects),$redirects))."\n");
+        foreach($previous['page_paths']??[] as $pid=>$old){$target=$pagePaths[$pid]??'index.html';if($old!==$target&&!in_array($old,$pagePaths,true))$redirects[$old]=$target;}
+        foreach($previous['paths']??[] as $pid=>$old)if(str_starts_with($old,'projects/')&&$old!==($paths[$pid]??'index.html')&&!in_array($old,$pagePaths,true))$redirects[$old]=$paths[$pid]??'index.html';
+        foreach($previous['redirects']??[] as $old=>$to)if(!in_array($old,$pagePaths,true)&&!isset($redirects[$old]))$redirects[$old]=$redirects[$to]??$to;
+        foreach($redirects as $old=>$to){
+            if(!preg_match('~^(?:[a-z0-9-]+/){1,3}(?:index\.html|[a-z0-9-]+\.html)$~D',$old)||in_array($old,$outputFiles,true)){unset($redirects[$old]);continue;}
+            if(!in_array(explode('#',$to)[0],$pagePaths,true))$to='index.html';$redirects[$old]=$to;
+            $parent=dirname($dir.'/public/'.$old);if(!is_dir($parent))mkdir($parent,0700,true);$relative=str_repeat('../',substr_count($old,'/')).$to;
+            website_write($dir.'/public/'.$old,'<!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0;url='.website_html($relative).'"><title>Page moved</title></head><body><a href="'.website_html($relative).'">Continue</a></body></html>');$outputFiles[]=$old;
+        }
+        website_write($dir.'/public/_redirects',implode("\n",array_map(fn($old,$to)=>'/'.str_replace('/index.html','/',$old).' /'.str_replace('/index.html','/',$to).' 301',array_keys($redirects),$redirects))."\n");
         website_write($dir.'/public/_headers',"/*\n  Content-Security-Policy: ".website_code_policy()."\n  X-Content-Type-Options: nosniff\n");
-        website_write($dir.'/public/robots.txt',"User-agent: *\nAllow: /\nSitemap: ".$origin."/sitemap.xml\n");website_write($dir.'/public/sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>'.htmlspecialchars($origin.'/',ENT_XML1,'UTF-8').'</loc></url></urlset>');
+        website_write($dir.'/public/robots.txt',"User-agent: *\nAllow: /\nSitemap: ".$origin."/sitemap.xml\n");website_write($dir.'/public/sitemap.xml','<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.implode('',array_map(fn($p)=>'<url><loc>'.htmlspecialchars($origin.website_page_url($p),ENT_XML1,'UTF-8').'</loc></url>',array_values(array_filter($d['pages'],fn($p)=>website_page_enabled($d,$p))))).'</urlset>');
         website_write($dir.'/public/404.html','<!doctype html><html lang="'.$d['language'].'"><meta charset="utf-8"><meta name="robots" content="noindex"><title>'.website_copy($d['language'],'notfound').'</title><h1>'.website_copy($d['language'],'notfound').'</h1></html>');
-        $release=['id'=>$id,'source_version'=>2,'created_at'=>now(),'revision'=>$revision,'origin'=>$origin,'paths'=>$paths,'redirects'=>$redirects];website_write($dir.'/release.json',json_encode($release));website_write($dir.'/draft.json',json_encode($d));
+        $release=['id'=>$id,'source_version'=>3,'created_at'=>now(),'revision'=>$revision,'origin'=>$origin,'paths'=>$paths,'page_paths'=>$pagePaths,'files'=>$outputFiles,'redirects'=>$redirects];website_write($dir.'/release.json',json_encode($release));website_write($dir.'/draft.json',json_encode($d));
         // Concurrent saves cannot accidentally publish a newer unreviewed draft.
         transaction(function()use($sid,$revision,$id,$release){$current=website_get($sid);website_require_paid($current);if((int)$current['revision']!==$revision)fail('The draft changed while publishing. Preview it and publish again.',409);website_set_live($current,$id,$release);});
         return $release;

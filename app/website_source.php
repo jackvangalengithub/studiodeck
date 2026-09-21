@@ -58,9 +58,13 @@ function website_code_text(mixed $value,int $limit): string {
     if(!is_string($value))fail('Website source must be text.');if(strlen($value)>$limit)fail('This source file or edit is too large.');return $value;
 }
 function website_source_files(array $files): array {
-    if(array_diff(array_keys($files),['index.html','styles.css','script.js']))fail('Use only index.html, styles.css and script.js.');
-    $out=[];foreach(['index.html'=>160000,'styles.css'=>100000,'script.js'=>80000] as $name=>$limit)$out[$name]=website_code_text($files[$name]??'',$limit);
-    if(!trim($out['index.html']))fail('Keep an index.html page.');return $out;
+    $out=[];$total=0;if(count($files)>305)fail('Too many website source files.');
+    foreach($files as $name=>$value){
+        if(!in_array($name,['index.html','styles.css','script.js','header.html','footer.html'],true)&&!preg_match('~^pages/(home|[a-f0-9]{32})\.(html|css|js)$~D',(string)$name))fail('Choose a source file belonging to a website page or shared design.');
+        $limit=str_ends_with($name,'.css')?100000:(str_ends_with($name,'.js')?80000:160000);$out[$name]=website_code_text($value,$limit);$total+=strlen($out[$name]);
+    }
+    foreach(['index.html','styles.css','script.js'] as $name)if(!isset($out[$name]))fail('Keep index.html, styles.css and script.js.');
+    if(!trim($out['index.html']))fail('Keep an index.html page.');if($total>2000000)fail('Keep the total website source under 2 MB.');return $out;
 }
 function website_source_image(string $id,string $alt,bool $eager=false): string {
     if(!$id)return '';return '<picture><source type="image/webp" srcset="assets/'.$id.'.webp"><img src="assets/'.$id.'.jpg" alt="'.website_html($alt).'" loading="'.($eager?'eager':'lazy').'"'.($eager?' fetchpriority="high"':'').'></picture>';
@@ -121,12 +125,12 @@ CSS;
 }
 function website_with_source(array $draft): array {
     if(!isset($draft['files']))$draft['files']=website_seed_files($draft,$draft['template']??'editorial');
-    $draft['started']=$draft['started']??true;$draft['conversation']=$draft['conversation']??[];return $draft;
+    $draft['started']=$draft['started']??true;$draft['conversation']=$draft['conversation']??[];return website_with_pages($draft);
 }
 function website_source_assets(string $sid,array $files): array {
     preg_match_all('~assets/([a-f0-9]{32})\.(?:jpg|webp)~',implode("\n",$files),$matches);$ids=array_values(array_unique($matches[1]));foreach($ids as $id)website_asset_check($sid,$id);return $ids;
 }
-function website_source_checks(string $sid,array $files): array {
+function website_source_checks(string $sid,array $files,?array $pages=null,string $pageId='home',array $anchors=[]): array {
     $errors=[];$warnings=[];$dom=website_source_document($files['index.html']);$xp=new DOMXPath($dom);
     if(!preg_match('~<html\b~i',$files['index.html'])||!preg_match('~<body\b~i',$files['index.html']))$errors[]='Keep a complete HTML document with html and body elements.';
     if($xp->query('//base|//iframe|//object|//embed')->length)$errors[]='Keep this a standalone page without embedded sites or a base URL.';
@@ -136,7 +140,11 @@ function website_source_checks(string $sid,array $files): array {
     if(preg_match('~@import\b~i',$files['styles.css']))$errors[]='Keep CSS in styles.css; external imports are not supported.';
     $ids=[];foreach($xp->query('//*[@id]') as $node){$id=$node->getAttribute('id');if(isset($ids[$id]))$errors[]='Duplicate page anchor: '.$id;$ids[$id]=true;}
     foreach($xp->query('//a[@href]') as $node){$url=$node->getAttribute('href');if(str_starts_with($url,'#')){if(strlen($url)>1&&!isset($ids[substr($url,1)]))$errors[]='Link points to a missing section: '.$url;}
-        elseif(!preg_match('~^(?:https?://|mailto:|tel:)~i',$url))$errors[]='Keep page navigation on this single page using #section links.';}
+        elseif(!preg_match('~^(?:https?://|mailto:|tel:)~i',$url)){
+            $target=$pages?website_resolve_page_link($url,$pages,$pageId):null;
+            if(!$target||!isset($anchors[$target['id']]))$errors[]='Link points to an unavailable page: '.$url;
+            elseif($target['fragment']!==''&&!in_array(rawurldecode($target['fragment']),$anchors[$target['id']],true))$errors[]='Link points to a missing section: '.$url;
+        }}
     foreach($xp->query('//img') as $node){if(!$node->hasAttribute('alt'))$warnings[]='An image needs a description (alt text).';$src=$node->getAttribute('src');if(!preg_match('~^assets/[a-f0-9]{32}\.(?:jpg|webp)$~D',$src)&&!str_starts_with($src,'data:image/'))$errors[]='Use an image from this website’s asset library.';}
     if(!$xp->query('//title')->length||!trim($xp->evaluate('string(//title)')))$warnings[]='Add a descriptive page title.';
     if(!$xp->query('//meta[@name="description"]')->length)$warnings[]='Add a search description.';
@@ -148,14 +156,14 @@ function website_source_checks(string $sid,array $files): array {
 function website_code_policy(bool $preview=false): string {
     return "sandbox allow-scripts allow-popups; default-src 'none'; script-src ".($preview?"'unsafe-inline'":"'self' 'unsafe-inline'")."; style-src 'self' 'unsafe-inline'; img-src ".($preview?'':"'self' ")."data: blob:; font-src data:; connect-src 'none'; frame-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors ".($preview?"'self'":"'none'");
 }
-function website_source_compile(array $draft,array $assets,string $origin,bool $preview=false,string $channel=''): array {
+function website_source_compile(array $draft,array $assets,string $origin,bool $preview=false,string $channel='',string $pagePath='/',string $prefix=''): array {
     $draft=website_with_source($draft);$files=$draft['files'];$dom=website_source_document($files['index.html']);$xp=new DOMXPath($dom);$head=$dom->getElementsByTagName('head')->item(0);$body=$dom->getElementsByTagName('body')->item(0);
     $meta=function(string $key,string $value,string $attribute='name')use($dom,$head,$xp){foreach(iterator_to_array($xp->query('//meta[@'.$attribute.'="'.$key.'"]')) as $n)$n->parentNode->removeChild($n);$n=$dom->createElement('meta');$n->setAttribute($attribute,$key);$n->setAttribute('content',$value);$head->appendChild($n);};
     if(!$xp->query('//meta[@name="viewport"]')->length)$meta('viewport','width=device-width,initial-scale=1');
     $title=trim($xp->evaluate('string(//title)'))?:$draft['title'];if(!$xp->query('//title')->length)$head->appendChild($dom->createElement('title',htmlspecialchars($title,ENT_XML1,'UTF-8')));
     $description=trim($xp->evaluate('string(//meta[@name="description"]/@content)'))?:($draft['description']?:mb_substr(trim($xp->evaluate('string(//h1)')),0,160));$meta('description',$description);$meta('robots',$preview?'noindex,nofollow':'index,follow');
-    foreach(iterator_to_array($xp->query('//link[@rel="canonical"]')) as $n)$n->parentNode->removeChild($n);$canonical=$dom->createElement('link');$canonical->setAttribute('rel','canonical');$canonical->setAttribute('href',$origin.'/');$head->appendChild($canonical);
-    $meta('og:title',$title,'property');$meta('og:description',$description,'property');$meta('og:url',$origin.'/','property');$meta('og:type','website','property');
+    foreach(iterator_to_array($xp->query('//link[@rel="canonical"]')) as $n)$n->parentNode->removeChild($n);$canonical=$dom->createElement('link');$canonical->setAttribute('rel','canonical');$canonical->setAttribute('href',$origin.$pagePath);$head->appendChild($canonical);
+    $meta('og:title',$title,'property');$meta('og:description',$description,'property');$meta('og:url',$origin.$pagePath,'property');$meta('og:type','website','property');
     $replacements=[];foreach($assets as $id=>$a){$replacements['assets/'.$id.'.jpg']=$a['jpeg'];$replacements['assets/'.$id.'.webp']=$a['webp'];}
     $first=true;foreach($xp->query('//img') as $im){$src=$im->getAttribute('src');if(preg_match('~^assets/([a-f0-9]{32})\.(jpg|webp)$~D',$src,$m)&&isset($assets[$m[1]])){$a=$assets[$m[1]];$im->setAttribute('src',$m[2]==='jpg'?$a['jpeg']:$a['webp']);$im->setAttribute('width',(string)$a['width']);$im->setAttribute('height',(string)$a['height']);if(!$preview){$format=$m[2]==='jpg'?'jpeg':'webp';$im->setAttribute('srcset',implode(', ',array_map(fn($v)=>$v[$format].' '.$v['width'].'w',$a['variants'])));if(!$im->hasAttribute('sizes'))$im->setAttribute('sizes','(max-width:700px) 90vw, 60vw');if($first)$meta('og:image',$origin.'/'.$a['jpeg'],'property');}else $im->removeAttribute('srcset');}
         if(!$im->hasAttribute('alt'))$im->setAttribute('alt','');if(!$im->hasAttribute('loading'))$im->setAttribute('loading',$first?'eager':'lazy');if($first)$im->setAttribute('fetchpriority','high');$im->setAttribute('decoding','async');$first=false;
@@ -170,6 +178,7 @@ function website_source_compile(array $draft,array $assets,string $origin,bool $
         $script=$dom->createElement('script');$script->appendChild($dom->createTextNode(str_ireplace('</script','<\/script',strtr($files['script.js'],$replacements))));$body->appendChild($script);
     }
     $html=$dom->saveHTML();if($preview)$html=strtr($html,$replacements);
+    if(!$preview&&$prefix){$html=preg_replace('~(?<=[\"\' ,(])assets/([a-f0-9]{32,64}(?:-[0-9]+)?\.(?:jpg|webp))~',$prefix.'assets/$1',$html);foreach($replacements as &$path)$path=$prefix.$path;unset($path);}
     return ['index.html'=>$html,'styles.css'=>strtr($files['styles.css'],$replacements),'script.js'=>strtr($files['script.js'],$replacements)];
 }
 function website_preview_assets(string $sid,array $files): array {
@@ -185,15 +194,15 @@ function website_start(array $u,array $b): array {
     }
     $d['business_type']=$studio['business_type'];
     if($template!=='blank'&&empty($d['hero_asset']))$d['hero_asset']=website_store_image($u['studio_id'],file_get_contents(ROOT.'/public'.$profile['image']));
-    $d['template']=$template;$d['started']=true;$d['files']=website_seed_files($d,$template);$d['conversation']=[];return website_save($u,$d,(int)($b['revision']??0));
+    $previousFiles=$d['files']??[];$hadLayout=isset($previousFiles['header.html']);$d['template']=$template;$d['started']=true;$d['files']=website_seed_files($d,$template);if($hadLayout){$d=website_enable_layout($d);foreach($previousFiles as $name=>$source)if(str_starts_with($name,'pages/')&&!in_array($name,['pages/home.css','pages/home.js'],true))$d['files'][$name]=$source;}$d['conversation']=[];return website_save($u,$d,(int)($b['revision']??0));
 }
-function website_source_replace_result(array $files,array $result): array {
+function website_source_replace_result(array $files,array $result,bool $validate=true): array {
     $new=$result['files']??[];if(!is_array($new)||array_diff(array_keys($new),array_keys($files)))fail('The website edit returned unsupported files.');
     foreach($new as $file=>$content)$files[$file]=website_code_text($content,160000);
     foreach(website_array($result['patches']??[],30) as $patch){if(!is_array($patch))fail('The website edit returned an invalid change.');$file=$patch['file']??'';if(!array_key_exists($file,$files))fail('The website edit references an unknown file.');$find=website_code_text($patch['find']??'',160000);$replace=website_code_text($patch['replace']??'',160000);if(!$find||substr_count($files[$file],$find)!==1)fail('The edit could not be applied exactly. Your draft is unchanged; please try again.',409);$files[$file]=str_replace($find,$replace,$files[$file]);}
-    return website_source_files($files);
+    return $validate?website_source_files($files):$files;
 }
-function website_sync_materials(array $before,array $after): array {
+function website_sync_materials_document(array $before,array $after,bool $append=true): array {
     $old=website_with_source($before);if($after['files']!==$old['files'])return $after;
     $dom=website_source_document($after['files']['index.html']);$xp=new DOMXPath($dom);$main=$dom->getElementsByTagName('main')->item(0)??$dom->getElementsByTagName('body')->item(0);$changed=false;$changedProjects=[];
     $insert=function(DOMNode $parent,string $html,?DOMNode $replace=null,?DOMNode $before=null)use($dom){
@@ -209,7 +218,7 @@ function website_sync_materials(array $before,array $after): array {
             $enabled=$b&&($type==='projects'?$b['included']:website_testimonial_enabled($after,$b));$snippet=$enabled?($type==='projects'?website_source_project($b):website_source_testimonial($b)):'';
             if($type==='testimonials'&&$a&&$b&&($a['placement']!==$b['placement']||$a['project']!==$b['project'])){foreach($nodes as $n)$n->parentNode->removeChild($n);$nodes=[];}
             if($nodes){foreach($nodes as $n){if($snippet)$insert($n->parentNode,$snippet,$n);else $n->parentNode->removeChild($n);}}
-            elseif($snippet){
+            elseif($snippet&&$append){
                 if($type==='projects')$appendToPage($snippet);
                 else{
                     $target=$b['placement']==='project'&&$b['project']?$xp->query('//*[@data-project="'.$b['project'].'"]')->item(0):null;
