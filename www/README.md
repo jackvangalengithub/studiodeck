@@ -18,11 +18,11 @@ Upload the contents of `www/` to any static host. All assets and internal refere
 
 - Editorial design using the exact seven Warm grayscale colors from `public/assets/studio.js`, with locally hosted fonts and imagery.
 - Original AI-generated luxury villa exterior and architectural garden in `assets/architecture.jpg` and `assets/garden.jpg`, plus three original AI-generated villa interiors: Mediterranean, Japandi and contemporary classic. Panoramic hero and supporting project imagery. Prompts are in `assets/villas/PROMPTS.md`.
-- An opening business-type selector with the same five choices and exact image files as studio setup: interiors, gardens/landscapes, architecture, furniture/cabinetry and events/exhibitions. Selection updates the hero, presentation, approval and portfolio examples. The `audience` URL parameter preserves a choice on refresh or when shared; no cookies or local storage are used.
-- Dedicated customer communication/approval and Website add-on sections, with illustrative project conversations and connected portfolio showcases. Website pricing remains €39/month.
+- An opening business-type selector with the same six choices and exact image files as studio setup: interiors, gardens/landscapes, architecture, furniture/cabinetry events/exhibitions and sign makers. Selection updates the hero, presentation, approval and portfolio examples. The `audience` URL parameter preserves a choice on refresh or when shared; no cookies or local storage are used.
+- Dedicated customer communication/approval and studio website sections, with illustrative project conversations and connected portfolio showcases. The studio website is included with every monthly subscription.
 - Interactive sample presentation: vision, palette, budget sources and client feedback.
 - Expanded image viewing, keyboard-accessible tabs and dialogs, mobile navigation, native FAQ disclosures, and reduced-motion support.
-- Monthly-only subscriptions at €39/€199/€399, plan details and downloadable text summaries. All AI features are included. Image alterations have an allowance of 10 per project per calendar month, or 10 total with a Project Pass.
+- Monthly-only subscriptions at €59/€199/€499, plan details and downloadable text summaries. All AI features are included. Image alterations have an allowance of 10 per project per calendar month, or 10 total with a Project Pass.
 - Included active-project capacity of 3/15/50, plus extra active projects at €10 each per month. Studio supports up to 5 people; Practice includes 15, with extra people at €20 each per month.
 - A prominent €19.00 one-time Project Pass with 150 days of access above the Solo, Studio and Practice plans.
 - A top-of-page drag-and-drop / AI assembly showcase with a magic-wand illustration and an illustrative client AI conversation. The opening message emphasizes keeping existing design tools and workflow.
@@ -48,6 +48,6 @@ No changes or tests are required in the separate PHP application for this static
 
 ## Signup connection
 
-Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`). Empty uses the marketing page’s origin. The trial CTA and plan dialog link to `/login`; payment is handled inside the PHP app through Stripe. For separate local preview servers, set this to the PHP server origin. See [billing setup](../docs/billing.md).
+Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`), and update the header’s `data-login` link to that origin’s root URL for use without JavaScript. Empty uses the marketing page’s origin. The header’s **Log in** button opens the app root, which redirects signed-out visitors to login. The trial CTA and plan dialog link to `/login`; payment is handled inside the PHP app through Stripe. The local preview is configured for `http://localhost:8199`. See [billing setup](../docs/billing.md).
 
 `tests/test_marketing_browser.mjs` checks audience switching, shared wizard images/labels, refresh and direct links, responsive layouts, example interactions and unchanged pricing. Serve `www/` and supply `MARKETING_TEST_URL`, `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` as needed.

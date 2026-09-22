@@ -2,18 +2,40 @@
 services:
   web:
     environment:
+      # All local emails go to this project's MailCatcher, regardless of .env.
+      MAIL_TRANSPORT: mail
       # Publish local website drafts without a paid subscription. Production ignores this flag.
       WEBSITE_LOCAL_FREE: ${WEBSITE_LOCAL_FREE:-true}
     volumes:
       - ./app:/app/app:ro
       - ./public:/app/public:ro
       - ./scripts:/app/scripts:ro
+      - ./docker/local-mail.ini:/usr/local/etc/php/conf.d/zz-local-mail.ini:ro
+    depends_on:
+      mailcatcher:
+        condition: service_healthy
   worker:
     environment:
+      MAIL_TRANSPORT: mail
       WEBSITE_LOCAL_FREE: ${WEBSITE_LOCAL_FREE:-true}
     volumes:
       - ./app:/app/app:ro
       - ./scripts:/app/scripts:ro
+      - ./docker/local-mail.ini:/usr/local/etc/php/conf.d/zz-local-mail.ini:ro
+    depends_on:
+      mailcatcher:
+        condition: service_healthy
+  mailcatcher:
+    image: dockage/mailcatcher:0.9.0
+    ports:
+      - "127.0.0.1:${MAILCATCHER_PORT:-1081}:1080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ruby", "-rsocket", "-e", "TCPSocket.new('127.0.0.1', 1025).close; TCPSocket.new('127.0.0.1', 1080).close"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
   fakestripe:
     build: ./fakestripe
     image: studiodeck-fakestripe

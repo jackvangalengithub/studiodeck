@@ -81,7 +81,7 @@ try {
         }
     }
     if($asset){
-        $types=['json'=>'application/json','js'=>'text/javascript','css'=>'text/css','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','csv'=>'text/csv','pdf'=>'application/pdf','woff2'=>'font/woff2','webm'=>'video/webm','vtt'=>'text/vtt; charset=utf-8'];
+        $types=['json'=>'application/json','js'=>'text/javascript','css'=>'text/css','svg'=>'image/svg+xml','png'=>'image/png','jpg'=>'image/jpeg','jpeg'=>'image/jpeg','webp'=>'image/webp','csv'=>'text/csv','pdf'=>'application/pdf','woff2'=>'font/woff2','ttf'=>'font/ttf','webm'=>'video/webm','vtt'=>'text/vtt; charset=utf-8'];
         $ext=strtolower(pathinfo($file,PATHINFO_EXTENSION));if(!isset($types[$ext]))fail('Not found.',404);
         header('Content-Type: '.$types[$ext]);
         $size=filesize($file);
@@ -106,6 +106,12 @@ try {
     echo $html;
 } catch(Throwable $e){
     $status=$e instanceof RuntimeException && in_array($e->getCode(),[400,401,403,404],true)?$e->getCode():500;
+    if($status===403&&!empty($studioPage)){
+        http_response_code(403);header('Content-Type: text/html; charset=utf-8');
+        header("Content-Security-Policy: default-src 'none'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'");
+        $email=htmlspecialchars($user['email']??'',ENT_QUOTES,'UTF-8');
+        echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Studio access · Studiodeck</title><link rel="stylesheet" href="/auth/login.css"></head><body><main><a class="brand" href="/">studio<strong>deck</strong></a><h1>This studio isn’t available to your account.</h1><p>Signed in as '.$email.'.</p><p>'.htmlspecialchars($e->getMessage(),ENT_QUOTES,'UTF-8').'</p><p><a href="/choose">Choose another workspace or project</a></p><p><a href="/login?returnTo=%2Fchoose">Sign in with another email</a></p></main></body></html>';return;
+    }
     http_response_code($status);header('Content-Type: text/plain; charset=utf-8');echo $status===500?'The application is unavailable.':$e->getMessage();
     if($status===500)error_log((string)$e);
 }

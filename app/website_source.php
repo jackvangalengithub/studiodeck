@@ -34,6 +34,7 @@ function website_templates(?string $type=null): array {
         'architecture'=>[['Cut & Fold','An architectural pinboard of charcoal, paper and angled images.'],['Blueprint','Electric blue, a drawing grid and monumental typography.'],['Monolith','Oxblood curves and a gallery of sculptural buildings.']],
         'furniture'=>[['Offcut','A workshop collage of warm paper and carefully framed details.'],['Object Study','International orange, graphic rules and furniture in the spotlight.'],['Bauhaus','Primary blue circles and playful, geometric proportions.']],
         'events'=>[['Afterparty','A pink scrapbook of oversized moments and tilted photographs.'],['High Voltage','Ultraviolet, neon yellow and a full-volume typographic poster.'],['Orbit','Midnight plum, luminous circles and immersive experiences.']],
+        'signmaker'=>[['Proof Sheet','A workshop collage of lettering, material samples and finished signs.'],['Street Type','Bold lettering and large photographs that bring signage into focus.'],['Contour','Curved compositions framing vehicle graphics and dimensional letters.']],
     ];
     foreach($collections as $business=>$designs)foreach($designs as $i=>$design){
         $layout=['collage','poster','orbit'][$i];

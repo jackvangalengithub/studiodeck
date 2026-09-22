@@ -57,9 +57,37 @@ const audiences = {
     "projectIntro": "An immersive installation that brings people, objects and stories together.",
     "welcomeIntro": "Bring your concepts, installations and supplier proposals together. Help clients picture the experience and decide with confidence.",
     "image": "assets/studio-types/events.webp"
+  },
+  "signmaker": {
+    "label": "Sign maker",
+    "description": "Storefront lettering, signs & vehicle graphics",
+    "headline": "Make your business stand out.",
+    "intro": "Storefront lettering, signs and vehicle graphics, made with precise finishes and a clear sense of identity.",
+    "alt": "Raised storefront lettering above a shop window with a vinyl-wrapped van parked outside",
+    "projectTitle": "A brand on the street",
+    "projectIntro": "Dimensional letters, window graphics and a matching vehicle wrap bring one identity to every surface.",
+    "welcomeIntro": "Bring your sign designs, storefront mockups, vehicle graphics and quotes together. Help clients choose materials and confirm the design before production.",
+    "image": "assets/studio-types/signmaker.webp"
   }
 };
 const audienceStories = {
+  signmaker: {
+    "title": "You make brands visible.",
+    "intro": "Bring your storefront mockups, lettering designs, vehicle graphics and quotes. AI brings them together in a client presentation, so every material, finish and installation detail is clear before production.",
+    "conversation": "Keep lettering sizes, vinyl choices and artwork revisions with the project. Attach the updated design and quote, then ask the client to confirm before you start making or installing.",
+    "question": "Could we add matching graphics to our van and see the updated quote?",
+    "reply": "Here’s the vehicle mockup and revised quote, including the vinyl and installation.",
+    "item": "Matching vehicle graphics",
+    "attachment": "Vehicle graphics · revised quote.pdf",
+    "approval": "ARTWORK & BUDGET CHANGE",
+    "budget": [
+        "Signs & lettering",
+        "Vinyl & installation"
+    ],
+    "comment": "The storefront looks great. Could we see the same design on our van?",
+    "portfolio": "Show your next client what their business could look like. Build showcases from selected storefront signs, window lettering and vehicle wraps, with the project photographs and client stories you choose to share.",
+    "detail": "Lettering & vinyl finishes"
+  },
   interior: {
     title:'You design the space.',
     intro:'Bring your room concepts, material palettes, renders and supplier quotes. AI brings them together in a client presentation, with budgets and answers alongside your vision.',

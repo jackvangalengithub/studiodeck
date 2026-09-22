@@ -7,14 +7,15 @@ if(!str_starts_with(env('STRIPE_SECRET_KEY'),'sk_test_')&&!in_array('--live',$ar
 try{
     foreach(billing_catalog() as $key=>$p){
         // Lookup keys survive repeated setup runs; existing prices are never edited.
-        $lookup=$key==='website'?'studiodeck_website_v1_eur':'studiodeck_v1_'.$key;
+        $version=in_array($key,['solo','practice'],true)?'v2':'v1';
+        $lookup='studiodeck_'.$version.'_'.$key;
         $existing=stripe_request('GET','prices',['lookup_keys'=>[$lookup],'active'=>'true','limit'=>1]);
         if(!empty($existing['data']))$price=$existing['data'][0];
         else{
             $product=stripe_request('POST','products',['name'=>'Studiodeck '.$p['name'],'metadata'=>['studiodeck_package'=>$key]],'catalog-product-v1-'.$key);
             $params=['product'=>$product['id'],'currency'=>'eur','unit_amount'=>$p['cents'],'tax_behavior'=>'exclusive','lookup_key'=>$lookup];
             if(!in_array($key,['pass','extension'],true))$params['recurring']=['interval'=>'month'];
-            $price=stripe_request('POST','prices',$params,'catalog-price-v1-'.$key);
+            $price=stripe_request('POST','prices',$params,'catalog-price-'.$version.'-'.$key);
         }
         echo 'STRIPE_PRICE_'.strtoupper($key).'='.$price['id']."\n";
     }

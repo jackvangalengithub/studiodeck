@@ -118,7 +118,7 @@ export function websiteUi({state,api,esc,button,openModal,closeModal,render,toas
    if(act==='confirm-delete-page'){await changePage({operation:'delete',id:el.dataset.id});managePages();}
    if(act==='source-scope'){sourceScope=el.dataset.scope;switchPanel('source');}
    if(act==='images')openModal('Website images',imageLibrary(),true);
-   if(act==='reset'){openModal('Remove website and start from scratch?',`<p>This permanently removes your current website design, chat, website images, project copies, testimonials, and all saved versions. Your published website will be taken offline.</p><p>Your original StudioDeck projects stay safe. Your domain connection and Website subscription are kept; this does not cancel billing.</p><p>You’ll return to the welcome screen to choose a new starting point. This cannot be undone.</p><div class="modal-footer">${button('Keep my website','close-modal','ghost')}${btn('Remove website & start over','confirm-reset','danger-text')}</div>`);}
+   if(act==='reset'){openModal('Remove website and start from scratch?',`<p>This permanently removes your current website design, chat, website images, project copies, testimonials, and all saved versions. Your published website will be taken offline.</p><p>Your original StudioDeck projects stay safe. Your domain connection and studio subscription are kept; this does not cancel billing.</p><p>You’ll return to the welcome screen to choose a new starting point. This cannot be undone.</p><div class="modal-footer">${button('Keep my website','close-modal','ghost')}${btn('Remove website & start over','confirm-reset','danger-text')}</div>`);}
    if(act==='confirm-reset'){const result=await api('website_reset',{revision:data.revision,confirm:true});closeModal();galleryOpen=false;previewTemplate='';renderGallery();state.websiteEditing=false;tab='chat';sourceFile='index.html';chatDraft='';message='';source=null;portrait='';pendingPrompt='';accept(result);toast('Website removed. Choose a new starting point.');}
    if(act==='save'){await save();toast('Website draft saved.');}
    if(act==='tab')switchPanel(el.dataset.tab);
@@ -148,7 +148,7 @@ export function websiteUi({state,api,esc,button,openModal,closeModal,render,toas
    if(act==='confirm-publish'){if(!publishChecks||publishChecks.checking||publishChecks.errors.length||publishChecks.revision!==data.revision){await reviewPublication();return;}const result=await api('website_publish',{revision:data.revision});accept(result);publishChecks=null;showPublishing('versions');toast('Your website is published.');}
    if(act==='restore'){await save();accept(await api('website_restore',{release:el.dataset.id,revision:data.revision}));publishChecks=null;showPublishing('versions');toast('Earlier version restored to draft. Preview before publishing.');}
    if(act==='checkout'){await save();const result=await api('website_checkout');location.assign(result.url);}
-   if(act==='refresh-billing'){accept(await api('website_refresh_billing'));toast(data.billing.active?'Website subscription active.':'Payment is not confirmed yet.');}
+   if(act==='refresh-billing'){accept(await api('website_refresh_billing'));toast(data.billing.active?'Website access active.':'Payment is not confirmed yet.');}
   }finally{busy=false;freeze(false);el.disabled=false;if(a==='website-format-source')codeView?.focus();}
  }
  async function submit(type,form){

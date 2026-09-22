@@ -10,7 +10,7 @@ function listing(array $items): array { return ['object'=>'list', 'data'=>array_
 function seed(): array {
     $db = array_fill_keys(['customers','sessions','subscriptions','invoices','payment_intents','charges','products','prices','configurations','portals','schedules','events','idempotency'], []);
     $db['csrf'] = bin2hex(random_bytes(24));
-    foreach (['pass'=>['Project Pass',1900], 'extension'=>['Pass extension',1500], 'solo'=>['Solo',3900], 'studio'=>['Studio',19900], 'practice'=>['Practice',39900], 'extra_project'=>['Extra active project',1000], 'extra_seat'=>['Extra Practice designer',2000]] as $key=>$entry) {
+    foreach (['pass'=>['Project Pass',1900], 'extension'=>['Pass extension',1500], 'solo'=>['Solo',5900], 'studio'=>['Studio',19900], 'practice'=>['Practice',49900], 'extra_project'=>['Extra active project',1000], 'extra_seat'=>['Extra Practice designer',2000]] as $key=>$entry) {
         $product = 'prod_fakestrip_'.$key; $price = 'price_fakestrip_'.$key;
         $db['products'][$product] = ['id'=>$product, 'object'=>'product', 'name'=>'Studiodeck '.$entry[0]];
         $db['prices'][$price] = ['id'=>$price, 'object'=>'price', 'product'=>$product, 'currency'=>'eur', 'unit_amount'=>$entry[1], 'lookup_key'=>'studiodeck_v1_'.$key, 'active'=>true, 'recurring'=>in_array($key,['pass','extension'],true)?null:['interval'=>'month']];

@@ -11,11 +11,11 @@ The static site uses these proposed EUR prices, excluding VAT:
 | Package | Price | Billing | Designers | Active projects |
 | --- | ---: | --- | ---: | ---: |
 | Project Pass | €19.00 | One-time payment, 150 days of access | 1 | 1 |
-| Solo | €39 | Monthly | 1 | 3 |
+| Solo | €59 | Monthly | 1 | 3 |
 | Studio | €199 | Monthly | Up to 5 | 15 |
-| Practice | €399 | Monthly | 15 included | 50 |
+| Practice | €499 | Monthly | 15 included | 50 |
 
-All subscriptions are monthly only, at the displayed prices. Studio is capped at 5 people. Practice includes 15 people; additional people cost €20 each per month, without increasing included project capacity. For example, 18 people costs €459/month for 50 active projects. Lead with the €19.00 Project Pass as the easiest first purchase: one payment, one project, 150 days of access, no subscription. It appears in the hero and above the monthly plans. The Project Pass access period is limited to 150 days. Buy the pass first; its 150-day access period begins when it is redeemed to create a project. A €15 extension adds 150 days without resetting AI usage; private read-only retention lasts at least 90 days after notice.
+All subscriptions are monthly only, at the displayed prices, and include a studio website. Studio is capped at 5 people. Practice includes 15 people; additional people cost €20 each per month, without increasing included project capacity. For example, 18 people costs €559/month for 50 active projects. Lead with the €19.00 Project Pass as the easiest first purchase: one payment, one project, 150 days of access, no subscription. It appears in the hero and above the monthly plans. The Project Pass access period is limited to 150 days. Buy the pass first; its 150-day access period begins when it is redeemed to create a project. A €15 extension adds 150 days without resetting AI usage; private read-only retention lasts at least 90 days after notice.
 
 These prices remain commercial hypotheses to validate with customers. The application now implements Stripe checkout, recurring billing, access gates, project/seat quotas and a 7-day trial. See [billing deployment](../docs/billing.md) for activation and operational requirements.
 
@@ -34,7 +34,7 @@ The €19 Project Pass is for one designer, one project and 150 days of access. 
 - **Every plan:** file ingestion, editable presentations, project/studio branding, client guests, contextual feedback, budget tools and preserved shared iterations. All AI-powered capabilities are included in the price, with no separate customer activation or add-on purchase.
 - **Solo:** a complete product for one professional; do not weaken presentation quality to force an upgrade.
 - **Studio:** the natural team bundle. Up to five people share 15 active projects for €199/month. A sixth person requires the Practice tier. The current product already supports memberships, project teams and access controls.
-- **Practice:** 15 included people and 50 active projects for €399/month, with extra people at €20/month each, using the existing project/team model. Do not claim SSO, dedicated hosting, SLAs, native CAD/BIM editing, formal client approvals, procurement, accounting integrations or unlimited storage.
+- **Practice:** 15 included people and 50 active projects for €499/month, with extra people at €20/month each, using the existing project/team model. Do not claim SSO, dedicated hosting, SLAs, native CAD/BIM editing, formal client approvals, procurement, accounting integrations or unlimited storage.
 - **Project Pass:** the primary entry offer, at €19.00 for one project, one designer and 150 days of access. No recurring subscription. Extensions cost €15 for another 150 days. Post-expiry private downloads remain available for at least 90 days after notice. Individual share-link expiry remains separate.
 
 Branding currently supports project/studio logos, palettes and typography; presentations retain “Presented by studiodeck.” Do not sell full white labelling or custom domains until those exist.
@@ -61,7 +61,7 @@ Keep model, conversion, storage and support cost measurements internal so the bu
 
 At an illustrative 80% gross-margin target, the €19.00 Project Pass has a €3.80 variable-cost budget per project. This is an internal planning target, not a customer usage charge or an advertised allowance.
 
-For an **illustrative 80% gross-margin target**, a €39/month Solo subscription has a €7.80/month variable-cost budget before fixed operating costs. AI, storage, conversion infrastructure, transaction fees and variable support all draw from that budget. This is a planning example, not an estimate of actual costs.
+For an **illustrative 80% gross-margin target**, a €59/month Solo subscription has a €11.80/month variable-cost budget before fixed operating costs. AI, storage, conversion infrastructure, transaction fees and variable support all draw from that budget. This is a planning example, not an estimate of actual costs.
 
 ## Conversion and packaging ideas
 

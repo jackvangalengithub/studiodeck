@@ -14,7 +14,10 @@ assert.equal(projectThemeVariables({mode:'dark',light_background:'#f6f0e5',backg
 assert.equal(projectThemeVariables({mode:'light',light_background:'invalid'})['--deck-bg'],projectThemeVariables({mode:'light'})['--deck-bg']);
 console.log('PASS Light and dark background choices remain independent, with safe legacy defaults.');
 const {cleanStudioTheme,studioThemeVariables}=await import('../public/assets/studio.js');
-assert.deepEqual(cleanStudioTheme({palette:'ocean',style:'modern',font:'sans'}),{palette:'warmgray',style:'editorial',font:'serif'});
+assert.deepEqual(cleanStudioTheme({palette:'ocean',style:'modern',font:'sans'}),{palette:'warmgray',style:'editorial',font:'sans'});
+assert.equal(cleanStudioTheme({font:'invalid'}).font,'serif');
+assert.equal(cleanStudioTheme(null).font,'serif');
+assert.ok(studioThemeVariables({font:'sans'})['--heading'].includes('DM Sans'));
 assert.equal(studioThemeVariables()['--green'],'#55534f');
 assert.ok(studioThemeVariables()['--heading'].includes('Georgia'));
-console.log('PASS Workspace chrome has one fixed warm grayscale editorial theme.');
+console.log('PASS Workspace keeps warm grayscale and supports independent serif or DM Sans headings.');

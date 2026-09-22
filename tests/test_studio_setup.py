@@ -22,6 +22,21 @@ class Client:
         assert response.code == expected, (action, response.code, data[:500])
         return data if raw else json.loads(data)
 
+    def settings_logo(self, fields, image=None, expected=200):
+        boundary = 'studiodeck-test-logo-boundary'
+        parts = []
+        for key, value in fields.items():
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode())
+        if image is not None:
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="logo"; filename="logo.png"\r\nContent-Type: image/png\r\n\r\n'.encode() + image + b'\r\n')
+        parts.append(f'--{boundary}--\r\n'.encode())
+        request = urllib.request.Request(self.base+'/api.php?action=studio_theme', data=b''.join(parts), headers={'Content-Type': 'multipart/form-data; boundary='+boundary, 'X-CSRF-Token': self.csrf, 'X-Studio-ID': self.studio})
+        try: response = self.opener.open(request)
+        except urllib.error.HTTPError as error: response = error
+        data = response.read()
+        assert response.code == expected, (response.code, data[:500])
+        return json.loads(data)
+
     def login(self, email, log):
         self.call('request_login', {'email': email})
         token = log.read_text().strip().splitlines()[-1].split('/#/login/')[1]
@@ -83,19 +98,59 @@ with tempfile.TemporaryDirectory(prefix='studio-setup-') as temp:
             member.call('studio_theme', {'business_type': 'events'}, expected=403)
             print('PASS Studios are independent and members cannot change studio identity')
 
+            assert owner.call('session')['studio_theme']['font'] == 'serif'
+            owner.call('studio_theme', {'theme': {'font': 'sans', 'palette': 'ocean'}})
+            assert member.call('session')['studio_theme'] == {'palette': 'warmgray', 'style': 'editorial', 'font': 'sans'}
+            owner.call('studio_theme', {'name': 'Font persists'})
+            assert owner.call('session')['studio_theme']['font'] == 'sans', 'Unrelated settings preserve the font'
+            member.call('studio_theme', {'theme': {'font': 'serif'}}, expected=403)
+            before = owner.call('session')['studio']
+            owner.call('studio_theme', {'name': 'Invalid font', 'theme': {'font': 'unknown'}}, expected=400)
+            assert owner.call('session')['studio'] == before
+            owner.call('studio_theme', {'theme': 'sans'}, expected=400)
+            owner.call('switch_studio', {'studio_id': second['studio']['id']})
+            assert owner.call('session')['studio_theme']['font'] == 'serif', 'Studios have independent fonts'
+            owner.call('switch_studio', {'studio_id': sid})
+            assert owner.call('session')['studio_theme']['font'] == 'sans'
+            font = owner.opener.open(base+'/assets/dm-sans-variable.ttf')
+            assert font.headers.get_content_type() == 'font/ttf' and len(font.read()) > 10000
+            owner.call('studio_theme', {'theme': {'font': 'serif'}})
+            assert member.call('session')['studio_theme']['font'] == 'serif'
+            print('PASS Shared studio font persists, validates, serves DM Sans and respects admin/studio boundaries')
+
+            import struct, zlib
+            def chunk(kind, data):
+                return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+            png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 6, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(b'\x00\x44\x55\x66\xff')) + chunk(b'IEND', b'')
+            owner.settings_logo({'name': 'Logo studio', 'theme': json.dumps({'font': 'sans'})}, png)
+            assert owner.call('session')['studio']['has_logo']
+            assert owner.call('session')['studio_theme']['font'] == 'sans'
+            before = owner.call('session')['studio']
+            owner.settings_logo({'name': 'Must roll back'}, b'not an image', expected=400)
+            assert owner.call('session')['studio'] == before
+            member.settings_logo({'remove_logo': '1'}, expected=403)
+            assert owner.call('session')['studio']['has_logo']
+            owner.settings_logo({'remove_logo': '1', 'language': 'invalid'}, expected=400)
+            assert owner.call('session')['studio']['has_logo']
+            owner.settings_logo({'remove_logo': '1', 'name': 'Without logo'})
+            assert not owner.call('session')['studio']['has_logo']
+            assert owner.call('session')['studio']['name'] == 'Without logo'
+            assert owner.call('session')['studio_theme']['font'] == 'sans'
+            print('PASS Logo and studio settings save together, reject invalid uploads atomically and restrict removal to admins')
+
             types = json.loads((ROOT/'public/assets/studio-types.json').read_text())
             # The asset catalog is served through the authenticated gateway.
-            assert len(json.load(owner.opener.open(base+'/assets/studio-types.json'))) == 5
+            assert len(json.load(owner.opener.open(base+'/assets/studio-types.json'))) == len(types)
             for item in types:
                 owner.call('studio_theme', {'business_type': item['id'], 'language': 'en'})
                 site = owner.call('website')
                 assert [t['id'] for t in site['templates'][:3]] == item['templates']
-                assert len(site['templates']) == 26 and sum(t['recommended'] for t in site['templates']) == 3
+                assert len(site['templates']) == 29 and sum(t['recommended'] for t in site['templates']) == 3
                 example = owner.call('website_template_preview&template='+item['templates'][0], raw=True).decode()
                 assert item['en']['headline'] in example
                 assert item['en']['projectTitle'] in example
                 if item['id'] != 'interior': assert 'Interior design' not in example
-            print('PASS All five niches have matching template previews and three recommendations')
+            print('PASS All business types have matching template previews and three recommendations')
 
             owner.call('studio_theme', payload)
             site = owner.call('website')

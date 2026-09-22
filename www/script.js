@@ -3,11 +3,12 @@
 // Marketing previews remain local. Signup opens the configured application.
 const appBase=(document.querySelector('meta[name="studiodeck-app-url"]')?.content||location.origin).replace(/\/$/,'');
 const signupUrl=plan=>appBase+'/login'+(plan?'?plan='+encodeURIComponent(plan):'');
+document.querySelectorAll('[data-login]').forEach(el=>{el.href=appBase+'/';});
 document.querySelectorAll('[data-signup]').forEach(el=>el.addEventListener('click',()=>location.assign(signupUrl())));
 const plans = {
-  solo: { name: 'Solo', monthly: 39, designers: 1, projects: 3, description: 'A considered workspace for your independent practice.' },
+  solo: { name: 'Solo', monthly: 59, designers: 1, projects: 3, description: 'A considered workspace for your independent practice.' },
   studio: { name: 'Studio', monthly: 199, designers: 5, projects: 15, description: 'A shared home for your creative team and its next great ideas.' },
-  practice: { name: 'Practice', monthly: 399, designers: 15, projects: 50, description: 'More room for a growing practice, with clarity across your projects.' },
+  practice: { name: 'Practice', monthly: 499, designers: 15, projects: 50, description: 'More room for a growing practice, with clarity across your projects.' },
   pass: { name: 'Project Pass', price: 19, designers: 1, projects: 1, durationDays: 150, description: 'Your files, your vision, one beautiful presentation. One payment for one project and 150 days of access. No subscription.' }
 };
 const euro = new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
@@ -140,7 +141,7 @@ document.querySelectorAll('[data-plan]').forEach(button => {
     document.querySelector('#plan-dialog-description').textContent = plan.description;
     document.querySelector('#summary-plan').textContent = `${selectedPlan === 'studio' ? 'Up to 5 people' : selectedPlan === 'practice' ? '15 people included' : '1 designer'} · ${plan.projects} active project${plan.projects > 1 ? 's' : ''}`;
     document.querySelector('#summary-extra').hidden = pass;
-    document.querySelector('#summary-extra').textContent = pass ? '' : `${selectedPlan === 'practice' ? 'Additional people: €20 each / month. ' : ''}Extra active projects: €10 each / month.`;
+    document.querySelector('#summary-extra').textContent = pass ? '' : `${selectedPlan === 'practice' ? 'Additional people: €20 each / month. ' : ''}Extra active projects: €10 each / month. Studio website included.`;
     document.querySelector('#summary-price').textContent = pass ? `${euroWithCents.format(plan.price)} one-time` : `${euro.format(plan.monthly)} / month`;
     document.querySelector('#summary-billing').textContent = pass ? `One project · ${plan.durationDays} days of access · excluding VAT`
       : `${euro.format(plan.monthly)} billed monthly · excluding VAT`;

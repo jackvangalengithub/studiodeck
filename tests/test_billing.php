@@ -55,12 +55,14 @@ check(billing_pass_expiry($pid)===$late+150*BILLING_DAY,'Late extension starts a
 $paidUntil=time()+30*BILLING_DAY;$sub=['id'=>'sub_test','customer'=>'cus_test','status'=>'active','cancel_at_period_end'=>false,'items'=>['data'=>[['id'=>'si_test','price'=>['id'=>'price_solo'],'quantity'=>1,'current_period_end'=>$paidUntil]]],'latest_invoice'=>['status'=>'open']];
 billing_sync_subscription($sub);check(!billing_subscription_active(billing_studio($sid)),'Active subscription with unpaid initial invoice does not unlock access');
 $sub['latest_invoice']['status']='paid';billing_sync_subscription($sub);check(billing_subscription_active(billing_studio($sid)),'Paid initial invoice unlocks subscription');
-// Capacity can grow on every subscription beyond the former product caps.
-foreach(['solo','studio','practice'] as $plan){
-    billing_require_fit($sid,$plan,501,101);
-    $capacity=billing_limits(array_merge(billing_studio($sid),['plan'=>$plan,'extra_projects'=>501,'extra_seats'=>101]));
-    check($capacity['seats']===billing_catalog()[$plan]['seats']+101&&$capacity['projects']===billing_catalog()[$plan]['projects']+501,$plan.' grants all purchased capacity without former caps');
+// Active projects can grow on every subscription; people follow package limits.
+foreach(['solo'=>0,'studio'=>9,'practice'=>101] as $plan=>$extraSeats){
+    billing_require_fit($sid,$plan,501,$extraSeats);
+    $capacity=billing_limits(array_merge(billing_studio($sid),['plan'=>$plan,'extra_projects'=>501,'extra_seats'=>$extraSeats]));
+    check($capacity['seats']===billing_catalog()[$plan]['seats']+$extraSeats&&$capacity['projects']===billing_catalog()[$plan]['projects']+501,$plan.' grants valid purchased capacity');
 }
+denied(fn()=>billing_require_fit($sid,'solo',0,1),400);
+denied(fn()=>billing_require_fit($sid,'studio',0,10),400);
 denied(fn()=>billing_require_fit($sid,'solo',-1,0),400);denied(fn()=>billing_require_fit($sid,'studio',0,-1),400);
 billing_switch_project($u,$pid,'subscription');check(billing_usage($sid)['projects']===1,'Explicit pass-to-subscription move consumes a slot');
 check(billing_pass_expiry($pid)===$late+150*BILLING_DAY,'Moving coverage preserves original pass expiry');

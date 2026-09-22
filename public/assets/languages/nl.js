@@ -1,5 +1,14 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"presentation_help_back":"Terug",
+"presentation_help_next":"Volgende",
+"presentation_help_step":"Stap {step} van 2",
+"presentation_help_options_title":"Meer opties, hier links",
+"presentation_help_title":"Blader door de dia’s",
+"presentation_help_arrows":"Gebruik de pijltjestoetsen ← → om snel door de dia’s te gaan.",
+"presentation_help_options":"Beweeg over het kleine knopje links voor meer opties.",
+"presentation_help_options_touch":"Tik op het kleine knopje links voor meer opties.",
+"presentation_help_dont_show_again":"Niet opnieuw tonen",
 "pin_feedback":"Feedback vastpinnen",
 "cancel_pin":"Pin annuleren",
 "show_resolved_pins":"Afgehandelde pins tonen",

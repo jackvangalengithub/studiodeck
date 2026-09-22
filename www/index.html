@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta name="studiodeck-app-url" content="">
+  <meta name="studiodeck-app-url" content="http://localhost:8199">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#faf9f6">
@@ -14,9 +14,9 @@
   <link rel="preload" href="assets/dm-sans-variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="assets/studio-types/interior.webp" as="image">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="luxury.css">
-  <script src="script.js" defer></script>
-  <script src="audience.js" defer></script>
+  <link rel="stylesheet" href="luxury.css?v=six-business-types-1">
+  <script src="script.js?v=login-link-2" defer></script>
+  <script src="audience.js?v=signmaker-1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -25,9 +25,8 @@
       <a class="wordmark" href="#" aria-label="Studiodeck home">studio<span>deck</span><i class="brand-star" aria-hidden="true">✳</i></a>
       <button class="menu-toggle" type="button" aria-controls="navigation" aria-expanded="false">Menu <span aria-hidden="true">☰</span></button>
       <nav id="navigation" aria-label="Main navigation">
-        <a href="#client-communication">Client communication</a>
-        <a href="#studio-website">Studio website</a>
         <a href="#pricing">Pricing</a>
+        <a class="button button-small button-outline" href="http://localhost:8199/" data-login>Log in</a>
         <a class="button button-small button-dark nav-cta" href="#pricing">Get started <span aria-hidden="true">↗</span></a>
       </nav>
     </div>
@@ -42,6 +41,7 @@
           <label class="audience-choice"><input type="radio" name="audience" value="architecture" ><span class="audience-photo"><img src="assets/studio-types/architecture.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Architecture</strong><small>Buildings, places &amp; new perspectives</small></span></label>
           <label class="audience-choice"><input type="radio" name="audience" value="furniture" ><span class="audience-photo"><img src="assets/studio-types/furniture.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Furniture &amp; cabinetry design</strong><small>Bespoke pieces, kitchens &amp; craftsmanship</small></span></label>
           <label class="audience-choice"><input type="radio" name="audience" value="events" ><span class="audience-photo"><img src="assets/studio-types/events.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Event &amp; exhibition design</strong><small>Experiences, installations &amp; occasions</small></span></label>
+          <label class="audience-choice"><input type="radio" name="audience" value="signmaker"><span class="audience-photo"><img src="assets/studio-types/signmaker.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Sign maker</strong><small>Storefront lettering, signs &amp; vehicle graphics</small></span></label>
       </fieldset>
       <p class="visually-hidden" role="status" id="audience-status"></p>
     </section>
@@ -82,7 +82,7 @@
     </section>
 
     <div class="discipline-strip">
-      <div class="container"><span>GOOD DESIGN HAS MANY FORMS.</span><p>Interior designers <i aria-hidden="true">✳</i> Architects <i aria-hidden="true">✳</i> Garden designers <i aria-hidden="true">✳</i> Creative studios</p></div>
+      <div class="container"><span>GOOD DESIGN HAS MANY FORMS.</span><p>Interior designers <i aria-hidden="true">✳</i> Architects <i aria-hidden="true">✳</i> Garden designers <i aria-hidden="true">✳</i> Sign makers <i aria-hidden="true">✳</i> Creative studios</p></div>
     </div>
 
     <section class="feature-section" id="why-studiodeck" aria-labelledby="feature-title">
@@ -138,12 +138,12 @@
           <div class="portfolio-example-body"><div class="portfolio-example-nav"><strong>Atelier Form.</strong><span>Work · About · Contact</span></div><p class="eyebrow">SPACES WITH A POINT OF VIEW</p><h3>Good work deserves<br>a beautiful home.</h3><div class="portfolio-example-projects"><article><img src="assets/studio-types/interior.webp" width="1200" height="800" alt="Warm interior in an example project showcase" loading="lazy"><span>THE EVERYDAY RETREAT</span><h4>Room to exhale.</h4></article><article><img src="assets/studio-types/interior.webp" width="1200" height="800" alt="Material details in an example project showcase" loading="lazy"><span>THE QUIET RESIDENCE</span><h4>Considered, together.</h4></article></div><div class="portfolio-connected"><span aria-hidden="true">✓</span><p>Selected projects, photographs and testimonials.<br><strong>One connected portfolio.</strong></p></div><p class="story-example-note">Illustrative website · AI-generated example interiors.</p></div>
         </div>
         <div class="product-story-copy">
-          <p class="eyebrow">THE WEBSITE ADD-ON</p>
+          <p class="eyebrow">YOUR STUDIO WEBSITE</p>
           <h2 id="portfolio-title">Your projects.<br><em>Your next clients.</em></h2>
           <p>Turn the work already in StudioDeck into your studio’s public website. Select your projects, review the public text and photographs, and let your portfolio showcases come together automatically.</p>
           <p>Project listings and individual project pages use the same reviewed content. Add approved client testimonials and make room for your story with About, Contact and other pages, all sharing one design.</p>
           <ul class="check-list"><li>26 starting designs, including a blank canvas.</li><li>Refine the design with chat or code, and preview every change.</li><li>Project showcases built from your selected website content.</li><li>Responsive pages, optimized images and search essentials.</li><li>Preview, then publish to your own connected domain.</li></ul>
-          <a class="text-link" href="#website-addon-title">Explore the website add-on <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="#pricing">Included with every subscription <span aria-hidden="true">↗</span></a>
           <p class="story-publishing-note">You choose what becomes public. Review project updates and publish when you’re ready.</p>
         </div>
       </div>
@@ -157,21 +157,17 @@
         </article>
         <div class="monthly-intro"><span class="eyebrow">MORE PROJECTS ON THE HORIZON?</span><h3>Make room for your whole practice.</h3><p>Simple monthly plans. Billed monthly, at the price you see.</p></div>
         <div class="pricing-grid">
-          <article class="price-card"><span class="plan-eyebrow">FOR THE INDEPENDENT MIND</span><h3>Solo</h3><p class="plan-description">Your own practice. Beautifully together.</p><div class="price"><span class="currency">€</span><span data-price="solo">39</span><span class="price-period">/ month</span></div><p class="billing-detail">€39 billed monthly.</p><button class="button button-outline plan-button" type="button" data-plan="solo">Choose Solo <span aria-hidden="true">↗</span></button><ul class="check-list"><li>1 designer</li><li>3 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>10 image enhancements per project / month</li><li>Branded client presentations</li><li>Feedback, budgets & version history</li><li>Unlimited client guests</li></ul></article>
-          <article class="price-card featured"><span class="plan-eyebrow">FOR IDEAS MADE TOGETHER</span><h3>Studio</h3><p class="plan-description">A shared home for your creative team.</p><div class="price"><span class="currency">€</span><span data-price="studio">199</span><span class="price-period">/ month</span></div><p class="billing-detail">€199 billed monthly.</p><button class="button button-accent plan-button" type="button" data-plan="studio">Choose Studio <span aria-hidden="true">↗</span></button><ul class="check-list"><li>Up to 5 people</li><li>15 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>10 image enhancements per project / month</li><li>Everything in Solo</li><li>Project teams & access controls</li><li>A shared studio identity</li></ul></article>
-          <article class="price-card"><span class="plan-eyebrow">FOR A WIDER PERSPECTIVE</span><h3>Practice</h3><p class="plan-description">More people. More projects. Same clarity.</p><div class="price"><span class="currency">€</span><span data-price="practice">399</span><span class="price-period">/ month</span></div><p class="billing-detail">€399 billed monthly.</p><button class="button button-outline plan-button" type="button" data-plan="practice">Choose Practice <span aria-hidden="true">↗</span></button><ul class="check-list"><li>15 people included</li><li>50 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>10 image enhancements per project / month</li><li>Everything in Studio</li><li>Extra people: €20 each / month</li><li>Consistent branding across projects</li></ul></article>
+          <article class="price-card"><span class="plan-eyebrow">FOR THE INDEPENDENT MIND</span><h3>Solo</h3><p class="plan-description">Your own practice. Beautifully together.</p><div class="price"><span class="currency">€</span><span data-price="solo">59</span><span class="price-period">/ month</span></div><p class="billing-detail">€59 billed monthly.</p><button class="button button-outline plan-button" type="button" data-plan="solo">Choose Solo <span aria-hidden="true">↗</span></button><ul class="check-list"><li>1 designer</li><li>3 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>Studio website included</li><li>10 image enhancements per project / month</li><li>Branded client presentations</li><li>Feedback, budgets & version history</li><li>Unlimited client guests</li></ul></article>
+          <article class="price-card featured"><span class="plan-eyebrow">FOR IDEAS MADE TOGETHER</span><h3>Studio</h3><p class="plan-description">A shared home for your creative team.</p><div class="price"><span class="currency">€</span><span data-price="studio">199</span><span class="price-period">/ month</span></div><p class="billing-detail">€199 billed monthly.</p><button class="button button-accent plan-button" type="button" data-plan="studio">Choose Studio <span aria-hidden="true">↗</span></button><ul class="check-list"><li>Up to 5 people</li><li>15 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>Studio website included</li><li>10 image enhancements per project / month</li><li>Everything in Solo</li><li>Project teams & access controls</li><li>A shared studio identity</li></ul></article>
+          <article class="price-card"><span class="plan-eyebrow">FOR A WIDER PERSPECTIVE</span><h3>Practice</h3><p class="plan-description">More people. More projects. Same clarity.</p><div class="price"><span class="currency">€</span><span data-price="practice">499</span><span class="price-period">/ month</span></div><p class="billing-detail">€499 billed monthly.</p><button class="button button-outline plan-button" type="button" data-plan="practice">Choose Practice <span aria-hidden="true">↗</span></button><ul class="check-list"><li>15 people included</li><li>50 active projects included</li><li>Extra active projects: €10 / month each</li><li>All AI features included</li><li>Studio website included</li><li>10 image enhancements per project / month</li><li>Everything in Studio</li><li>Extra people: €20 each / month</li><li>Consistent branding across projects</li></ul></article>
         </div>
-        <article class="project-pass website-addon" aria-labelledby="website-addon-title">
-          <div class="pass-copy"><span class="plan-eyebrow">OPTIONAL WEBSITE ADD-ON</span><h3 id="website-addon-title">Your next client starts with<br>the work you’ve already done.</h3><p>Turn selected StudioDeck projects into your studio website. Choose from 26 starting designs, create multiple pages, make it your own with chat, and add approved client testimonials. Build project showcases automatically from the public content you’ve reviewed.</p><ul class="pass-features"><li>Your projects, beautifully presented</li><li>26 starting designs, with complete creative freedom</li><li>Fast, responsive, automatically optimized images</li><li>Search essentials and sharing previews included</li><li>Preview privately. Publish when ready.</li><li>Your own domain with supported hosting setup</li></ul></div>
-          <div class="pass-purchase"><div class="pass-price">€39<span> / month</span></div><p>EUR · Optional website add-on.<br>Plus applicable tax. Domain registration is separate.</p><button class="button button-accent" type="button" data-signup>Build your website <span aria-hidden="true">↗</span></button><span class="pass-reassurance">Build and preview before activating.<br>Includes 50 AI edits per month.</span></div>
-        </article>
-        <div class="pricing-notes"><p><b>Your clients are always guests, never seats.</b> Included active projects: 3 for Solo, 15 for Studio, 50 for Practice. Add an extra active project for €10/month on any subscription, or archive completed work to free a slot.</p><p>Proposed launch pricing in EUR, excluding VAT. Purchasing is not yet available. All project AI features are included in every plan and the Project Pass. Website is an optional €39/month add-on. Archive limits will be confirmed before launch.</p></div>
+        <div class="pricing-notes"><p><b>Your clients are always guests, never seats.</b> Included active projects: 3 for Solo, 15 for Studio, 50 for Practice. Add an extra active project for €10/month on any subscription, or archive completed work to free a slot.</p><p>Proposed launch pricing in EUR, excluding VAT. Purchasing is not yet available. All project AI features are included in every plan and the Project Pass. Your studio website is included with every subscription. Archive limits will be confirmed before launch.</p></div>
 
       </div>
     </section>
 
     <section class="section container faq-section" aria-labelledby="faq-title"><div><p class="eyebrow">A FEW THINGS YOU MIGHT BE WONDERING</p><h2 id="faq-title">Glad you <em>asked.</em></h2><p>Thoughtful tools should come<br>with straightforward answers.</p></div><div class="faq-list">
-      <details><summary>Is this only for interior designers?<span aria-hidden="true">+</span></summary><p>No. Studiodeck is built around visual projects, so architects, garden and landscape designers, interior designers and multidisciplinary studios can all use it. Bring your drawings and concepts as PDFs or images, and organize the presentation around your work.</p></details>
+      <details><summary>Is this only for interior designers?<span aria-hidden="true">+</span></summary><p>No. Studiodeck is built around visual projects, so architects, garden and landscape designers, interior designers, sign makers and multidisciplinary studios can all use it. Bring your drawings and concepts as PDFs or images, and organize the presentation around your work.</p></details>
       <details><summary>Do I have to change my design tools?<span aria-hidden="true">+</span></summary><p>Keep creating in the tools you know. Studiodeck accepts PDFs, PowerPoint files, JPG, PNG and WebP images, plus Excel and CSV quotes. Export from your design tool and bring the files into your project. Native CAD and BIM editing are not part of Studiodeck.</p></details>
       <details><summary>What does my client need to get started?<span aria-hidden="true">+</span></summary><p>Just a browser and access to their invited email address. Clients verify their email using a sign-in link, then explore the design, leave feedback and download original files. Access is tied to the invited account and a shared iteration, and can be revoked.</p></details>
       <details><summary>What happens when the design changes?<span aria-hidden="true">+</span></summary><p>Create a new iteration and develop your next idea. Previously shared presentations retain their own files, visuals, budgets and styling, so an old link never silently becomes a new proposal.</p></details>

@@ -39,7 +39,7 @@ try {
         if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);if(!one('SELECT 1 FROM project_client_members WHERE email=? UNION SELECT 1 FROM shares WHERE email=? UNION SELECT 1 FROM conversation_grants WHERE email=?',[$email,$email,$email]))create_studio($u['id'],$u['name']."’s studio"); }
         $t=token();insert('login_tokens',['token_hash'=>hash_token($t),'user_id'=>$u['id'],'expires_at'=>time()+900]);
         $url=base_url().'/#/login/'.$t;
-        $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to Studiodeck:\n\n".$url."\n\nThis link expires in 15 minutes and works once.");
+        $sent=send_email($email,'Your Studiodeck sign-in link',"Sign in to Studiodeck:\n\n".$url."\n\nThis link expires in 15 minutes and works once.",email_template(null,'Your Studiodeck sign-in link',"Use the button below to sign in to Studiodeck.\n\nThis link expires in 15 minutes and works once.",$url,'Sign in to Studiodeck'));
         if(!$sent && env('APP_ENV','production')==='local') {
             $log=env('MAIL_LOG_PATH')?:ROOT.'/storage/mail.log';file_put_contents($log,now().' '.$email.' '.$url."\n",FILE_APPEND|LOCK_EX);@chmod($log,0600);
         }
@@ -196,10 +196,18 @@ try {
         query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);json_response(['ok'=>true]);
     }
     if($action==='studio_theme') {
-        $u=owner(true);studio_admin($u);$b=input();$theme=fixed_studio_theme();
+        $u=owner(true);studio_admin($u);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();if($multipart&&isset($b['theme'])){$b['theme']=json_decode($b['theme'],true);if(!is_array($b['theme']))fail('Choose a valid studio font style.');}$theme=clean_studio_theme(json_decode(one('SELECT theme FROM studios WHERE id=?',[$u['studio_id']])['theme'],true));
+        if(isset($b['theme'])&&!is_array($b['theme']))fail('Choose a valid studio font style.');
+        if(array_key_exists('font',$b['theme']??[])){
+            if(!in_array($b['theme']['font'],['serif','sans'],true))fail('Choose a valid studio font style.');
+            $theme['font']=$b['theme']['font'];
+        }
         if(array_key_exists('business_type',$b))query('UPDATE studios SET business_type=? WHERE id=?',[studio_business_type_field($b['business_type']),$u['studio_id']]);
         if(array_key_exists('language',$b))query('UPDATE studios SET language=? WHERE id=?',[language_field($b['language'],false),$u['studio_id']]);
         $name=text_field($b['name']??'',100);if($name)query('UPDATE studios SET name=? WHERE id=?',[$name,$u['studio_id']]);
+        $logo=$_FILES['logo']??null;
+        if($logo&&$logo['error']!==UPLOAD_ERR_NO_FILE){$image=normalized_upload('logo');query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);insert('studio_logos',['studio_id'=>$u['studio_id'],'data'=>$image,'mime'=>'image/png']);}
+        elseif(!empty($b['remove_logo']))query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);
         query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
     }
     if($action==='theme') {

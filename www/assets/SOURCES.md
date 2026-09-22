@@ -42,3 +42,7 @@ The site uses locally hosted `dm-sans-variable.ttf` from the [Google Fonts varia
 ## Shared studio setup imagery
 
 `studio-types/{interior,landscape,architecture,furniture,events}.webp` are unmodified copies of `public/assets/studio-types/`. The selector and audience-specific examples use the same images as the app’s setup wizard. Interior, landscape, architecture and furniture imagery comes from the generated Villa Auren and Stillwater Garden demo assets; the event concept was generated for studio setup. See [studio setup provenance](../../docs/studio-setup.md). These are illustrative generated concepts, not completed customer projects.
+
+## Sign maker category
+
+`studio-types/signmaker.webp` is an identical copy of `public/assets/studio-types/signmaker.webp`, prepared at 1200 × 800 from an original image generated with the built-in image generation tool. It is an illustrative concept, not client work. See [the generation prompt](studio-types/SIGNMAKER-PROMPT.md).

@@ -631,6 +631,16 @@ class SecurityTests(SecurityFixture):
     def test_login_token_is_single_use_expiring_and_not_fixated(self):
         self.ok(self.anon.api('request_login', {'email': 'editor@example.test'}))
         token = (self.tmp / 'mail.log').read_text().strip().split('/#/login/')[-1]
+        mail = json.loads((self.tmp / 'mail.log.messages.jsonl').read_text().splitlines()[-1])
+        self.assertEqual(mail['to'], 'editor@example.test')
+        self.assertEqual(mail['subject'], 'Your Studiodeck sign-in link')
+        self.assertIn(self.base + '/#/login/' + token, mail['text'])
+        self.assertIn('href="' + self.base + '/#/login/' + token + '"', mail['html'])
+        self.assertIn('>Sign in to Studiodeck</a>', mail['html'])
+        self.assertIn('This link expires in 15 minutes and works once.', mail['html'])
+        self.assertIn('Presented by studiodeck', mail['html'])
+        self.assertNotIn('Manage comment emails', mail['html'])
+        self.assertNotIn('<h2', mail['html'])
         response = self.anon.api('consume_login', {'token': token})
         self.ok(response)
         cookie = response[2]['Set-Cookie']
@@ -682,6 +692,8 @@ class SecurityTests(SecurityFixture):
         self.assertEqual(urllib.parse.urlparse(link).path, '/client/projects/own')
         mail = json.loads((self.tmp / 'mail.log.messages.jsonl').read_text().splitlines()[-1])
         self.assertEqual(mail['to'], 'invited@example.test')
+        self.assertIn('<h2', mail['html'])
+        self.assertIn('Manage comment emails', mail['html'])
         token = re.search(r'/#/login/([a-f0-9]{64})', mail['text']).group(1)
         self.assertNotIn(token, link)
         response = self.anon.api('consume_login', {'token': token})

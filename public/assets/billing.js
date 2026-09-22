@@ -3,7 +3,7 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
   const date=t=>t?new Date(Number(t)*1000).toLocaleString(getLanguage()==='nl'?'nl-NL':undefined,{dateStyle:'medium',timeStyle:'short'}):'—';
   const money=(n,c='eur')=>new Intl.NumberFormat(getLanguage()==='nl'?'nl-NL':undefined,{style:'currency',currency:c.toUpperCase()}).format(n/100);
   const monthly=(plan,projects=0,seats=0)=>({base:Number(plan.cents),projects:Number(projects)*1000,seats:Number(seats)*2000,total:Number(plan.cents)+Number(projects)*1000+Number(seats)*2000});
-  const priceText=(plan,projects=0,seats=0,website=false)=>money(monthly(plan,projects,seats).total+(website?Number(current.addons?.find(a=>a.id==='website')?.price??3900):0));
+  const priceText=(plan,projects=0,seats=0)=>money(monthly(plan,projects,seats).total);
   const selectedPlan=()=>current?.summary.plan&&!['canceled','incomplete_expired','none'].includes(current.summary.status)?current.summary.plan:null;
   const source=s=>({get trial(){return tr("studio_trial");},get project_pass(){return tr("studio_project_pass");},get subscription(){return tr("studio_subscription");},get legacy(){return tr("studio_existing_studio");},get none(){return tr("studio_awaiting_purchase");}}[s]||s);
   const admin=()=>state.studio?.role==='admin';
@@ -29,25 +29,18 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
       ${current.changes.map(x=>`<div class="notice billing-notice"><span>${esc(c[x.plan].name)} · ${esc(tr('billing_change_'+x.status))} · ${date(x.effective_at)}</span>${x.status==='scheduled'?button(tr("studio_cancel_change"),'billing-cancel-change','small',`data-id="${esc(x.id)}"`):x.invoice_url?`<a class="button small" href="${esc(x.invoice_url)}" target="_blank" rel="noopener">${tr("studio_complete_payment")}</a>`:button(tr("studio_resume_change"),'billing-confirm-change','small',`data-id="${esc(x.id)}"`)}</div>`).join('')}
       <section class="billing-section"><div class="billing-offers"><section class="billing-pass-group billing-offer-group" aria-labelledby="billing-pass-title"><header class="billing-group-heading"><p class="billing-eyebrow">${tr("billing_pass_eyebrow")}</p><h2 id="billing-pass-title">${tr("billing_pass_title")}</h2><p class="muted">${tr("billing_pass_description")}</p></header><article class="billing-plan billing-pass-card"><h3>${tr('studio_project_pass')}</h3><p class="billing-price">${money(c.pass.cents??1900)}<small> ${tr('billing_one_time')}</small></p><p>${tr('billing_pass_new_project')}</p><p class="muted">${tr('billing_pass_activation')}</p><p class="muted">${tr('billing_pass_images')}</p>${b.available_passes?`<p class="notice">${tr('billing_available_passes',{count:b.available_passes})}</p>`:''}<div class="billing-plan-actions">${button(tr('billing_go_to_checkout'),'billing-new-pass',b.available_passes?'small':'primary',c.pass.available?'':'disabled','cart')}${b.available_passes?button(tr('billing_create_with_pass'),'billing-use-pass','primary'):''}</div></article></section><section class="billing-package-group billing-offer-group" aria-labelledby="billing-subscriptions-title"><header class="billing-group-heading"><p class="billing-eyebrow">${tr("billing_monthly_eyebrow")}</p><h2 id="billing-subscriptions-title">${tr("billing_subscriptions_title")}</h2><p class="muted">${tr("billing_subscriptions_description")}</p></header><div class="billing-plans">${['solo','studio','practice'].map(key=>{
         const p=c[key],selected=selectedPlan()===key,draft=planDraft(key);
-        return `<article class="billing-plan ${selected?'is-selected':''}" data-package="${key}" ${selected?'aria-label="'+esc(tr('billing_selected_package',{plan:p.name}))+'"':''}><div class="billing-plan-heading"><h3>${esc(p.name)}</h3>${selected?`<span class="billing-selected-badge">✓ ${tr('billing_selected')}</span>`:''}</div><p class="billing-price" aria-live="polite"><span data-package-total>${priceText(p,draft.projects-p.projects,draft.seats-p.seats,draft.website)}</span><small> ${tr("studio_month_2")}</small></p><form data-form="billing-plan-column"><input type="hidden" name="plan" value="${key}"><div class="billing-capacity-controls">${capacityControl(key,'projects',p.projects,draft.projects)}${capacityControl(key,'seats',p.seats,draft.seats)}</div></form><p class="muted">${tr("studio_10_image_enhancements_per_project_per_calendar_month")}</p>${addonsSection(key)}<div class="billing-plan-actions">${selected?`${button(tr('studio_adjust_capacity'),'billing-plan','small billing-adjust',`data-plan="${key}"`)}<button type="button" class="button billing-current-button" disabled>${tr('studio_current_package')}</button>`:button(tr("billing_go_to_checkout"),'billing-plan','primary',`data-plan="${key}" ${p.available?'':'disabled'}`,'cart')}</div></article>`;
+        return `<article class="billing-plan ${selected?'is-selected':''}" data-package="${key}" ${selected?'aria-label="'+esc(tr('billing_selected_package',{plan:p.name}))+'"':''}><div class="billing-plan-heading"><h3>${esc(p.name)}</h3>${selected?`<span class="billing-selected-badge">✓ ${tr('billing_selected')}</span>`:''}</div><p class="billing-price" aria-live="polite"><span data-package-total>${priceText(p,draft.projects-p.projects,draft.seats-p.seats)}</span><small> ${tr("studio_month_2")}</small></p><form data-form="billing-plan-column"><input type="hidden" name="plan" value="${key}"><div class="billing-capacity-controls">${capacityControl(key,'projects',p.projects,draft.projects)}${key==='solo'?'<input type="hidden" name="seats" value="1">':capacityControl(key,'seats',p.seats,draft.seats)}</div></form><p class="muted">${tr("studio_10_image_enhancements_per_project_per_calendar_month")}</p><p class="muted">${tr("billing_website_included")}</p><div class="billing-plan-actions">${selected?`${button(tr('studio_adjust_capacity'),'billing-plan','small billing-adjust',`data-plan="${key}"`)}<button type="button" class="button billing-current-button" disabled>${tr('studio_current_package')}</button>`:button(tr("billing_go_to_checkout"),'billing-plan','primary',`data-plan="${key}" ${p.available?'':'disabled'}`,'cart')}</div></article>`;
       }).join('')}</div></section></div><p class="form-hint">${tr('billing_price_note')}</p>${!c.pass.available?`<p class="notice">${tr("studio_checkout_will_be_available_once_the_studio_s_payment_connection_is_configured")}</p>`:''}</section>
       <section class="billing-section"><h2>${tr("studio_invoices")}</h2>${invoiceError?`<p class="notice">${esc(invoiceError)}</p>`:`<div class="billing-table-wrap"><table class="billing-table"><thead><tr><th>${tr("studio_date")}</th><th>${tr("studio_invoice")}</th><th>${tr("studio_amount")}</th><th>${tr("studio_status")}</th><th>${tr("download")}</th></tr></thead><tbody>${(invoices||[]).map(i=>`<tr><td>${date(i.created)}</td><td>${esc(i.number||i.description)}</td><td>${money(i.amount,i.currency)}</td><td>${esc(i.status)}</td><td>${i.url?`<a href="${esc(i.url)}" target="_blank" rel="noopener">${tr("studio_view_invoice")}</a>`:''} ${i.pdf?`<a href="${esc(i.pdf)}" target="_blank" rel="noopener">PDF</a>`:''}</td></tr>`).join('')||`<tr><td colspan="5">${tr("studio_your_stripe_invoices_will_appear_here_after_your_first_purchase")}</td></tr>`}</tbody></table></div>`}<p class="form-hint">${tr("studio_showing_the_latest_24_invoices_older_invoices_are_available_through_manage_payments")}</p></section>`;
   }
-  const addonDefinitions={
-    website:{title:'billing_website_title',description:'billing_website_description',features:['billing_website_feature_design','billing_website_feature_projects','billing_website_feature_hosting'],checkout:'website_checkout',open:'website',mark:'WWW'}
-  };
-  const addonSubscribed=a=>a.has_subscription&&!['canceled','incomplete_expired','none'].includes(a.status);
   function planDraft(key){
     const p=current.catalog[key],selected=selectedPlan()===key;
-    return drafts[key]??={projects:Number(p.projects)+(selected?Number(current.extra_projects||0):0),seats:Number(p.seats)+(selected?Number(current.extra_seats||0):0),website:!!current.website_included};
+    return drafts[key]??={projects:Number(p.projects)+(selected?Number(current.extra_projects||0):0),seats:key==='solo'?1:Math.min(capacityMax(key,'seats'),Number(p.seats)+(selected?Number(current.extra_seats||0):0))};
   }
+  const capacityMax=(key,kind)=>kind==='seats'?(key==='solo'?1:key==='studio'?14:Infinity):Infinity;
   function capacityControl(key,kind,min,value){
-    const label=tr(kind==='projects'?'billing_projects':'billing_people'),id=`billing-${key}-${kind}`;
-    return `<div class="billing-capacity-row"><label for="${id}">${label}</label><span class="billing-stepper"><button type="button" data-action="billing-capacity-step" data-plan="${key}" data-kind="${kind}" data-delta="-1" aria-label="${esc(tr('billing_decrease',{name:label}))}" ${value<=min?'disabled':''}>−</button><input id="${id}" name="${kind}" type="number" min="${min}" step="1" value="${value}" required><button type="button" data-action="billing-capacity-step" data-plan="${key}" data-kind="${kind}" data-delta="1" aria-label="${esc(tr('billing_increase',{name:label}))}">+</button></span></div>`;
-  }
-  function addonsSection(key){
-    const draft=planDraft(key);
-    return `<section class="billing-package-addons" aria-labelledby="billing-addons-${key}"><h4 id="billing-addons-${key}">${tr('billing_addons_title')}</h4>${[['website','billing_website_title']].map(([id,title])=>`<div class="billing-addon-row"><span id="billing-${key}-${id}-label">${tr(title)}</span><button type="button" class="billing-addon-toggle" role="switch" aria-checked="${draft[id]}" aria-labelledby="billing-${key}-${id}-label" data-action="billing-addon-toggle" data-plan="${key}" data-addon="${id}" ${current.addons?.find(a=>a.id===id)?.separate_subscription?`disabled title="${esc(tr('billing_website_separate'))}"`:''}><span aria-hidden="true"></span></button></div>`).join('')}</section>`;
+    const label=tr(kind==='projects'?'billing_projects':'billing_people'),id=`billing-${key}-${kind}`,max=capacityMax(key,kind);
+    return `<div class="billing-capacity-row"><label for="${id}">${label}</label><span class="billing-stepper"><button type="button" data-action="billing-capacity-step" data-plan="${key}" data-kind="${kind}" data-delta="-1" aria-label="${esc(tr('billing_decrease',{name:label}))}" ${value<=min?'disabled':''}>−</button><input id="${id}" name="${kind}" type="number" min="${min}" ${Number.isFinite(max)?`max="${max}"`: ''} step="1" value="${value}" required><button type="button" data-action="billing-capacity-step" data-plan="${key}" data-kind="${kind}" data-delta="1" aria-label="${esc(tr('billing_increase',{name:label}))}" ${value>=max?'disabled':''}>+</button></span></div>`;
   }
   function trialBar(){
     const b=state.billing;
@@ -75,19 +68,8 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
     if(a==='billing-capacity-step'){
       const {plan:key,kind}=el.dataset,delta=Number(el.dataset.delta);
       if(!['solo','studio','practice'].includes(key)||!['projects','seats'].includes(kind)||![-1,1].includes(delta))return true;
-      const draft=planDraft(key);draft[kind]=Math.max(Number(current.catalog[key][kind]),draft[kind]+delta);
+      const draft=planDraft(key);draft[kind]=Math.min(capacityMax(key,kind),Math.max(Number(current.catalog[key][kind]),draft[kind]+delta));
       const input=el.closest('form').elements[kind];input.value=draft[kind];capacityChanged(input.form);return true;
-    }
-    if(a==='billing-addon-toggle'){
-      const {plan:key,addon}=el.dataset;
-      if(!['solo','studio','practice'].includes(key)||addon!=='website'||current.addons?.find(a=>a.id==='website')?.separate_subscription)return true;
-      const draft=planDraft(key);draft[addon]=!draft[addon];el.setAttribute('aria-checked',String(draft[addon]));
-      const p=current.catalog[key];el.closest('[data-package]').querySelector('[data-package-total]').textContent=priceText(p,draft.projects-p.projects,draft.seats-p.seats,draft.website);return true;
-    }
-    if(a==='billing-addon-activate'){
-      const addon=current.addons?.find(item=>item.id===el.dataset.addon),def=addonDefinitions[addon?.id];
-      if(!def||!addon.available||addon.active||addonSubscribed(addon))return true;
-      openModal(tr('billing_addon_activate',{name:tr(def.title)}),`<p>${tr(def.description)}</p><p class="billing-price">${money(addon.price,addon.currency)}<small> ${esc(addon.currency.toUpperCase())} ${tr('studio_month_2')}</small></p><p>${tr('billing_addon_checkout_note')}</p><form data-form="billing-addon-checkout"><input type="hidden" name="addon" value="${esc(addon.id)}">${submit(tr('studio_continue_to_stripe'))}</form>`);return true;
     }
     if(a==='billing-new-pass'){return form('billing-checkout',{plan:'pass'});}
     if(a==='billing-use-pass'){await load();if(!current.summary.available_passes)throw Error(tr('billing_no_unused_pass'));closeModal();await createProject('pass');return true;}
@@ -95,8 +77,8 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
     if(a==='billing-plan'){
       const key=el.dataset.plan,p=current.catalog[key],draft=planDraft(key),column=el.closest?.('[data-package]');
       if(column&&!column.querySelector('form').reportValidity())return true;
-      const data={plan:key,extra_projects:draft.projects-p.projects+(el.dataset.addSlot?1:0),extra_seats:draft.seats-p.seats,website:draft.website};
-      if(selectedPlan()===key&&data.extra_projects===Number(current.extra_projects||0)&&data.extra_seats===Number(current.extra_seats||0)&&data.website===!!current.website_included){
+      const data={plan:key,extra_projects:draft.projects-p.projects+(el.dataset.addSlot?1:0),extra_seats:draft.seats-p.seats};
+      if(selectedPlan()===key&&data.extra_projects===Number(current.extra_projects||0)&&data.extra_seats===Number(current.extra_seats||0)){
         const result=await api('billing_portal');location.assign(result.url);return true;
       }
       purchaseStarted(data);
@@ -119,11 +101,15 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
       const key=form.elements.plan.value,p=current.catalog[key],draft=planDraft(key);
       for(const kind of ['projects','seats']){
         const input=form.elements[kind],value=Number(input.value);
-        if(input.value===''||!Number.isInteger(value)||value<Number(p[kind]))return;
+        if(input.value===''||!Number.isInteger(value)||value<Number(p[kind])||value>capacityMax(key,kind))return;
       }
       draft.projects=Number(form.elements.projects.value);draft.seats=Number(form.elements.seats.value);
-      form.closest('[data-package]').querySelector('[data-package-total]').textContent=priceText(p,draft.projects-p.projects,draft.seats-p.seats,draft.website);
-      for(const kind of ['projects','seats'])form.querySelector(`[data-kind="${kind}"][data-delta="-1"]`).disabled=draft[kind]<=Number(p[kind]);
+      form.closest('[data-package]').querySelector('[data-package-total]').textContent=priceText(p,draft.projects-p.projects,draft.seats-p.seats);
+      for(const kind of ['projects','seats']){
+        const decrease=form.querySelector(`[data-kind="${kind}"][data-delta="-1"]`),increase=form.querySelector(`[data-kind="${kind}"][data-delta="1"]`);
+        if(decrease)decrease.disabled=draft[kind]<=Number(p[kind]);
+        if(increase)increase.disabled=draft[kind]>=capacityMax(key,kind);
+      }
       return;
     }
     if(form?.dataset.form!=='billing-plan')return;
@@ -135,11 +121,6 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
     if(type==='billing-plan-column')return action('billing-plan',{dataset:{plan:data.plan}});
     if(type==='billing-onboard'){applySession(await api('billing_onboard',data));closeModal();await resetStudio();return true;}
 
-    if(type==='billing-addon-checkout'){
-      const addon=current.addons?.find(item=>item.id===data.addon),def=addonDefinitions[addon?.id];
-      if(!def||!addon.available||addon.active||addonSubscribed(addon))throw Error(tr('billing_addon_refresh_first'));
-      const result=await api(def.checkout,{});location.assign(result.url);return true;
-    }
     if(type==='billing-checkout'){purchaseStarted(data);const r=await api('billing_checkout',data);location.assign(r.url);return true;}
     if(type==='billing-coverage'){await api('billing_coverage',data);closeModal();await load();render();return true;}
     if(type==='billing-plan'){

@@ -13,13 +13,13 @@ try{
   const previewState=await examples.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+2,broken:[...document.images].filter(im=>im.loading!=='lazy'&&!im.naturalWidth).length,classes:document.body.className}));
   assert(!previewState.overflow,template.id+' overflows at '+width);assert.equal(previewState.broken,0,template.id+' has a broken hero image');assert(previewState.classes.includes(template.layout));
  }
- await examples.close();console.log('PASS All 15 expressive templates render without desktop or mobile overflow');
+ await examples.close();console.log('PASS All 18 expressive templates render without desktop or mobile overflow');
  const page=await context.newPage(),errors=[];page.on('pageerror',e=>{if(!e.message.includes('Intentional preview failure'))errors.push(e.message)});
  await page.goto(base+'/'+fixture.studio+'/website');await page.getByRole('heading',{name:'Good work deserves a beautiful home.'}).waitFor();
  assert.equal(await page.locator('.website-welcome-steps').count(),0);assert.equal(await page.getByRole('button',{name:'Start with a blank page',exact:true}).count(),0);
  await page.getByRole('button',{name:'Find your starting point'}).click();assert.equal(await page.locator('[data-website-filter="business"]').inputValue(),'interior');
- await page.locator('[data-website-filter="business"]').selectOption('all');assert.equal(await page.locator('.website-example-card').count(),26);assert.equal(await page.locator('.website-example-card').last().locator('[data-action="website-choose-template"]').getAttribute('data-template'),'blank');
- for(const business of ['interior','landscape','architecture','furniture','events']){await page.locator('[data-website-filter="business"]').selectOption(business);await page.getByRole('button',{name:'Experimental',exact:true}).click();assert.equal(await page.locator('.website-example-card').count(),4);}
+ await page.locator('[data-website-filter="business"]').selectOption('all');assert.equal(await page.locator('.website-example-card').count(),29);assert.equal(await page.locator('.website-example-card').last().locator('[data-action="website-choose-template"]').getAttribute('data-template'),'blank');
+ for(const business of ['interior','landscape','architecture','furniture','events','signmaker']){await page.locator('[data-website-filter="business"]').selectOption(business);await page.getByRole('button',{name:'Experimental',exact:true}).click();assert.equal(await page.locator('.website-example-card').count(),4);}
  await page.locator('[data-website-filter="business"]').selectOption('interior');await page.getByRole('button',{name:'Classic',exact:true}).click();assert.equal(await page.locator('[data-template="interior-poster"]').count(),0);assert.equal(await page.locator('[data-action="website-example"][data-template="linen"]').count(),1);
  await page.getByRole('button',{name:'All styles',exact:true}).click();console.log('PASS Business and style filters cover the full catalog, with blank always last');
  await page.locator('[data-action="website-example"][data-template="linen"]').click();await page.frameLocator('.website-full-example').getByRole('heading',{name:'Spaces made for living.'}).waitFor();await page.getByRole('button',{name:'Use this starting point'}).click();

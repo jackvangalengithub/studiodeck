@@ -143,5 +143,34 @@
       "projectIntro": "Een ruimtelijke installatie die mensen, objecten en verhalen samenbrengt.",
       "welcomeIntro": "Breng je concepten, installaties en leveranciersvoorstellen samen. Help klanten de beleving voor zich te zien en keuzes te maken."
     }
+  },
+  {
+    "id": "signmaker",
+    "image": "/assets/studio-types/signmaker.webp",
+    "templates": [
+      "folio",
+      "gallery",
+      "minimal"
+    ],
+    "en": {
+      "label": "Sign maker",
+      "description": "Storefront lettering, signs & vehicle graphics",
+      "headline": "Make your business stand out.",
+      "intro": "Storefront lettering, signs and vehicle graphics, made with precise finishes and a clear sense of identity.",
+      "alt": "Raised storefront lettering above a shop window with a vinyl-wrapped van parked outside",
+      "projectTitle": "A brand on the street",
+      "projectIntro": "Dimensional letters, window graphics and a matching vehicle wrap bring one identity to every surface.",
+      "welcomeIntro": "Bring your sign designs, storefront mockups, vehicle graphics and quotes together. Help clients choose materials and confirm the design before production."
+    },
+    "nl": {
+      "label": "Signmaker",
+      "description": "Gevelletters, reclameborden & autobelettering",
+      "headline": "Laat je bedrijf opvallen.",
+      "intro": "Gevelletters, reclameborden en autobelettering, met een nauwkeurige afwerking en een herkenbare uitstraling.",
+      "alt": "Gevelletters boven een winkelraam met een bestickerde bestelbus voor de deur",
+      "projectTitle": "Een merk in het straatbeeld",
+      "projectIntro": "Gevelletters, raambelettering en een bijpassende carwrap brengen één uitstraling op elk oppervlak.",
+      "welcomeIntro": "Breng je signontwerpen, gevelvisualisaties, autobelettering en offertes samen. Help klanten materialen kiezen en het ontwerp goedkeuren voordat de productie begint."
+    }
   }
 ]

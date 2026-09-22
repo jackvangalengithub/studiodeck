@@ -14,7 +14,7 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   const session=()=>({user:{id:'admin',name:'Designer',email:'designer@example.test'},csrf:'test',studio,studios:[studio],studio_theme:{palette:'warmgray',style:'editorial'},capabilities:{ai:false,mail:false},billing:summary});
   let websiteIncluded=false;let addon={id:'website',name:'Website',price:3900,currency:'EUR',active:false,until:0,status:'none',local:false,available:true,has_subscription:false};
   const coverage={source:'trial',active:false,expires_at:stamp-1,pass_expires_at:null,delete_after:null};
-  const catalog=Object.fromEntries([['pass','Project Pass',1900,1,1],['extension','Pass extension',1500,1,1],['solo','Solo',3900,1,3],['studio','Studio',19900,5,15],['practice','Practice',39900,15,50]].map(([k,name,cents,seats,projects])=>[k,{name,cents,seats,projects,available:true}]));
+  const catalog=Object.fromEntries([['pass','Project Pass',1900,1,1],['extension','Pass extension',1500,1,1],['solo','Solo',5900,1,3],['studio','Studio',19900,5,15],['practice','Practice',49900,15,50]].map(([k,name,cents,seats,projects])=>[k,{name,cents,seats,projects,available:true}]));
   await page.route('**/api.php?**',async route=>{
     const url=new URL(route.request().url()),a=url.searchParams.get('action'),body=route.request().postDataJSON();calls.push({a,body});let result={ok:true};
     if(a==='session')result=session();
@@ -33,44 +33,49 @@ const http=require('node:http'),fs=require('node:fs/promises'),path=require('nod
   assert.equal(await page.locator('.modal').count(),0);const bar=await page.locator('.billing-trial-bar').boundingBox();assert.equal(bar.x,0);assert.equal(bar.y,0);assert.equal(bar.width,await page.evaluate(()=>window.innerWidth));assert.equal(bar.height,44);
   assert((await page.locator('.sidebar').boundingBox()).y>=44);
   await page.locator('.billing-trial-bar [data-action=billing]').click();await page.getByRole('heading',{name:'Billing',exact:true}).waitFor();assert.equal(await page.locator('.billing-trial-bar').count(),1);
-  assert.equal(await page.getByRole('heading',{name:'Project coverage'}).count(),0);await page.getByRole('heading',{name:'One project at a time'}).waitFor();assert.equal(await page.locator('.billing-offers > :first-child').getAttribute('class'),'billing-pass-group billing-offer-group');assert.equal(await page.locator('.billing-package-group .billing-plan').count(),3);assert.equal(await page.locator('.billing-pass-group .billing-plan').count(),1);assert.equal(await page.locator('.billing-package-group [role=switch]').count(),3);assert.equal(await page.locator('.billing-pass-group [role=switch]').count(),0);assert.equal(await page.locator('.billing-offers .billing-plan').count(),4);await page.getByText('SD-001',{exact:true}).waitFor();assert.equal(await page.locator('[data-action=billing-plan]').count(),3);
-  await page.locator('[data-package=solo]').getByRole('switch',{name:'Website',exact:true}).click();await page.locator('[data-package=solo] [data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_checkout=1');assert.equal(calls.find(c=>c.a==='billing_checkout').body.website,true);assert.equal(await page.locator('.modal').count(),0);
+  assert.equal(await page.getByRole('heading',{name:'Project coverage'}).count(),0);await page.getByRole('heading',{name:'One project at a time'}).waitFor();assert.equal(await page.locator('.billing-offers > :first-child').getAttribute('class'),'billing-pass-group billing-offer-group');assert.equal(await page.locator('.billing-package-group .billing-plan').count(),3);assert.equal(await page.locator('.billing-pass-group .billing-plan').count(),1);assert.equal(await page.locator('.billing-package-group [role=switch]').count(),0);assert.equal(await page.locator('.billing-pass-group [role=switch]').count(),0);assert.equal(await page.locator('.billing-offers .billing-plan').count(),4);await page.getByText('SD-001',{exact:true}).waitFor();assert.equal(await page.locator('[data-action=billing-plan]').count(),3);
+  await page.locator('[data-package=solo] [data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_checkout=1');assert(!Object.hasOwn(calls.find(c=>c.a==='billing_checkout').body,'website'));assert.equal(await page.locator('.modal').count(),0);
   summary={...summary,trial_active:false,plan:'studio',package:'Studio',status:'active',paid_until:stamp+30*86400,subscription_active:true,limits:{seats:5,projects:17},usage:{seats:5,projects:2,passes:0}};
   await page.reload();await page.locator('.billing-plan.is-selected').waitFor();assert.equal(await page.locator('.billing-trial-bar').count(),0);
   assert.equal(await page.locator('.billing-plan.is-selected').count(),1);
   assert(await page.locator('.billing-current-button').isDisabled());
   assert.match(await page.locator('.billing-plan.is-selected .billing-price').innerText(),/219/);
   await page.locator('.billing-adjust').click();await page.waitForURL('**/billing?stripe_portal=1');assert.equal(await page.locator('.modal').count(),0);
-  const practice=page.locator('[data-package=practice]');await practice.locator('[name=projects]').fill('52');await practice.locator('[name=seats]').fill('17');assert.match(await practice.locator('.billing-price').innerText(),/459/);
+  const practice=page.locator('[data-package=practice]');await practice.locator('[name=projects]').fill('52');await practice.locator('[name=seats]').fill('17');assert.match(await practice.locator('.billing-price').innerText(),/559/);
   await practice.locator('[data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_updated=1');assert.equal(await page.locator('.modal').count(),0);
-  assert.deepEqual(calls.find(c=>c.a==='billing_change_checkout').body,{plan:'practice',extra_projects:2,extra_seats:2,website:false});
+  assert.deepEqual(calls.find(c=>c.a==='billing_change_checkout').body,{plan:'practice',extra_projects:2,extra_seats:2});
   await page.screenshot({path:'/tmp/studiodeck-billing-desktop.png',fullPage:true});
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(400);await page.screenshot({path:'/tmp/studiodeck-billing-mobile.png',fullPage:true});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'Mobile page must not overflow horizontally');
   const solo=page.locator('[data-package=solo]');
-  assert(await solo.getByRole('button',{name:'Decrease Projects',exact:true}).isDisabled());
-  assert(await solo.getByRole('button',{name:'Decrease People',exact:true}).isDisabled());
-  await solo.getByRole('button',{name:'Increase Projects',exact:true}).click();await solo.getByRole('button',{name:'Increase People',exact:true}).click();
-  assert.equal(await solo.locator('[name=projects]').inputValue(),'4');assert.equal(await solo.locator('[name=seats]').inputValue(),'2');assert.match(await solo.locator('.billing-price').innerText(),/69/);
-  await solo.locator('[data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_updated=1');await page.waitForFunction(()=>document.querySelector('[data-package=solo] [name=projects]')?.value==='3');assert.deepEqual(calls.filter(c=>c.a==='billing_change_checkout').at(-1).body,{plan:'solo',extra_projects:1,extra_seats:1,website:false});assert.equal(await page.locator('.modal').count(),0);
-  await solo.locator('[name=projects]').fill('504');await solo.locator('[name=seats]').fill('102');assert.match(await solo.locator('.billing-price').innerText(),/7,069/);
+  assert(await solo.getByRole('button',{name:'Decrease Active projects',exact:true}).isDisabled());
+  assert.equal(await solo.locator('.billing-capacity-row').count(),1);assert.equal(await solo.getByText('People',{exact:true}).count(),0);
+  await solo.getByRole('button',{name:'Increase Active projects',exact:true}).click();
+  assert.equal(await solo.locator('[name=projects]').inputValue(),'4');assert.equal(await solo.locator('[name=seats]').inputValue(),'1');assert.match(await solo.locator('.billing-price').innerText(),/69/);
+  await solo.locator('[data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_updated=1');await page.waitForFunction(()=>document.querySelector('[data-package=solo] [name=projects]')?.value==='3');assert.deepEqual(calls.filter(c=>c.a==='billing_change_checkout').at(-1).body,{plan:'solo',extra_projects:1,extra_seats:0});assert.equal(await page.locator('.modal').count(),0);
+  await solo.locator('[name=projects]').fill('504');assert.match(await solo.locator('.billing-price').innerText(),/5,069/);
   assert.equal(await solo.locator('[name=projects]').getAttribute('max'),null);assert.equal(await solo.locator('[name=seats]').getAttribute('max'),null);
   await solo.locator('[name=projects]').fill('2');await solo.locator('[data-action=billing-plan]').click();assert.equal(await page.locator('.modal').count(),0,'Below-minimum values must not proceed');
-  await solo.locator('[name=projects]').fill('3');await solo.locator('[name=seats]').fill('1');
+  await solo.locator('[name=projects]').fill('3');
+  const studioPackage=page.locator('[data-package=studio]'),people=studioPackage.locator('[name=seats]'),increasePeople=studioPackage.getByRole('button',{name:'Increase People',exact:true});
+  assert.equal(await people.getAttribute('max'),'14');
+  await people.fill('13');await increasePeople.click();assert.equal(await people.inputValue(),'14');assert(await increasePeople.isDisabled());
+  assert.match(await studioPackage.locator('.billing-price').innerText(),/399/);
+  const changeCalls=calls.filter(c=>c.a==='billing_change_checkout').length;
+  await people.fill('15');await studioPackage.locator('[data-action=billing-plan]').click();assert.equal(calls.filter(c=>c.a==='billing_change_checkout').length,changeCalls);
+  await people.fill('14');await studioPackage.getByRole('button',{name:'Decrease People',exact:true}).click();assert.equal(await people.inputValue(),'13');assert(await increasePeople.isEnabled());
+  await people.fill('14');await studioPackage.locator('[data-action=billing-plan]').click();await page.waitForURL('**/billing?stripe_updated=1');
+  assert.deepEqual(calls.filter(c=>c.a==='billing_change_checkout').at(-1).body,{plan:'studio',extra_projects:2,extra_seats:9});
+  await solo.locator('[name=projects]').waitFor();
   assert.equal(await page.getByRole('switch',{name:'Google Ads campaign'}).count(),0);
-  for(const name of ['Website']){
-    const toggle=solo.getByRole('switch',{name,exact:true});await toggle.click();assert.equal(await toggle.getAttribute('aria-checked'),'true');assert.equal(await solo.locator('[data-package-total]').innerText(),'€78.00');
-    await solo.getByRole('button',{name:'Increase Projects',exact:true}).click();assert.equal(await solo.locator('[data-package-total]').innerText(),'€88.00');await solo.getByRole('button',{name:'Decrease Projects',exact:true}).click();
-    await toggle.focus();await page.keyboard.press('Space');assert.equal(await toggle.getAttribute('aria-checked'),'false');assert.equal(await solo.locator('[data-package-total]').innerText(),'€39.00');
-  }
-  const studioCard=page.locator('[data-package=studio]');await studioCard.getByRole('switch',{name:'Website',exact:true}).click();assert.equal(await studioCard.locator('[data-package-total]').innerText(),'€258.00');await studioCard.locator('.billing-adjust').click();await page.waitForFunction(()=>document.querySelector('[data-package=studio] [role=switch]')?.getAttribute('aria-checked')==='true'&&document.querySelector('[data-package=solo] [role=switch]')?.getAttribute('aria-checked')==='true');assert.equal(calls.filter(c=>c.a==='billing_change_checkout').at(-1).body.website,true);
-  await studioCard.getByRole('switch',{name:'Website',exact:true}).click();await studioCard.locator('.billing-adjust').click();await page.waitForFunction(()=>document.querySelector('[data-package=solo] [role=switch]')?.getAttribute('aria-checked')==='false');assert.equal(calls.filter(c=>c.a==='billing_change_checkout').at(-1).body.website,false);
-  assert(!calls.some(x=>x.a==='website_checkout'),'Bundled Website uses the package payment');assert.match(await solo.locator('.billing-price').innerText(),/39/);
+  assert.equal(await page.getByRole('switch',{name:'Website',exact:true}).count(),0);
+  assert.equal(await page.getByText('Studio website included',{exact:true}).count(),3);
+  assert(!calls.some(x=>x.a==='website_checkout'),'Website never requires separate payment');assert.match(await solo.locator('.billing-price').innerText(),/59/);
   await page.locator('.billing-pass-card').getByRole('button',{name:'Go to checkout',exact:true}).click();await page.waitForURL('**/checkout-confirmed');
   // Expiry stays in the top bar without automatically interrupting the workspace.
   summary={...summary,plan:null,status:'none',subscription_active:false,trial_active:false,trial_ends_at:stamp-1};await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/test-studio/projects');
   await page.locator('.billing-trial-bar').getByText('Your trial has ended',{exact:true}).waitFor();assert.equal(await page.locator('.modal').count(),0);
   await page.locator('.billing-trial-bar [data-action=billing]').click();await page.getByRole('heading',{name:'Billing',exact:true}).waitFor();
-  assert(!calls.some(c=>['billing_change_preview','billing_change_confirm'].includes(c.a)));assert.deepEqual(errors,[]);console.log('PASS fixed trial bar, direct Stripe redirects, capacity controls, Website pricing, mobile layout and expiry without automatic popups');
+  assert(!calls.some(c=>['billing_change_preview','billing_change_confirm'].includes(c.a)));assert.deepEqual(errors,[]);console.log('PASS fixed trial bar, direct Stripe redirects, capacity controls, included Website, mobile layout and expiry without automatic popups');
  }finally{if(browser)await browser.close();await new Promise(r=>server.close(r));}
 })().catch(e=>{console.error(e);process.exitCode=1});

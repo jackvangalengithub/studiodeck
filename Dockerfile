@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
     && docker-php-ext-install pdo_sqlite zip gd simplexml curl exif \
     && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends msmtp \
+    && rm -rf /var/lib/apt/lists/*
 RUN printf 'display_errors=Off\nlog_errors=On\nmemory_limit=512M\nupload_max_filesize=100M\npost_max_size=128M\nmax_file_uploads=20\n' > /usr/local/etc/php/conf.d/studiodeck.ini
 WORKDIR /app
 COPY app/ app/

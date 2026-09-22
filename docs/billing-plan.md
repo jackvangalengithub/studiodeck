@@ -15,9 +15,9 @@ Status: proposed for review, 18 September 2026. This document does not implement
 | Trial | Free; no card | 1 | 1 | 7 days |
 | Project Pass | €19 once | 1 named designer on that project | 1 specific project | 150 days |
 | Pass extension | €15 once | Same pass | Same project | Another 150 days |
-| Solo | €39/month | 1 | 3 | While paid |
+| Solo | €59/month | 1 | 3 | While paid |
 | Studio | €199/month | 5 | 15 | While paid |
-| Practice | €399/month | 15 | 50 | While paid |
+| Practice | €499/month | 15 | 50 | While paid |
 
 A pass-only studio starts with one designer account. Buying extra passes adds projects, not team seats. A studio with a subscription can also hold passes, but each pass project still has one named designer; collaboration requires moving that project into subscription coverage. Studio admins may manage billing without gaining access to private project contents. The billing list should expose only the project identification needed to manage purchases, not files or activity.
 
@@ -77,7 +77,7 @@ Show:
 4. **Payment management:** an authenticated, short-lived link to the correct Stripe Customer Portal for payment methods, billing details and cancellation.
 5. **Invoices:** Stripe-issued invoice history with date, description, amount, currency, status and invoice/PDF links; include passes, extensions and subscriptions.
 
-Example: “Solo · €39/month · Renews 18 October”; “1/1 designers · 2/3 subscription projects”; “Villa Auren · Project Pass · Expires 15 February · Extend for €15”. Dates are illustrative.
+Example: “Solo · €59/month · Renews 18 October”; “1/1 designers · 2/3 subscription projects”; “Villa Auren · Project Pass · Expires 15 February · Extend for €15”. Dates are illustrative.
 
 ## Stripe integration and application data
 

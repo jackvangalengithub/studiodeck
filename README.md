@@ -33,7 +33,11 @@ docker compose up -d --build
 
 The local `docker-compose.override.yml` mounts `app/`, `public/`, and `scripts/` read-only from your workspace, so local edits appear without rebuilding and older images cannot hide newer code. To run only the files packaged in the image, use `docker compose -f docker-compose.yml up -d --build`.
 
-This runs two containers from one image: `web` (PHP server) and `worker` (background processing). Both share `./storage`, so the database and `storage/mail.log` are on your machine. Use `docker compose logs -f` to follow output and `docker compose down` to stop. The PHP built-in web server is for development and demonstrations; deploy `public/` with your usual PHP web server and HTTPS for client use.
+This runs two app containers from one image: `web` (PHP server) and `worker` (background processing). Both share `./storage`, so the database is on your machine. The local override also starts MailCatcher and FakeStripe. Use `docker compose logs -f` to follow output and `docker compose down` to stop. The PHP built-in web server is for development and demonstrations; deploy `public/` with your usual PHP web server and HTTPS for client use.
+
+**Local email inbox: [http://localhost:1081](http://localhost:1081).** Both app containers override `MAIL_TRANSPORT` to `mail` and use `docker/local-mail.ini` to send PHP mail through msmtp to `mailcatcher:1025`. Sign-in links, client invitations, conversation notifications and billing emails all arrive in this inbox, regardless of their recipient address. No SMTP port is published to the host, and the inbox is bound to loopback. Set `MAILCATCHER_PORT` in `.env` to change the inbox port. MailCatcher is a temporary inbox; messages reset when it restarts.
+
+After changing the mail setup, run `docker compose up -d --build web worker mailcatcher`. The base-only command (`docker compose -f docker-compose.yml up -d --build`) excludes local mail capture and uses your configured `MAIL_TRANSPORT`. Running PHP directly on the host still uses `.env` and defaults to log-only mail.
 
 A single container (`docker build -t studiodeck . && docker run --rm -p 8080:8080 --env-file .env -v studiodeck-data:/app/storage studiodeck`) also works; `scripts/start.sh` then starts both processes.
 
@@ -46,7 +50,7 @@ The included PHP router authenticates pages and assets and authorizes project ro
 ## One-time studio setup
 
 - Set `APP_ENV=production` and `APP_URL` to your exact HTTPS application origin. Links are created from this configured origin, never an incoming Host header.
-- Set `MAIL_TRANSPORT=mail`, a verified `MAIL_FROM`, and configure PHP's `mail()` transport on your server. In the Docker image, install/configure your preferred sendmail-compatible relay, or use a PHP host with a configured mail service. Without mail delivery, authenticated designers can still create links and send them manually; a failed send is reported accurately. Production sign-in requires working mail.
+- Set `MAIL_TRANSPORT=mail`, a verified `MAIL_FROM`, and configure PHP's `mail()` transport on your server. The Docker image includes msmtp; configure its SMTP settings and PHP `sendmail_path` for your provider, or use a PHP host with a configured mail service. Without mail delivery, authenticated designers can still create links and send them manually; a failed send is reported accurately. Production sign-in requires working mail.
 - Optionally restrict designer signup with comma-separated, lowercase `DESIGNER_EMAILS`. Otherwise any email verified by a magic link creates its own isolated studio.
 - Set `OPENAI_API_KEY` to enable semantic document/visual analysis, grounded free-form budget chat and image edits. Models are configurable using `OPENAI_TEXT_MODEL` and `OPENAI_IMAGE_MODEL`. Keys stay on the server. Without a key, filename/text rules, structured cost imports, manual editing, palette extraction and a factual budget helper still work.
 - Keep the worker running under your normal process manager. `php scripts/worker.php --once` handles one queued job and exits, which also permits scheduled operation.
@@ -194,7 +198,7 @@ Project tiles use the same selected cover image as the project overview and show
 
 Upload an avatar in **User profile**. Project members and their avatars also appear on the client-facing **Your project team** slide, together with additional non-client project contacts.
 
-Workspace typography and palette are fixed. Checkboxes, navigation and upload controls use Warm grayscale. The project style picker retains its font, palette and background choices with a live preview.
+Studio admins can choose **Classic serif** (the original heading font) or **Modern sans** (DM Sans, matching the marketing website titles) in **Studio settings → Font style**. The choice is shared by studio members and leaves project presentation styling independent. The workspace palette is fixed. Checkboxes, navigation and upload controls use Warm grayscale. The project style picker retains its font, palette and background choices with a live preview.
 
 `python3 tests/test_project_story.py` checks metadata validation, image access, shared section immutability, floorplan labels, team avatars and studio font persistence with isolated data.
 
@@ -272,7 +276,7 @@ Studios with no projects, including archived projects, see a welcome page with a
 
 ### Studio websites
 
-Studio admins can open **Website** to build a portfolio from curated project copies and approved testimonials. Ten one-page starting designs with full-screen previews, freely editable HTML/CSS/JavaScript, chat-driven source edits, sandboxed private previews, explicit static publication, optimized images, SEO metadata, ZIP export and version restore are implemented. Publishing requires the €39/month Website add-on entitlement (or explicit local development mode). Project changes and deletion never alter published snapshots. See [website setup, limits and deployment](docs/website.md) for Stripe and custom-domain HTTPS configuration.
+Studio admins can open **Website** to build a portfolio from curated project copies and approved testimonials. Ten one-page starting designs with full-screen previews, freely editable HTML/CSS/JavaScript, chat-driven source edits, sandboxed private previews, explicit static publication, optimized images, SEO metadata, ZIP export and version restore are implemented. Publishing is included with every active Solo, Studio and Practice subscription (or explicit local development mode). Project changes and deletion never alter published snapshots. See [website setup, limits and deployment](docs/website.md) for Stripe and custom-domain HTTPS configuration.
 
 ### Needs attention
 

@@ -1,5 +1,14 @@
 // Client-facing interface copy. Keep keys identical across languages.
 export default {
+"presentation_help_back":"Back",
+"presentation_help_next":"Next",
+"presentation_help_step":"Step {step} of 2",
+"presentation_help_options_title":"More options, right here",
+"presentation_help_title":"Move through the slides",
+"presentation_help_arrows":"Use ← → arrow keys to move quickly between slides.",
+"presentation_help_options":"Hover over the little button on the left for more options.",
+"presentation_help_options_touch":"Tap the little button on the left for more options.",
+"presentation_help_dont_show_again":"Don’t show again",
 "pin_feedback":"Pin feedback",
 "cancel_pin":"Cancel pin",
 "show_resolved_pins":"Show resolved pins",

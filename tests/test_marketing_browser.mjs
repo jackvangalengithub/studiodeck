@@ -17,22 +17,37 @@ try{
    const images=page.locator(selector);for(const img of await images.all()){assert((await img.getAttribute('src')).endsWith('/'+profile.id+'.webp'));assert.equal(await img.getAttribute('alt'),profile.en.alt);}
   }
   assert.equal(await page.locator('#demo-title').innerText(),profile.en.projectTitle);assert.equal(await page.locator('.portfolio-example-body>h3').innerText(),profile.en.headline);
+  if(profile.id==='signmaker'){
+   assert.match(await page.locator('#hero-title').innerText(),/You make brands visible/);
+   assert.match(await page.locator('.hero-description').innerText(),/storefront mockups, lettering designs, vehicle graphics/);
+   assert.match(await page.locator('.communication-story .product-story-copy').innerText(),/lettering sizes, vinyl choices/);
+   assert.equal(await page.locator('.story-approval h3').innerText(),'Matching vehicle graphics');
+   assert.match(await page.locator('.portfolio-story .product-story-copy').innerText(),/storefront signs, window lettering and vehicle wraps/);
+   assert.match(await page.locator('#panel-budget').textContent(),/Signs & lettering/);
+   assert.match(await page.locator('#sample-comments').textContent(),/same design on our van/);
+  }
   if(profile.id!=='interior')assert((await page.locator('#audience-status').innerText()).includes(profile.en.label.toLowerCase()));
  }
- console.log('PASS All five audience choices match studio setup and update the hero, demo and portfolio');
- await page.reload({waitUntil:'networkidle'});assert(await page.locator('[name="audience"][value="events"]').isChecked());assert((await page.locator('.story-approval h3').innerText()).includes('lighting'));
+ console.log('PASS All audience choices match studio setup and update the hero, demo and portfolio');
+ await page.reload({waitUntil:'networkidle'});assert(await page.locator('[name="audience"][value="signmaker"]').isChecked());assert((await page.locator('.story-approval h3').innerText()).includes('vehicle'));
  await page.goto(base+'/?audience=landscape#studio-website',{waitUntil:'networkidle'});assert(await page.locator('[name="audience"][value="landscape"]').isChecked());assert((await page.locator('.communication-story .product-story-copy').innerText()).includes('planting'));assert((await page.locator('.portfolio-story .product-story-copy').innerText()).includes('gardens'));
  await page.locator('[name="audience"][value="landscape"]').focus();await page.keyboard.press('ArrowRight');assert(await page.locator('[name="audience"][value="architecture"]').isChecked());
  await page.locator('#expand-demo').click();assert((await page.locator('#expanded-image').getAttribute('src')).endsWith('/architecture.webp'));assert((await page.locator('#expanded-image-credit').innerText()).includes('AI-generated'));await page.keyboard.press('Escape');
  await page.locator('#tab-feedback').click();await page.locator('#feedback-input').fill('Keep this sample feedback.');await page.locator('#feedback-form button').click();await page.locator('.audience-choice').filter({has:page.locator('[value="furniture"]')}).click();assert((await page.locator('#sample-comments').innerText()).includes('Keep this sample feedback.'));
  await page.locator('#tab-budget').click();assert((await page.locator('#panel-budget').innerText()).includes('Cabinetry & furniture'));await page.locator('#source-toggle').click();assert(await page.locator('#budget-source').isVisible());
- for(const [id,price] of [['solo','€39 / month'],['studio','€199 / month'],['practice','€399 / month'],['pass','€19.00 one-time']]){await page.locator(`[data-plan="${id}"]`).click();assert.equal(await page.locator('#summary-price').innerText(),price);await page.keyboard.press('Escape');}
- assert((await page.locator('.website-addon .pass-price').innerText()).includes('€39'));console.log('PASS URL persistence, keyboard selection, sample interactions and existing prices');
+ for(const [id,price] of [['solo','€59 / month'],['studio','€199 / month'],['practice','€499 / month'],['pass','€19.00 one-time']]){await page.locator(`[data-plan="${id}"]`).click();assert.equal(await page.locator('#summary-price').innerText(),price);await page.keyboard.press('Escape');}
+ assert.equal(await page.locator('.website-addon').count(),0);assert.equal(await page.getByText('Studio website included',{exact:true}).count(),3);console.log('PASS URL persistence, keyboard selection, sample interactions and updated subscription prices');
  for(const width of [320,390,768,1024,1440,1920]){
   await page.setViewportSize({width,height:1000});
+  if(width>700){
+   const tiles=await page.locator('.audience-choice').evaluateAll(items=>items.map(el=>{const r=el.getBoundingClientRect();return {top:r.top,right:r.right,width:r.width};}));
+   assert.equal(tiles.length,6);
+   assert(tiles.every(tile=>Math.abs(tile.top-tiles[0].top)<1),`Six tiles must share one row at ${width}`);
+   assert(tiles.every(tile=>tile.right<=width&&Math.abs(tile.width-tiles[0].width)<1),`Tiles must fit equally at ${width}`);
+  }
   for(const profile of catalog){await page.locator('.audience-choice').filter({has:page.locator(`[value="${profile.id}"]`)}).click();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${profile.id} overflows at ${width}`);}
  }
- await page.setViewportSize({width:390,height:844});await page.locator('.menu-toggle').click();await page.locator('#navigation a[href="#client-communication"]').click();assert.equal(await page.locator('.menu-toggle').getAttribute('aria-expanded'),'false');
+ await page.setViewportSize({width:390,height:844});await page.locator('.menu-toggle').click();await page.locator('#navigation a[href="#pricing"]:not(.nav-cta)').click();assert.equal(await page.locator('.menu-toggle').getAttribute('aria-expanded'),'false');
  await page.locator('#client-communication').screenshot({path:'/tmp/marketing-communication-mobile.png'});await page.locator('#studio-website').screenshot({path:'/tmp/marketing-portfolio-mobile.png'});
  await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/?audience=landscape',{waitUntil:'networkidle'});await page.screenshot({path:'/tmp/marketing-audience-desktop.png'});await page.locator('#client-communication').screenshot({path:'/tmp/marketing-communication-desktop.png'});await page.locator('#studio-website').screenshot({path:'/tmp/marketing-portfolio-desktop.png'});
  assert.deepEqual(errors,[]);console.log('PASS All audiences fit mobile, tablet and desktop; resources and JavaScript load without errors');

@@ -9,36 +9,21 @@ function billing_catalog(): array {
     $plans=[
         'pass'=>['name'=>'Project Pass','cents'=>1900,'days'=>150,'seats'=>1,'projects'=>1],
         'extension'=>['name'=>'Pass extension','cents'=>1500,'days'=>150,'seats'=>1,'projects'=>1],
-        'solo'=>['name'=>'Solo','cents'=>3900,'seats'=>1,'projects'=>3],
+        'solo'=>['name'=>'Solo','cents'=>5900,'seats'=>1,'projects'=>3],
         'studio'=>['name'=>'Studio','cents'=>19900,'seats'=>5,'projects'=>15],
-        'practice'=>['name'=>'Practice','cents'=>39900,'seats'=>15,'projects'=>50],
+        'practice'=>['name'=>'Practice','cents'=>49900,'seats'=>15,'projects'=>50],
         'extra_project'=>['name'=>'Extra active project','cents'=>1000],
         'extra_seat'=>['name'=>'Extra team member','cents'=>2000],
-        'website'=>['name'=>'Website','cents'=>3900],
     ];
     foreach($plans as $key=>&$plan)$plan['price_id']=env('STRIPE_PRICE_'.strtoupper($key));unset($plan);
     return $plans;
 }
-function billing_addons(string $sid): array {
-    // Listing modules must not create a website draft or copy studio assets.
-    $site=one('SELECT paid_until,subscription_status,subscription_id FROM websites WHERE studio_id=?',[$sid]);
-    $b=billing_studio($sid);
-    return [['id'=>'website','name'=>'Website','in_package'=>billing_package_website($b),'separate_subscription'=>!empty($site['subscription_id'])&&$site['subscription_id']!==$b['subscription_id']&&!in_array($site['subscription_status'],['canceled','incomplete_expired'],true),...website_billing_status($site??['paid_until'=>0,'subscription_status'=>'none','subscription_id'=>null])]];
-}
-function billing_package_website(array $b): bool {
-    $sub=json_decode($b['subscription_json']??'{}',true);$price=env('STRIPE_PRICE_WEBSITE');
-    foreach($sub['items']['data']??[] as $item)if($price&&stripe_id($item['price'])===$price&&(int)$item['quantity']===1)return true;
-    return false;
-}
-function billing_website_selection(array $input,array $b): bool {
-    if(!array_key_exists('website',$input))return billing_package_website($b);
-    $value=filter_var($input['website'],FILTER_VALIDATE_BOOLEAN,FILTER_NULL_ON_FAILURE);
-    if($value===null)fail('Choose a valid Website option.');return $value;
-}
-function billing_require_website_bundle(string $sid): void {
-    $b=billing_studio($sid);$site=one('SELECT subscription_id,subscription_status FROM websites WHERE studio_id=?',[$sid]);
-    if(!empty($site['subscription_id'])&&$site['subscription_id']!==$b['subscription_id']&&!in_array($site['subscription_status'],['canceled','incomplete_expired'],true))fail('Website is already billed separately. Manage that subscription before adding it to your package.',409);
-    if(one("SELECT 1 FROM billing_orders WHERE studio_id=? AND kind='website' AND status='pending'",[$sid]))fail('Finish or cancel the existing Website checkout first.',409);
+function billing_addons(string $sid): array { return []; }
+function billing_package_website(array $b): bool { return billing_subscription_active($b); }
+function billing_subscription_plan_for_price(string $price,string $sid): ?string {
+    foreach(billing_catalog() as $key=>$p)if(in_array($key,['solo','studio','practice'],true)&&$p['price_id']&&$p['price_id']===$price)return $key;
+    // Previously purchased prices remain valid when deployment switches to a new catalog version.
+    return one("SELECT plan FROM billing_orders WHERE studio_id=? AND price_id=? AND kind='subscription' AND plan IN ('solo','studio','practice') AND status IN ('pending','paid') ORDER BY created_at DESC LIMIT 1",[$sid,$price])['plan']??null;
 }
 function migrate_billing(PDO $db): void {
     $db->exec(file_get_contents(__DIR__.'/billing_schema.sql'));

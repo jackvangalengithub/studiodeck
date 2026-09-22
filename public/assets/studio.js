@@ -17,7 +17,7 @@ export const studioPalettes={
 };
 export const studioStyles={get classic(){return tr("studio_classic");},get modern(){return tr("studio_modern");},get minimal(){return tr("studio_minimal");},get editorial(){return tr("studio_editorial");}};
 export const fixedStudioTheme=Object.freeze({palette:'warmgray',style:'editorial',font:'serif'});
-export function cleanStudioTheme(){return {...fixedStudioTheme};}
-export function studioThemeVariables(){const p=studioPalettes.warmgray;return {'--green':p.colors[0],'--soft':p.colors[1],'--bg':p.colors[2],'--accent':p.colors[3],'--line':p.colors[3]+'66','--ink':p.ink,'--muted':p.muted,'--surface':p.surface,'--heading':"Georgia,'Times New Roman',serif",'--studio-radius':'0px','--on-accent':'#ffffff'};}
-export const studioThemeStyle=()=>Object.entries(studioThemeVariables()).map(([key,value])=>`${key}:${value}`).join(';');
-export function applyStudioTheme(theme,active){const root=document.documentElement;delete root.dataset.studioPalette;delete root.dataset.studioStyle;if(active){root.dataset.studioPalette='warmgray';root.dataset.studioStyle='editorial';Object.entries(studioThemeVariables()).forEach(([key,value])=>root.style.setProperty(key,value));}}
+export function cleanStudioTheme(theme={}){return {...fixedStudioTheme,font:theme?.font==='sans'?'sans':'serif'};}
+export function studioThemeVariables(theme={}){const p=studioPalettes.warmgray;return {'--green':p.colors[0],'--soft':p.colors[1],'--bg':p.colors[2],'--accent':p.colors[3],'--line':p.colors[3]+'66','--ink':p.ink,'--muted':p.muted,'--surface':p.surface,'--heading':cleanStudioTheme(theme).font==='sans'?"'DM Sans',Arial,sans-serif":"Georgia,'Times New Roman',serif",'--studio-radius':'0px','--on-accent':'#ffffff'};}
+export const studioThemeStyle=theme=>Object.entries(studioThemeVariables(theme)).map(([key,value])=>`${key}:${value}`).join(';');
+export function applyStudioTheme(theme,active){const root=document.documentElement;delete root.dataset.studioPalette;delete root.dataset.studioStyle;if(active){root.dataset.studioPalette='warmgray';root.dataset.studioStyle='editorial';Object.entries(studioThemeVariables(theme)).forEach(([key,value])=>root.style.setProperty(key,value));}}

@@ -19,7 +19,7 @@ function reveal(){
 }
 export function syncPresentationFullscreen(){
  const active=isPresentationFullscreen();document.body.classList.toggle('presentation-fullscreen',active);
- document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('title',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('aria-pressed',String(active));const label=button.querySelector('[data-fullscreen-label]');if(label)label.textContent=active?tr('exit_fullscreen'):tr('show_fullscreen');});
+ document.querySelectorAll('[data-action="toggle-fullscreen"]').forEach(button=>{button.setAttribute('aria-label',active?tr("exit_fullscreen"):tr("show_fullscreen"));const tooltip=button.querySelector('.presentation-action-tooltip');if(tooltip){tooltip.textContent=active?tr('exit_fullscreen'):tr('show_fullscreen');button.removeAttribute('title');}else button.setAttribute('title',active?tr("exit_fullscreen"):tr("show_fullscreen"));button.setAttribute('aria-pressed',String(active));const label=button.querySelector('[data-fullscreen-label]');if(label)label.textContent=active?tr('exit_fullscreen'):tr('show_fullscreen');});
  if(active&&!wasActive)reveal();
  else if(!active){clearTimeout(hideTimer);setHidden(false);}
  else setHidden(document.body.classList.contains('presentation-controls-hidden'));

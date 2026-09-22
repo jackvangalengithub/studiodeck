@@ -26,7 +26,7 @@ function user_studios(string $uid): array {return rows('SELECT s.id,s.name,s.the
 function session_details(?array $s): array {
     if(!$s)return ['user'=>null,'csrf'=>null,'studio'=>null,'studios'=>[],'studio_theme'=>null,'capabilities'=>capabilities()];
     $studios=user_studios($s['user_id']);$studio=null;foreach($studios as $v)if($v['id']===$s['studio_id'])$studio=$v;
-    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name'],'profile'=>profile_for(person_key($s['email'],true),$s['name'])],'unread_count'=>unread_comment_count($s),'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>fixed_studio_theme(),'capabilities'=>capabilities(),'billing'=>$studio?billing_summary($studio['id']):null];
+    return ['user'=>['id'=>$s['user_id'],'email'=>$s['email'],'name'=>$s['name'],'profile'=>profile_for(person_key($s['email'],true),$s['name'])],'unread_count'=>unread_comment_count($s),'csrf'=>$s['csrf'],'studio'=>$studio,'studios'=>$studios,'studio_theme'=>clean_studio_theme(json_decode($studio['theme']??'{}',true)),'capabilities'=>capabilities(),'billing'=>$studio?billing_summary($studio['id']):null];
 }
 function create_studio(string $uid,string $name): string {
     $sid=id();insert('studios',['id'=>$sid,'name'=>$name,'theme'=>'{}','created_at'=>now()]);insert('studio_members',['studio_id'=>$sid,'user_id'=>$uid,'role'=>'admin']);insert('studio_billing',['studio_id'=>$sid,'origin_user_id'=>$uid]);return $sid;
@@ -42,3 +42,4 @@ function project_team_sql(): string {return "p.studio_id=? AND EXISTS(SELECT 1 F
 function project_access_sql(): string {return "p.studio_id=? AND (p.visibility='public' OR EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?))";}
 
 function fixed_studio_theme(): array {return ['palette'=>'warmgray','style'=>'editorial','font'=>'serif'];}
+function clean_studio_theme(mixed $theme): array {return [...fixed_studio_theme(),'font'=>is_array($theme)&&($theme['font']??'')==='sans'?'sans':'serif'];}

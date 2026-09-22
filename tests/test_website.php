@@ -7,8 +7,8 @@ function check(bool $ok,string $message): void {if(!$ok)throw new RuntimeExcepti
 function denied(callable $fn,int $code): void {try{$fn();}catch(RuntimeException $e){check($e->getCode()===$code,'Denied '.$code.': '.$e->getMessage());return;}throw new RuntimeException('Expected denial '.$code);}
 try{
  $uid=id();insert('users',['id'=>$uid,'email'=>'website@example.test','name'=>'Studio','created_at'=>now()]);$sid=create_studio($uid,'Studio Willow');$u=['user_id'=>$uid,'studio_id'=>$sid,'email'=>'website@example.test'];$site=website_get($sid);$d=website_with_source(json_decode($site['draft'],true));
- check(!$d['started']&&count(website_templates())===26,'New websites start with the welcome screen and 26 templates');
- check(array_column(website_templates(),'id')[25]==='blank','Blank page is last in the catalog');
+ check(!$d['started']&&count(website_templates())===29,'New websites start with the welcome screen and 29 templates');
+ check(array_column(website_templates(),'id')[28]==='blank','Blank page is last in the catalog');
  foreach(studio_business_types() as $business){$bold=array_filter(website_templates(),fn($t)=>in_array($business['id'],$t['business_types'],true)&&in_array('experimental',$t['styles'],true));check(count($bold)===3,'Three experimental designs for '.$business['id']);}
  $blank=website_seed_files($d,'blank');check(!str_contains($blank['index.html'],'class="hero"')&&$blank['script.js']==='','Blank template contains no predefined sections');
  foreach(website_templates() as $t){$files=website_seed_files($d,$t['id']);check(!website_source_checks($sid,$files)['errors'],'Template '.$t['id'].' is a valid standalone page');}
