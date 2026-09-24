@@ -155,6 +155,7 @@ function selectAudience(id,announce=false){
   const emphasis=document.createElement('em');emphasis.textContent='AI does the presentation.';heading.append(emphasis);
   text('.hero-copy>.eyebrow',`FOR ${profile.label.toUpperCase()}`);
   text('.hero-description',story.intro);
+  updateAudienceChecks(id,profile,story);
   for(const image of document.querySelectorAll('.hero-image,.power-deck-image img,#demo-image,.ai-visual img,.portfolio-example-projects img,#expanded-image')){
     image.src=profile.image;image.alt=profile.alt;image.width=1200;image.height=800;
   }
@@ -167,7 +168,7 @@ function selectAudience(id,announce=false){
   text('.showcase-copy>p',profile.welcomeIntro);
   text('.communication-story .product-story-copy>p:not(.eyebrow)',story.conversation);
   text('.story-message:first-child p',story.question);text('.story-message:nth-child(2) p',story.reply);
-  text('.story-attachment',`↗ ${story.attachment}`);text('.story-approval .eyebrow',story.approval);text('.story-approval h3',story.item);
+  text('.communication-story .story-attachment',`↗ ${story.attachment}`);text('.story-approval .eyebrow',story.approval);text('.story-approval h3',story.item);
   text('.portfolio-story .product-story-copy>p:nth-of-type(2)',story.portfolio);
   text('.portfolio-example-body>h3',profile.headline);
   text('.portfolio-example-projects article:first-child>span',profile.projectTitle.toUpperCase());

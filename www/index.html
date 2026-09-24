@@ -5,18 +5,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#faf9f6">
-  <meta name="description" content="Turn your design files into client presentations, keep conversations and approvals with the project, and build a studio website from your selected work.">
+  <meta name="description" content="Beautiful client presentations, AI that flags conflicting project details, and conversations that lead to clear decisions. Bring your design studio together in Studiodeck.">
   <meta property="og:title" content="Studiodeck — The art of presenting beautiful spaces.">
-  <meta property="og:description" content="Your tools. Your workflow. Our AI. Drag in your design files and let Studiodeck build the client presentation.">
+  <meta property="og:description" content="Present your vision. Let AI flag discrepancies across project files. Keep feedback, questions and client approvals connected to the design.">
   <meta property="og:type" content="website">
   <title>Studiodeck — The art of presenting beautiful spaces.</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="assets/dm-sans-variable.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="assets/studio-types/interior.webp" as="image">
   <link rel="stylesheet" href="styles.css">
-  <link rel="stylesheet" href="luxury.css?v=six-business-types-1">
-  <script src="script.js?v=login-link-2" defer></script>
-  <script src="audience.js?v=signmaker-1" defer></script>
+  <link rel="stylesheet" href="luxury.css?v=home-project-1">
+  <script src="script.js?v=home-project-1" defer></script>
+  <script src="audience-checks.js?v=disciplines-1" defer></script>
+  <script src="audience.js?v=disciplines-1" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -43,6 +44,7 @@
           <label class="audience-choice"><input type="radio" name="audience" value="events" ><span class="audience-photo"><img src="assets/studio-types/events.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Event &amp; exhibition design</strong><small>Experiences, installations &amp; occasions</small></span></label>
           <label class="audience-choice"><input type="radio" name="audience" value="signmaker"><span class="audience-photo"><img src="assets/studio-types/signmaker.webp" alt="" width="1200" height="800"><i aria-hidden="true">✓</i></span><span class="audience-copy"><strong>Sign maker</strong><small>Storefront lettering, signs &amp; vehicle graphics</small></span></label>
       </fieldset>
+      <div class="homeowner-entry"><span>Planning your own home renovation or redecoration?</span><a href="#home-project">Explore Studiodeck for your home <span aria-hidden="true">↗</span></a></div>
       <p class="visually-hidden" role="status" id="audience-status"></p>
     </section>
 
@@ -51,6 +53,7 @@
         <p class="eyebrow">YOUR TOOLS. YOUR WORKFLOW. OUR AI.</p>
         <h1 id="hero-title">You design.<br><em>AI does the presentation.</em></h1>
         <p class="hero-description">Keep your own tools and your own process. Drag and drop the PDFs, PowerPoints, images and Excel quotes you already have. AI does the hard part: a complete presentation, connected budgets and answers for your clients.</p>
+        <p class="hero-connected">An extra pair of eyes on your project. AI automatically checks your files for conflicting details and brings possible issues to you, so you can focus on the design.</p>
         <div class="hero-actions"><button class="button button-accent" type="button" data-signup>Start your 7-day trial <span aria-hidden="true">↗</span></button><a class="text-link" href="#from-files-to-presentation">Discover Studiodeck <span aria-hidden="true">↓</span></a></div>
         <p class="hero-note">One project. One payment. 150 days of access.</p>
       </div>
@@ -58,6 +61,76 @@
         <img class="hero-image" src="assets/studio-types/interior.webp" width="1200" height="800" alt="A warm living room with natural materials and sculptural furniture" fetchpriority="high">
       </div>
       <div class="hero-caption"><span>01 / THE MEDITERRANEAN RESIDENCE</span><span>AN ORIGINAL STUDIODECK CONCEPT · AI-GENERATED</span></div>
+    </section>
+
+    <section class="ai-checks-story" id="ai-project-checks" aria-labelledby="ai-checks-title">
+      <div class="container">
+        <div class="ai-checks-heading">
+          <div><p class="eyebrow">AUTOMATIC AI CHECKS · A HELPING HAND</p><h2 id="ai-checks-title">You keep designing.<br><em>AI checks the details.</em></h2></div>
+          <p>Upload your project files and let AI take a second look. Studiodeck automatically compares documents and images in the background, looking for details that don’t agree. A different finish. A conflicting dimension. An exclusion in a quote. It brings possible issues and their sources to your attention, helping you spot things you might otherwise miss.</p>
+        </div>
+        <div class="ai-checks-layout">
+          <div class="ai-checks-copy">
+            <span class="ai-checks-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="7" width="25" height="30" rx="3"/><path d="M11 15h13M11 21h9M11 27h6"/><circle cx="31" cy="29" r="9"/><path d="m37.5 35.5 6 6m-16-12 3 3 5-6"/></svg></span>
+            <h3>Your AI helping hand.<br>Already looking for you.</h3>
+            <p>No need to think of the right question or start every check yourself. AI gets to work after uploads finish and checks again when relevant project evidence changes. Suggestions appear privately in Communication, ready for you to review.</p>
+            <ol class="ai-checks-steps"><li><span>01</span><div><strong>AI looks for the mismatch.</strong><p>It compares materials, finishes, models, written dimensions and comparable scope or prices across your files.</p></div></li><li><span>02</span><div><strong>AI brings you the evidence.</strong><p>See the source text or highlighted image region. You decide whether it’s a real issue or an intentional choice.</p></div></li><li><span>03</span><div><strong>Bring it into the conversation.</strong><p>Start a private discussion with the evidence attached. Choose what to share with your client.</p></div></li></ol>
+            <a class="text-link" href="#client-communication">From a finding to a decision <span aria-hidden="true">↓</span></a>
+          </div>
+          <div class="ai-evidence-demo" aria-label="Illustrative AI discrepancy examples">
+            <div class="ai-evidence-bar"><span>FOUND BY AI · EXAMPLES</span><span>Studio only</span></div>
+            <p class="ai-example-intro">The kind of detail AI can find for you automatically. Explore three examples below.</p>
+            <details class="ai-finding" open>
+              <summary><span class="ai-finding-index">01</span><span><small>MATERIAL &amp; FINISH</small><strong>The same tap. Two different finishes.</strong></span><span class="ai-finding-toggle" aria-hidden="true">+</span></summary>
+              <div class="ai-finding-body">
+                <div class="ai-source-pair"><figure><figcaption><span>DESIGN SPECIFICATION</span>Bathroom finishes.pdf · p. 4</figcaption><blockquote>“Basin tap B-02: <mark>brushed brass</mark> finish.”</blockquote></figure><figure><figcaption><span>SUPPLIER QUOTE</span>Bathroom quote.pdf · p. 2</figcaption><blockquote>“Basin tap B-02: <mark>polished chrome</mark> finish.”</blockquote></figure></div>
+                <p class="ai-finding-reason"><strong>AI spotted a possible mismatch</strong> Both documents name tap B-02, but specify different finishes. Check which finish the supplier should quote.</p>
+                <p class="ai-discuss-example"><span>THE CONVERSATION IT COULD START</span>“Is brushed brass still the intended finish? Let’s confirm before ordering.”</p>
+              </div>
+            </details>
+            <details class="ai-finding">
+              <summary><span class="ai-finding-index">02</span><span><small>WRITTEN DIMENSIONS</small><strong>One island. Two different widths.</strong></span><span class="ai-finding-toggle" aria-hidden="true">+</span></summary>
+              <div class="ai-finding-body">
+                <div class="ai-source-pair"><figure><figcaption><span>DETAILED DRAWING</span>Kitchen elevation.pdf · p. 3</figcaption><blockquote>“island cabinet K-01 — overall width: <mark>2400 mm</mark>.”</blockquote></figure><figure><figcaption><span>SPECIFICATION</span>Joinery schedule.pdf · p. 6</figcaption><blockquote>“island cabinet K-01 — overall width: <mark>2200 mm</mark>.”</blockquote></figure></div>
+                <p class="ai-finding-reason"><strong>AI spotted a possible mismatch</strong> The written overall widths for island cabinet K-01 differ. AI compares the annotations; it doesn’t measure the drawing.</p>
+                <p class="ai-discuss-example"><span>THE CONVERSATION IT COULD START</span>“Which width should the joiner use? Let’s align the drawing and schedule.”</p>
+              </div>
+            </details>
+            <details class="ai-finding">
+              <summary><span class="ai-finding-index">03</span><span><small>SCOPE &amp; INCLUSIONS</small><strong>Curtain fitting included. Or excluded?</strong></span><span class="ai-finding-toggle" aria-hidden="true">+</span></summary>
+              <div class="ai-finding-body">
+                <div class="ai-source-pair"><figure><figcaption><span>PROJECT SPECIFICATION</span>Window treatments.pdf · p. 2</figcaption><blockquote>“curtain package C-01: <mark>fitting included</mark>.”</blockquote></figure><figure><figcaption><span>SUPPLIER QUOTE</span>Curtain quote.pdf · p. 1</figcaption><blockquote>“curtain package C-01: <mark>fitting excluded</mark>.”</blockquote></figure></div>
+                <p class="ai-finding-reason"><strong>AI spotted a possible mismatch</strong> The quote excludes fitting that the specification includes for curtain package C-01. Clarify the scope before asking the client to decide.</p>
+                <p class="ai-discuss-example"><span>THE CONVERSATION IT COULD START</span>“Can we get a quote including fitting, so the client has the complete scope?”</p>
+              </div>
+            </details>
+            <p class="ai-example-note">Illustrative findings and fictional source excerpts. Your studio reviews every suggestion; nothing is corrected or shared automatically.</p>
+          </div>
+        </div>
+        <div class="ai-checks-footnote"><p><strong>Design context matters.</strong> Inspiration, before photos and unselected alternatives are excluded from comparisons. A moodboard isn’t a specification.</p><p>AI can miss details or misread evidence. Review the sources; a check with no findings is not a guarantee that everything agrees.</p></div>
+      </div>
+    </section>
+
+    <section class="product-story communication-story" id="client-communication" aria-labelledby="communication-title">
+      <div class="container product-story-grid">
+        <div class="product-story-copy">
+          <p class="eyebrow">COMMUNICATION THAT MOVES THE PROJECT FORWARD</p>
+          <h2 id="communication-title">From “can we change this?”<br>to “yes, confirmed.”<br><em>Keep the whole conversation.</em></h2>
+          <p>Keep your client’s questions, feedback and decisions with the project. Discuss a finish, attach the revised quote and ask the right person to confirm, without losing the details in another email thread.</p>
+          <ul class="check-list"><li>Pin feedback to the exact point on an image or floorplan.</li><li>Keep messages, questions, to dos and approvals in one conversation.</li><li>@Mention the right person and see what needs attention.</li><li>Discuss privately with your studio, then choose what to share.</li><li>Request explicit confirmation. Approved price adjustments update the budget.</li></ul>
+          <div class="communication-journey" aria-label="Connected project workflow"><span>Feedback</span><i aria-hidden="true">→</i><span>Discussion</span><i aria-hidden="true">→</i><span>Decision</span></div>
+          <a class="text-link" href="#live-demo">Explore the client experience <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="communication-example" aria-label="Illustrative project conversation and approval">
+          <div class="story-window-bar"><span>THE EVERYDAY RETREAT</span><span>Communication</span></div>
+          <div class="communication-example-body">
+            <div class="story-message"><span class="story-avatar" aria-hidden="true">E</span><div><span class="story-person">Emma <small>Client</small></span><p>We love the warmer oak. Could you send us the updated quote before we decide?</p></div></div>
+            <div class="story-message"><span class="story-avatar designer" aria-hidden="true">J</span><div><span class="story-person">Jules <small>Designer</small></span><p>Of course. Here’s the revised finish and quote, with the difference shown below.</p><span class="story-attachment">↗ Oak joinery · revised quote.pdf</span></div></div>
+            <div class="story-approval"><span class="eyebrow">FINISH & BUDGET CHANGE</span><h3>Warm oak joinery</h3><div class="story-cost"><span>Change to project budget</span><strong>+ €450 <small>incl. VAT</small></strong></div><div class="story-confirmed"><span aria-hidden="true">✓</span><div><strong>Confirmed by Emma</strong><span>18 September · 10:42</span></div></div></div>
+            <p class="story-example-note">An example conversation. In your project, each confirmation stays linked to its request and budget change.</p>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="power-section container" id="from-files-to-presentation" aria-labelledby="power-title">
@@ -110,26 +183,30 @@
       </div>
     </section>
 
-    <section class="product-story communication-story" id="client-communication" aria-labelledby="communication-title">
+    <section class="product-story checklist-story" id="project-checklist" aria-labelledby="checklist-title">
       <div class="container product-story-grid">
         <div class="product-story-copy">
-          <p class="eyebrow">CUSTOMER COMMUNICATION & APPROVALS</p>
-          <h2 id="communication-title">A conversation.<br>A decision.<br><em>All in the right place.</em></h2>
-          <p>Keep your client’s questions, feedback and decisions with the project. Discuss a finish, attach the revised quote and ask the right person to confirm, without losing the details in another email thread.</p>
-          <ul class="check-list"><li>Project conversations and comments on the exact slide.</li><li>Confirmation requests with the relevant files attached.</li><li>A clear record of who confirmed what, and when.</li><li>Agreed cost changes added to the budget after confirmation.</li></ul>
-          <a class="text-link" href="#live-demo">Explore the client experience <span aria-hidden="true">↗</span></a>
+          <p class="eyebrow">PROJECT CHECKLIST · YOU STAY IN CONTROL</p>
+          <h2 id="checklist-title">A question in a quote.<br>A task in a comment.<br><em>Too easy to lose.</em></h2>
+          <p>A missing installation price. A sample someone still needs to order. A client choice buried in feedback. When the next steps are scattered across files and conversations, you become the person who has to remember them all.</p>
+          <p>Turn a conversation into a question or to do, assign the right person and keep the next step with its discussion. When AI flags conflicting project details, review the evidence and decide what needs a follow-up. Your checklist brings that work together.</p>
+          <ul class="check-list"><li>AI findings start private. You decide what needs a follow-up.</li><li>Keep an item within your studio or include it in the client presentation.</li><li>Turn a comment into an action and return to its original conversation.</li><li>Check off completed work. Request explicit approval for a decision or cost change.</li></ul>
+          <a class="text-link" href="#client-communication">See how approvals stay connected <span aria-hidden="true">↓</span></a>
         </div>
-        <div class="communication-example" aria-label="Illustrative project conversation and approval">
-          <div class="story-window-bar"><span>THE EVERYDAY RETREAT</span><span>Communication</span></div>
+        <div class="communication-example checklist-example" aria-label="Illustrative project checklist">
+          <div class="story-window-bar"><span>PROJECT CHECKLIST</span><span>2 open · 1 done</span></div>
           <div class="communication-example-body">
-            <div class="story-message"><span class="story-avatar" aria-hidden="true">E</span><div><span class="story-person">Emma <small>Client</small></span><p>We love the warmer oak. Could you send us the updated quote before we decide?</p></div></div>
-            <div class="story-message"><span class="story-avatar designer" aria-hidden="true">J</span><div><span class="story-person">Jules <small>Designer</small></span><p>Of course. Here’s the revised finish and quote, with the difference shown below.</p><span class="story-attachment">↗ Oak joinery · revised quote.pdf</span></div></div>
-            <div class="story-approval"><span class="eyebrow">FINISH & BUDGET CHANGE</span><h3>Warm oak joinery</h3><div class="story-cost"><span>Change to project budget</span><strong>+ €450 <small>incl. VAT</small></strong></div><div class="story-confirmed"><span aria-hidden="true">✓</span><div><strong>Confirmed by Emma</strong><span>18 September · 10:42</span></div></div></div>
-            <p class="story-example-note">An example conversation. In your project, each confirmation stays linked to its request and budget change.</p>
+            <div class="checklist-example-row"><span class="example-checkbox" aria-hidden="true"></span><div><small>ACTION · STUDIO ONLY</small><h3>Order material samples</h3><p>Jules · From the client’s feedback</p><span class="story-attachment">↗ Original conversation</span></div></div>
+            <div class="checklist-example-row"><span class="example-checkbox" aria-hidden="true"></span><div><small>QUESTION · SHARED WITH CLIENT</small><h3>Clarify whether installation is included</h3><p>The revised quote adds €800 for installation.</p><span class="checklist-example-status">Awaiting approval · Emma</span></div></div>
+            <div class="checklist-example-row example-done"><span class="example-checkbox" aria-hidden="true">✓</span><div><small>COMPLETED</small><h3>Confirm the site measurements</h3><p>Checked by Jules</p></div></div>
+            <div class="checklist-example-suggestion"><small>PRIVATE AI SUGGESTION</small><h3>Check the tap finish</h3><p>The specification says brushed brass; the quote says polished chrome for the same tap. Review both sources before following up.</p><span>Review evidence → Discuss, resolve or dismiss</span></div>
+            <p class="story-example-note">Illustrative project. Discussing an AI finding starts a private conversation. Marking work done never approves a cost change.</p>
           </div>
         </div>
       </div>
     </section>
+
+
 
     <section class="product-story portfolio-story" id="studio-website" aria-labelledby="portfolio-title">
       <div class="container product-story-grid">
@@ -149,10 +226,35 @@
       </div>
     </section>
 
+    <section class="product-story homeowner-story" id="home-project" aria-labelledby="homeowner-title">
+      <div class="container product-story-grid">
+        <div class="product-story-copy">
+          <p class="eyebrow">FOR YOUR OWN HOME PROJECT</p>
+          <h2 id="homeowner-title">Your home. Your project.<br><em>A little help with the details.</em></h2>
+          <p>You can start it yourself. You don’t have to wait for your designer, decorator or contractor to introduce Studiodeck.</p>
+          <p>Collect your plans, inspiration and supplier quotes in one place. AI automatically looks for conflicting details in the project evidence and shows you the sources. Keep your questions, replies and decisions with the project, too.</p>
+          <ul class="check-list"><li>Let AI help you spot differences in finishes, written dimensions and what a quote includes.</li><li>Review findings privately, then invite the people you need into a conversation.</li><li>Keep the plan, quote and answer together, so you can return to what was agreed.</li></ul>
+          <a class="button button-accent homeowner-cta" href="#project-pass">Explore the €19 Project Pass <span aria-hidden="true">↗</span></a>
+          <p class="homeowner-price-note">One home project · 150 days · One payment<br>€19 excluding VAT · No subscription</p>
+        </div>
+        <div class="homeowner-preview" aria-label="Illustrative home redecoration checks and conversation">
+          <div class="homeowner-preview-bar"><span>OUR HOME REFRESH</span><span>Your project, together</span></div>
+          <div class="homeowner-preview-body">
+            <p class="homeowner-example-label">THE QUESTIONS YOU WANT CLEARED UP</p>
+            <div class="homeowner-finding"><span class="homeowner-finding-number">01</span><div><h3>Did we choose this finish?</h3><p>Living room finish schedule: <strong>matt oak</strong>.<br>Flooring quote, same board: <strong>satin oak</strong>.</p><span class="homeowner-ai-label">AI flags a possible finish mismatch</span></div></div>
+            <div class="homeowner-finding"><span class="homeowner-finding-number">02</span><div><h3>Which cabinet width did we agree on?</h3><p>Kitchen drawing: <strong>2400 mm</strong>.<br>Joinery schedule, same island: <strong>2200 mm</strong>.</p><span class="homeowner-ai-label">AI compares the written dimensions</span></div></div>
+            <div class="homeowner-finding"><span class="homeowner-finding-number">03</span><div><h3>Does the quote include fitting?</h3><p>Curtain specification: <strong>fitting included</strong>.<br>Supplier quote, same curtains: <strong>fitting excluded</strong>.</p><span class="homeowner-ai-label">AI spots a possible gap in the scope</span></div></div>
+            <div class="homeowner-conversation"><span class="homeowner-example-label">KEEP THE FOLLOW-UP WITH THE PROJECT</span><p><strong>You · Homeowner</strong>“Could you confirm the matt oak finish and send an updated quote?”</p><p><strong>Alex · Invited supplier</strong>“Yes, matt oak is the intended finish. I’ve attached the corrected quote here.”</p><span class="homeowner-attachment">↗ Revised flooring quote.pdf</span></div>
+            <p class="homeowner-example-note">Illustrative findings and conversation. Review the source evidence before deciding what needs a follow-up.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="pricing-section" id="pricing" aria-labelledby="pricing-title">
-      <div class="container"><div class="pricing-heading"><p class="eyebrow">SPACE FOR YOUR PRACTICE TO GROW</p><h2 id="pricing-title">A small part of the budget.<br>A big part of <em>your process.</em></h2><p>One project or a whole practice. Start with the space you need.</p></div>
-        <article class="project-pass" aria-labelledby="pass-title">
-          <div class="pass-copy"><span class="plan-eyebrow">ONE PROJECT. ALL THE POSSIBILITIES.</span><h3 id="pass-title">Meet the Project Pass.</h3><p>Start with the project on your desk. Drop in the files you already have, let AI build the presentation and give your client a whole new way to see it.</p><ul class="pass-features"><li>1 project · 1 designer</li><li>150 days of access</li><li>Branded presentation</li><li>Client feedback & budget tools</li><li>All AI features included</li><li>10 image enhancements for your project</li></ul></div>
+      <div class="container"><div class="pricing-heading"><p class="eyebrow">SPACE FOR YOUR PRACTICE TO GROW</p><h2 id="pricing-title">A small part of the budget.<br>A big part of <em>your process.</em></h2><p>Your own home, one client project or a whole practice. Start with the space you need.</p></div>
+        <article class="project-pass" id="project-pass" aria-labelledby="pass-title">
+          <div class="pass-copy"><span class="plan-eyebrow">ONE PROJECT. ALL THE POSSIBILITIES.</span><h3 id="pass-title">Meet the Project Pass.</h3><p>For a client commission or your own home project. Bring your plans and quotes together, let AI help you spot discrepancies, and keep the presentation, questions and decisions in one place.</p><ul class="pass-features"><li>1 project · 1 project owner</li><li>150 days of access</li><li>Branded presentation</li><li>Conversations, approvals & budget tools</li><li>All AI features included</li><li>10 image enhancements for your project</li></ul></div>
           <div class="pass-purchase"><div class="pass-price">€19<span>.00</span></div><p>One-time payment · 150 days of access.</p><button class="button button-accent" type="button" data-plan="pass">Choose the Project Pass <span aria-hidden="true">↗</span></button><span class="pass-reassurance">1 project. 150 days. No subscription.</span></div>
         </article>
         <div class="monthly-intro"><span class="eyebrow">MORE PROJECTS ON THE HORIZON?</span><h3>Make room for your whole practice.</h3><p>Simple monthly plans. Billed monthly, at the price you see.</p></div>
@@ -167,11 +269,14 @@
     </section>
 
     <section class="section container faq-section" aria-labelledby="faq-title"><div><p class="eyebrow">A FEW THINGS YOU MIGHT BE WONDERING</p><h2 id="faq-title">Glad you <em>asked.</em></h2><p>Thoughtful tools should come<br>with straightforward answers.</p></div><div class="faq-list">
+      <details><summary>Can I use Studiodeck for my own home project?<span aria-hidden="true">+</span></summary><p>Yes. You can start a project yourself as a homeowner, bring together your plans and supplier quotes, and let AI flag possible discrepancies for you to review. Invite your designer, decorator or supplier into the relevant conversations to keep questions, replies and decisions together. The €19 Project Pass, excluding VAT, covers one project owner and one project for 150 days. Invited people can join conversations; the pass includes one person managing the project.</p><p>During setup, your workspace is currently called a “studio”. You can name it “Our home refresh” and choose Interior design for a home redecoration project.</p></details>
       <details><summary>Is this only for interior designers?<span aria-hidden="true">+</span></summary><p>No. Studiodeck is built around visual projects, so architects, garden and landscape designers, interior designers, sign makers and multidisciplinary studios can all use it. Bring your drawings and concepts as PDFs or images, and organize the presentation around your work.</p></details>
+      <details><summary>How is the checklist different from comments and approvals?<span aria-hidden="true">+</span></summary><p>Comments hold the conversation. Your checklist holds the questions and actions you want to track. Approvals record an explicit decision by a named person. You can turn a comment into a checklist item and link an approval to it. AI discrepancy suggestions are private to your studio. Discussing a finding starts a private conversation; you decide whether to share it with your client. You choose what to share and when work is done.</p></details>
       <details><summary>Do I have to change my design tools?<span aria-hidden="true">+</span></summary><p>Keep creating in the tools you know. Studiodeck accepts PDFs, PowerPoint files, JPG, PNG and WebP images, plus Excel and CSV quotes. Export from your design tool and bring the files into your project. Native CAD and BIM editing are not part of Studiodeck.</p></details>
       <details><summary>What does my client need to get started?<span aria-hidden="true">+</span></summary><p>Just a browser and access to their invited email address. Clients verify their email using a sign-in link, then explore the design, leave feedback and download original files. Access is tied to the invited account and a shared iteration, and can be revoked.</p></details>
       <details><summary>What happens when the design changes?<span aria-hidden="true">+</span></summary><p>Create a new iteration and develop your next idea. Previously shared presentations retain their own files, visuals, budgets and styling, so an old link never silently becomes a new proposal.</p></details>
-      <details><summary>How do the AI features work?<span aria-hidden="true">+</span></summary><p>All AI features are included in every plan, including the Project Pass. Studiodeck helps organize your files, assemble presentations, answer budget and scope questions with source references, and refine render realism. No separate AI activation or add-on purchase is needed. You review the results before sharing.</p></details>
+      <details><summary>What can the automatic AI checks find?<span aria-hidden="true">+</span></summary><p>Possible conflicts in materials, colours, finishes, product models, written dimensions, scope, inclusions and comparable prices. <span id="ai-checks-faq-example">The bathroom specification and supplier quote name different finishes for the same tap.</span> Checks run automatically after uploads finish and when relevant project evidence changes. AI compares relevant evidence within the current iteration and brings possible discrepancies to your private Communication panel with both sources. Inspiration, before photos and unselected alternatives are excluded. AI does not measure drawings from pixels or correct files automatically. Findings stay private for your studio to review, discuss, resolve or dismiss. No findings does not guarantee that every detail is correct.</p></details>
+      <details><summary>How do the AI features work?<span aria-hidden="true">+</span></summary><p>All AI features are included in every plan, including the Project Pass. Studiodeck helps organize your files, assemble presentations, flag possible discrepancies across project documents and images, answer budget and scope questions with source references, and refine render realism. Project communication keeps the evidence, follow-up questions and client decisions together. No separate AI activation or add-on purchase is needed. You review the results before sharing.</p></details>
       <details><summary>What counts as an active project?<span aria-hidden="true">+</span></summary><p>One ongoing design commission counts as one project, including all of its presentations, files and revisions. Our proposed plans include 3 active projects for Solo, 15 for Studio and 50 for Practice. Extra active projects cost €10 each per month on all monthly plans; add capacity when you need it. Archive completed work to free a slot; restoring it requires an available slot. Practice includes 15 people, with additional people at €20 each per month. Extra seats do not increase included project capacity. The €19.00 Project Pass covers one project and 150 days of access with a one-time payment. Storage and archive retention terms will be confirmed before launch.</p></details>
       <details><summary>How long does the Project Pass last?<span aria-hidden="true">+</span></summary><p>The €19.00 Project Pass includes one project, one designer and 150 days of project access. It is a one-time payment and does not renew automatically. Extension and file-retention terms will be confirmed before launch.</p></details>
       <details><summary>Can I buy a subscription today?<span aria-hidden="true">+</span></summary><p>These are proposed launch packages, not an active checkout. You can explore a plan and save its details now. Final project quotas and subscription terms will be confirmed before purchasing is enabled.</p></details>
@@ -182,7 +287,7 @@
 
   <footer class="site-footer container"><div class="footer-top"><a class="wordmark" href="#">studio<span>deck</span><i class="brand-star" aria-hidden="true">✳</i></a><p>For the people behind beautiful spaces.</p><a class="text-link" href="#main">Back to the top <span aria-hidden="true">↑</span></a></div><div class="footer-bottom"><span>© <span id="year">2026</span> Studiodeck</span><nav aria-label="Footer navigation"><a href="#live-demo">Explore the demo</a><a href="#pricing">Plans & pricing</a><button class="footer-link" type="button" id="privacy-button">Privacy & credits</button></nav><span>Considered, by design.</span></div></footer>
 
-  <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-dialog-title"><button class="dialog-close icon-button" type="button" data-close-dialog aria-label="Close plan details">×</button><span class="eyebrow">ROOM FOR YOUR NEXT CHAPTER</span><h2 id="plan-dialog-title">Your Solo plan.</h2><p id="plan-dialog-description"></p><div class="plan-summary"><span id="summary-plan"></span><strong id="summary-price"></strong><span id="summary-billing"></span><span id="summary-extra" hidden></span><span>All AI features included.</span><span id="summary-enhancements"></span></div><p class="launch-note">Start with a 7-day trial: one designer, one project, no card required. Choose a package in the app when you are ready. Payment is confirmed in Stripe.</p><a class="button button-accent" id="signup-plan" href="/login">Start your 7-day trial ↗</a><button class="button button-outline" type="button" id="download-plan">Save plan details <span aria-hidden="true">↓</span></button><button class="text-link dialog-demo" type="button" id="plan-to-demo">Explore the sample presentation <span aria-hidden="true">↗</span></button><p id="download-status" class="download-status" role="status"></p></dialog>
+  <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-dialog-title"><button class="dialog-close icon-button" type="button" data-close-dialog aria-label="Close plan details">×</button><span class="eyebrow">ROOM FOR YOUR NEXT CHAPTER</span><h2 id="plan-dialog-title">Your Solo plan.</h2><p id="plan-dialog-description"></p><div class="plan-summary"><span id="summary-plan"></span><strong id="summary-price"></strong><span id="summary-billing"></span><span id="summary-extra" hidden></span><span>All AI features included.</span><span id="summary-enhancements"></span></div><p class="launch-note">Start with a 7-day trial: one person, one project, no card required. Choose a package in the app when you are ready. Payment is confirmed in Stripe.</p><a class="button button-accent" id="signup-plan" href="/login">Start your 7-day trial ↗</a><button class="button button-outline" type="button" id="download-plan">Save plan details <span aria-hidden="true">↓</span></button><button class="text-link dialog-demo" type="button" id="plan-to-demo">Explore the sample presentation <span aria-hidden="true">↗</span></button><p id="download-status" class="download-status" role="status"></p></dialog>
 
   <dialog id="image-dialog" class="image-dialog" aria-labelledby="image-dialog-title"><div class="image-dialog-header"><div><span class="eyebrow">STUDIODECK · A CONSIDERED POINT OF VIEW</span><h2 id="image-dialog-title">The everyday retreat.</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close expanded image">×</button></div><img id="expanded-image" src="assets/studio-types/interior.webp" alt="Expanded view of the sample interior project"><p id="expanded-image-credit">AI-generated concept interior · Your own project images take center stage in Studiodeck.</p></dialog>
 
