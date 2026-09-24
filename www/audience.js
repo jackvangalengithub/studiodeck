@@ -156,7 +156,7 @@ function selectAudience(id,announce=false){
   text('.hero-copy>.eyebrow',`FOR ${profile.label.toUpperCase()}`);
   text('.hero-description',story.intro);
   updateAudienceChecks(id,profile,story);
-  for(const image of document.querySelectorAll('.hero-image,.power-deck-image img,#demo-image,.ai-visual img,.portfolio-example-projects img,#expanded-image')){
+  for(const image of document.querySelectorAll('.hero-image,.motion-scene img,.power-deck-image img,#demo-image,.ai-visual img,.portfolio-example-projects img,#expanded-image')){
     image.src=profile.image;image.alt=profile.alt;image.width=1200;image.height=800;
   }
   text('.hero-caption>span:first-child',`01 / ${profile.projectTitle.toUpperCase()}`);
@@ -179,6 +179,7 @@ function selectAudience(id,announce=false){
   const budgetRows=document.querySelectorAll('#panel-budget .budget-row:not(.budget-total)');
   story.budget.forEach((label,index)=>budgetRows[index].querySelector('span').textContent=label);
   text('#sample-comments .sample-comment:first-child p',story.comment);
+  document.dispatchEvent(new Event('studiodeck:audience'));
   if(announce)text('#audience-status',`Showing ${profile.label.toLowerCase()} imagery and examples.`);
   // The URL can be shared or refreshed without storing a preference in cookies.
   try{const url=new URL(location.href);url.searchParams.set('audience',id);history.replaceState(null,'',url);}catch{}

@@ -34,11 +34,16 @@ function save_designed_slide(array $i,array $b,array $u): array {
     if(!in_array($type,[...VISUAL_TYPES,'text','video'],true)||!in_array($situation,VISUAL_SITUATIONS,true))fail('Choose a valid slide type and situation.');
     if($slide&&!$slide['manual']&&in_array($type,['text','video'],true))fail('Create a separate text or video slide to keep this source image available.');
     $meta=$slide?(json_decode($slide['metadata'],true)?:[]):[];$source=$slide;
-    unset($meta['video']);
+    $previousVideo=$meta['video']??[];unset($meta['video']);
     if($type==='video'){
-        $video=youtube_video(text_field($b['video_url']??'',2048));
-        if(!$video)fail('Paste a valid YouTube video link, such as https://www.youtube.com/watch?v=… or https://youtu.be/…');
-        $meta=['video'=>$video];
+        $upload=$_FILES['video_file']??null;
+        if($upload&&$upload['error']!==UPLOAD_ERR_NO_FILE)$video=uploaded_slide_video($i,$upload);
+        elseif(!empty($b['video_url'])){
+            $video=youtube_video(text_field($b['video_url'],2048));
+            if(!$video)fail('Paste a valid YouTube video link.');
+        }elseif(($previousVideo['provider']??'')==='upload')$video=array_intersect_key($previousVideo,array_flip(['provider','media_id','name']));
+        else fail('Upload an MP4 or WebM video, or paste a YouTube link.');
+        $meta=['video'=>array_merge($video,slide_video_options($b,$previousVideo))];
     }
     if(!in_array($type,['text','video'],true)){
         $upload=$_FILES['image']??null;

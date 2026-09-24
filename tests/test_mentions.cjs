@@ -39,12 +39,14 @@ const mail=process.env.COMMUNICATION_MAIL_LOG||'/tmp/studiodeck-communication-br
   const c=deck.comments.find(c=>c.body.startsWith('Hello @Client'));
   assert.deepEqual(c.mentions,[{email:'client@example.test',label:'Client'}]);
 
-  // Moving a draft into the confirmation dialog preserves the selected identity.
-  await input.fill('Could @Cli');await page.getByRole('option',{name:'Client client@example.test',exact:true}).click();
-  await page.locator('[data-action=comm-ask]').click();
-  assert.equal(await page.locator('#comm-confirmation-form [name=body]').inputValue(),'Could @Client ');
-  await page.locator('#comm-confirmation-form button[type=submit]').click();
-  await page.locator('.comm-confirmation .chat-mention').waitFor();
+  // New thread types preserve the selected mention identity.
+  await page.locator('[data-action=comm-new]').click();
+  const fresh=page.locator('#comm-thread-form');await fresh.locator('[name=audience]').selectOption('shared');
+  await fresh.locator('[name=thread_title]').fill('Finish confirmation');
+  await fresh.locator('[name=body]').fill('Could @Cli');await page.getByRole('option',{name:'Client client@example.test',exact:true}).click();
+  await fresh.locator('[data-compose-type=approval]').click();await fresh.locator('[name=recipient]').selectOption('client@example.test');
+  assert.equal(await fresh.locator('[name=body]').inputValue(),'Could @Client ');
+  await fresh.locator('[type=submit]').click();await page.locator('.comm-messages .chat-mention').waitFor();
 
   // At a narrow viewport the picker stays within the screen; Escape closes only it.
   await page.setViewportSize({width:390,height:844});
@@ -57,20 +59,23 @@ const mail=process.env.COMMUNICATION_MAIL_LOG||'/tmp/studiodeck-communication-br
   assert(await page.locator('#comm-thread-form').isVisible());
   await page.locator('[data-action=close-modal]').last().click();
 
+  await page.waitForFunction(()=>!document.querySelector('.modal'));
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+
   // Invite a guest, then exercise the same picker with their restricted account.
   await input.fill('Please join @Bak');
   await page.getByRole('option').filter({hasText:'Bakker Joinery'}).click();
   assert.match(await page.locator('#comm-reply-form .mention-hint').textContent(),/including earlier messages/);
   const sent=page.waitForResponse(r=>r.url().includes('action=communication_post')&&r.request().method()==='POST');
   await page.locator('#comm-reply-form button[type=submit]').click();
-  const root=(await (await sent).json()).id;
+  await sent;const root=await page.locator('.comm-topic.selected').getAttribute('data-id');
   await page.locator('.comm-guests').filter({hasText:'Bakker Joinery'}).waitFor();
   let invitation;for(let n=0;n<80;n++){if(fs.existsSync(mail))invitation=fs.readFileSync(mail,'utf8').trim().split('\n').map(JSON.parse).findLast(m=>m.to==='trade@example.test');if(invitation)break;await new Promise(r=>setTimeout(r,150));}
   assert(invitation);const token=invitation.text.match(/#\/login\/([a-f0-9]{64})/)[1];
   const guest=await account();await guest.goto(base+'/login#/login/'+token);await guest.locator('#guest-reply').waitFor();
   const guestInput=guest.locator('#guest-reply textarea');await guestInput.fill('@');
-  await guest.locator('#mention-picker [role=option]').waitFor();
-  assert.equal(await guest.locator('#mention-picker [role=option]').count(),1);
+  await guest.locator('#mention-picker [role=option]').first().waitFor();
+  assert.equal(await guest.locator('#mention-picker [role=option]').count(),2);
   assert.match(await guest.locator('#mention-picker').textContent(),/editor@example.test/);
   await guestInput.press('Enter');await guestInput.type('please review.');
   await guest.locator('#guest-reply button[type=submit]').click();

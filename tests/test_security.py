@@ -34,6 +34,9 @@ ROOT = Path(__file__).resolve().parents[1]
 PHP = os.environ.get('PHP_BIN', 'php')
 DENIED = (401, 403, 404)
 READ_ACTIONS = {
+    'product_feedback_inbox', 'product_feedback_image',
+    'slide_media',
+    'check_image',
     'attention',
     'project_testimonials', 'project_testimonial_photo',
     'mention_people',
@@ -49,10 +52,14 @@ READ_ACTIONS = {
 }
 PUBLIC_ACTIONS = {'session', 'request_login', 'consume_login'}
 WRITE_ACTIONS = {
+    'product_feedback_submit', 'product_feedback_review',
+    'save_slide_motion', 'generate_slide_motion',
+    'set_project_cover',
+    'run_consistency_checks', 'check_source_role', 'review_consistency_finding',
     'website_page', 'billing_change_checkout', 'complete_studio_setup',
     'project_testimonial_save', 'project_testimonial_delete',
     'conversation_revoke',
-    'communication_post', 'confirmation_decide', 'communication_upload',
+    'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload',
     'website_reset', 'website_start', 'website_save', 'website_import', 'website_upload', 'website_publish', 'website_restore', 'website_undo',
     'website_chat', 'website_checkout', 'website_refresh_billing', 'website_domain',
     'project_activate', 'billing_checkout', 'billing_resume_checkout', 'billing_cancel_checkout', 'billing_cancel_change',
@@ -75,6 +82,9 @@ WRITE_ACTIONS = {
     'save_project_client', 'remove_project_client',
 }
 PROJECT_WRITES = {
+    'save_slide_motion', 'generate_slide_motion',
+    'set_project_cover',
+    'run_consistency_checks', 'check_source_role', 'review_consistency_finding',
     'generate_open_questions', 'save_open_question',
     'lock_iteration', 'save_project_person', 'remove_project_person', 'add_project_pack_slide', 'comment_answered',
     'project_settings', 'project_members', 'new_iteration', 'reprocess',
@@ -516,7 +526,7 @@ class SecurityTests(SecurityFixture):
                                 'image_version_id': 'variant-' + project}))
 
     def test_client_cannot_call_studio_write_endpoints(self):
-        excluded = PUBLIC_ACTIONS | {'communication_post', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
+        excluded = PUBLIC_ACTIONS | {'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
                                      'save_profile', 'upload_avatar', 'remove_avatar', 'read_comments', 'comment_answered', 'reply_open_question', 'add_client_question'}
         # Successful forbidden operations must not alter the identity of later
         # cases (e.g. create_studio could otherwise grant admin to this client).
@@ -835,7 +845,7 @@ class SecurityTests(SecurityFixture):
         self.denied(self.editor.api('project', query={'id': 'foreignpublic'}, headers={'X-Studio-ID': 'studio-b'}))
 
     def test_login_entry_is_public_but_protected_assets_are_not_cached(self):
-        for path in ('/login', '/auth/login.js', '/auth/login.css'):
+        for path in ('/login', '/auth/login.js', '/auth/login.css', '/auth/error-page.js', '/auth/error-page.css'):
             self.assertEqual(self.anon.request(path)[0], 200)
         for path in ('/', '/assets/app.js', '/assets/app.css', '/studio-a/projects/own'):
             response = self.editor.request(path)
@@ -844,6 +854,25 @@ class SecurityTests(SecurityFixture):
         self.assertEqual(self.client.request('/client/projects/shared')[0], 200)
         self.denied(self.editor.request('/studio-a/projects/own?iteration=iteration-private'))
         self.denied(self.editor.request('/studio-a/slide/slide-own?project=private'))
+
+    def test_denied_pages_are_designed_but_assets_and_api_remain_protected(self):
+        for path in ('/client/projects/private', '/studio-b/settings', '/conversations/missing'):
+            status, body, headers = self.client.request(path)
+            self.assertIn(status, DENIED)
+            self.assertIn('text/html', headers['Content-Type'])
+            self.assertIn(b'class="status-page"', body)
+            self.assertIn(b'href="/choose"', body)
+            self.assertIn("style-src 'sha256-", headers['Content-Security-Policy'])
+            self.assertEqual(headers['Cache-Control'], 'no-store')
+            self.assertNotIn(b'<script', body)
+        status, body, headers = self.anon.request('/assets/app.js')
+        self.assertEqual(status, 401)
+        self.assertIn('text/plain', headers['Content-Type'])
+        self.assertNotIn(b'class="status-page"', body)
+        status, body, headers = self.client.api('client_project', query={'project_id': 'private'})
+        self.assertIn(status, DENIED)
+        self.assertIn('application/json', headers['Content-Type'])
+        self.assertIn('error', json.loads(body))
 
     def test_client_resolve_thread_requires_csrf_and_valid_assignment(self):
         body = {'iteration': 'iteration-shared', 'id': 'comment-shared', 'answered': True}

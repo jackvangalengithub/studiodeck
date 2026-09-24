@@ -3,18 +3,8 @@ declare(strict_types=1);
 require_once __DIR__.'/bootstrap.php';
 require_once __DIR__.'/legal.php';
 
-function ai_request(string $path,array $body,bool $multipart=false): array {
-    if(env('OPENAI_API_KEY')==='')throw new RuntimeException('AI is not connected.');
-    $ch=curl_init('https://api.openai.com/v1/'.$path);$headers=['Authorization: Bearer '.env('OPENAI_API_KEY')];if(!$multipart)$headers[]='Content-Type: application/json';
-    curl_setopt_array($ch,[CURLOPT_POST=>true,CURLOPT_POSTFIELDS=>$multipart?$body:json_encode($body,JSON_INVALID_UTF8_SUBSTITUTE),CURLOPT_HTTPHEADER=>$headers,CURLOPT_RETURNTRANSFER=>true,CURLOPT_CONNECTTIMEOUT=>15,CURLOPT_TIMEOUT=>$multipart?240:90,CURLOPT_PROTOCOLS=>CURLPROTO_HTTPS]);
-    $raw=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_RESPONSE_CODE);$error=curl_error($ch);curl_close($ch);
-    if($raw===false||$code>=300) { error_log('AI request failed with HTTP '.$code.' '.$error);throw new RuntimeException('The AI service could not finish this request. Please try again.'); }
-    $data=json_decode($raw,true);if(!is_array($data))throw new RuntimeException('The AI service returned an unreadable response.');return $data;
-}
-function ai_json(string $system,array $content): array {
-    $r=ai_request('chat/completions',['model'=>env('OPENAI_TEXT_MODEL','gpt-4.1-mini'),'messages'=>[['role'=>'system','content'=>$system.' Return a JSON object only.'],['role'=>'user','content'=>$content]],'response_format'=>['type'=>'json_object'],'max_completion_tokens'=>6000]);
-    $data=json_decode($r['choices'][0]['message']['content']??'',true);if(!is_array($data))throw new RuntimeException('The AI response needs another attempt.');return $data;
-}
+require_once __DIR__.'/ai_transport.php';
+
 function analyze_file(array $v,array &$extracted,?callable $request=null): array {
     $request??='ai_json';
     $pageEvidence=[];$remaining=[];

@@ -1,4 +1,5 @@
 'use strict';
+import {mountErrorPage} from './error-page.js';
 const translations=JSON.parse(document.querySelector('#login-translations').textContent);
 let language='en';try{language=localStorage.getItem('studiodeck.loginLanguage')==='nl'?'nl':'en';}catch{}
 const copy=key=>translations[language][key]||translations.en[key];
@@ -24,14 +25,21 @@ function renderLanguage(){
 renderLanguage();
 async function signIn(){
  if(submit.disabled)return;
- submit.disabled=true;form.hidden=!!loginToken;statusMessage=loginToken?translations.en.login_signing_in:'';status.textContent=localize(statusMessage);
+ submit.disabled=true;form.hidden=!!loginToken;statusMessage=loginToken?translations.en.login_signing_in:'';status.textContent=localize(statusMessage);status.classList.remove('login-error');status.setAttribute('role','status');
  try{
   const action=loginToken?'consume_login':'request_login';
   const response=await fetch('/api.php?action='+action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(loginToken?{token:loginToken}:{email:document.querySelector('#email').value})});
-  const result=await response.json();if(!response.ok)throw Error(result.error||'Sign-in could not be completed.');
+  const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error||'Sign-in could not be completed.'),{status:response.status});
   if(loginToken){loginToken='';sessionStorage.removeItem('studiodeck.returnTo');location.replace(safePath(result.redirect&&result.redirect!=='/choose'?result.redirect:destination));}
   else{sessionStorage.setItem('studiodeck.returnTo',destination);statusMessage=result.message;status.textContent=localize(statusMessage);}
- }catch(error){form.hidden=false;statusMessage=error.message;status.textContent=localize(statusMessage);document.querySelector('#request').hidden=false;}
+ }catch(error){
+  if(loginToken){
+   sessionStorage.setItem('studiodeck.returnTo',destination);
+   const container=document.createElement('div');document.querySelector('main').replaceWith(container);
+   const expired=error.message===translations.en.login_expired||[400,401].includes(error.status);
+   mountErrorPage(container,error,{language,kind:expired?'expired':[403,404].includes(error.status)?'access':'service',onRetry:signIn});
+  }else{form.hidden=false;statusMessage=error.status?error.message:(language==='nl'?'We konden geen verbinding maken. Probeer het over een ogenblik opnieuw.':'We couldn’t connect. Please try again in a moment.');status.textContent=localize(statusMessage);status.classList.add('login-error');status.setAttribute('role','alert');document.querySelector('#request').hidden=false;}
+ }
  finally{submit.disabled=false;}
 }
 form.addEventListener('submit',event=>{event.preventDefault();signIn();});

@@ -16,6 +16,8 @@ function project_people(string $pid): array {
 }
 function project_cover(string $iid): ?array {
     require_once __DIR__.'/slides.php';
+    $selected=one('SELECT slide_id FROM iteration_covers WHERE iteration_id=?',[$iid]);
+    if($selected){$slide=current_slide($iid,$selected['slide_id']);if($slide&&in_array($slide['type'],VISUAL_TYPES,true))return $slide;}
     return one("SELECT s.* FROM presentation_slides s JOIN iteration_files f ON f.iteration_id=s.iteration_id AND f.version_id=s.source_version_id WHERE f.category!='legal' AND s.iteration_id=? AND s.type IN ('render','photo','moodboard','fullphoto') ORDER BY CASE s.type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,s.position,s.id LIMIT 1",[$iid]);
 }
 
@@ -39,7 +41,7 @@ function migrate_slide_groups(PDO $db): void {
     } catch(Throwable $e){$db->exec('ROLLBACK');throw $e;}
 }
 function slide_groups(string $iid): array {
-    $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget','questions'=>'Open questions'];
+    $defaults=['story'=>'The story','current'=>'The current situation','moodboards'=>'The moodboards','designs'=>'The designs','budget'=>'The budget','questions'=>'Checklist'];
     $ordered=[];$deleted=[];foreach(rows('SELECT id,label,deleted FROM slide_groups WHERE iteration_id=? ORDER BY position,id',[$iid]) as $group){$ordered[$group['id']]=$group['label'];if($group['deleted'])$deleted[$group['id']]=true;}
     // Existing custom-only records follow the default groups until an order is explicitly saved.
     return array_diff_key(isset($ordered['story'])?$ordered+$defaults:$defaults+$ordered,$deleted);

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS check_source_roles (iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE, source_key TEXT NOT NULL, role TEXT NOT NULL, PRIMARY KEY(iteration_id,source_key));
+CREATE TABLE IF NOT EXISTS check_source_cache (iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE, source_key TEXT NOT NULL, fingerprint TEXT NOT NULL, result TEXT NOT NULL, PRIMARY KEY(iteration_id,source_key));
+CREATE TABLE IF NOT EXISTS consistency_runs (iteration_id TEXT PRIMARY KEY REFERENCES iterations(id) ON DELETE CASCADE, fingerprint TEXT NOT NULL, warnings TEXT NOT NULL, source_count INTEGER NOT NULL, checked_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS consistency_findings (id TEXT PRIMARY KEY, iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE, fingerprint TEXT NOT NULL, title TEXT NOT NULL, explanation TEXT NOT NULL, severity TEXT NOT NULL, evidence TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved','dismissed')), question_id TEXT, created_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_consistency_findings_iteration ON consistency_findings(iteration_id);
+CREATE TABLE IF NOT EXISTS check_page_previews (version_id TEXT NOT NULL REFERENCES file_versions(id) ON DELETE CASCADE, page INTEGER NOT NULL, data BLOB NOT NULL, PRIMARY KEY(version_id,page));
+CREATE TABLE IF NOT EXISTS check_image_text (fingerprint TEXT PRIMARY KEY, version_id TEXT NOT NULL REFERENCES file_versions(id) ON DELETE CASCADE, text TEXT NOT NULL);

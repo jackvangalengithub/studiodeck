@@ -36,7 +36,7 @@ if($action==='activity_feed'||$action==='comments_feed'){
     if(!empty($_GET['project_id'])){$where.=' AND p.id=?';$params[]=text_field($_GET['project_id']);}
     if($action==='comments_feed'){
         $sort=text_field($_GET['sort']??'newest',10);if(!in_array($sort,['newest','oldest'],true))fail('Choose newest or oldest first.');
-        json_response(comment_feed_page($where,$params,$offset,person_key($u['email'],true),$sort,($_GET['show_answered']??'0')==='1')+['unread_count'=>unread_comment_count($u)]);
+        json_response(comment_feed_page($where,$params,$offset,person_key($u['email'],true),$sort,($_GET['show_answered']??'0')==='1',($_GET['filter']??'all')==='attention'?'attention':'all')+['unread_count'=>unread_comment_count($u)]);
     }
     $items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
     $more=count($items)>100;$items=activity_with_questions($items);json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
@@ -47,6 +47,18 @@ if($action==='resolve_slide'){
     $params=[$sid,$u['studio_id'],$u['user_id']];$where='s.id=? AND '.project_access_sql();if(!empty($_GET['iteration'])){$where.=' AND i.id=?';$params[]=text_field($_GET['iteration']);}
     $slide=one('SELECT s.id,i.id AS iteration_id,p.id AS project_id FROM presentation_slides s JOIN iterations i ON i.id=s.iteration_id JOIN projects p ON p.id=i.project_id WHERE '.$where.' ORDER BY i.number DESC LIMIT 1',$params);
     if(!$slide)fail('Slide not found in this studio.',404);json_response($slide);
+}
+
+if($action==='set_project_cover'){
+    $u=owner(true);$b=input();
+    transaction(function()use($u,$b){
+        $i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        require_once __DIR__.'/slides.php';
+        $slide=current_slide($i['id'],text_field($b['slide_id']??''));
+        if(!$slide||!in_array($slide['type'],VISUAL_TYPES,true))fail('Choose an image from this project.',400);
+        query('INSERT INTO iteration_covers(iteration_id,slide_id) VALUES(?,?) ON CONFLICT(iteration_id) DO UPDATE SET slide_id=excluded.slide_id',[$i['id'],$slide['id']]);
+        audit($i['project_id'],$i['id'],$u['email'],'project_cover_updated','Updated project cover image');
+    });json_response(['ok'=>true]);
 }
 
 if($action==='project_cover'){

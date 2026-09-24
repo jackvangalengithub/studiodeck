@@ -5,8 +5,11 @@ function conversation_contact(string $pid,string $email): ?array {
     foreach(project_directory($pid) as $group=>$people)foreach($people as $p)if($email!==''&&strtolower($p['email'])===$email)return $p;
     return null;
 }
-function conversation_grant_valid(array $g): bool {
-    return !(int)$g['revoked']&&(int)$g['expires_at']>time()&&conversation_contact($g['project_id'],$g['email'])!==null;
+function conversation_grant_valid(array $g,int $depth=0): bool {
+    if($depth>20)return false;
+    $source=one('SELECT parent.*,? AS project_id FROM conversation_grant_sources link JOIN conversation_grants parent ON parent.id=link.source_grant_id WHERE link.grant_id=?',[$g['project_id'],$g['id']]);
+    if($source&&!conversation_grant_valid($source,$depth+1))return false;
+    return communication_audience($g['root_id'])==='shared'&&!(int)$g['revoked']&&(int)$g['expires_at']>time()&&conversation_contact($g['project_id'],$g['email'])!==null;
 }
 function conversation_access(string $rootId,bool $write=false,?array $user=null): array {
     $user??=authenticated_user($write);
@@ -16,6 +19,7 @@ function conversation_access(string $rootId,bool $write=false,?array $user=null)
     return $g;
 }
 function conversation_invite(array $i,string $root,array $person,string $actor): void {
+    if(communication_audience($root)==='studio')fail('Share this conversation before inviting guests.',403);
     // Caller holds a write transaction and has verified project editing rights.
     $g=one('SELECT * FROM conversation_grants WHERE root_id=? AND email=?',[$root,$person['email']]);
     if($g&&!$g['revoked']&&$g['expires_at']>time())return;
@@ -35,6 +39,7 @@ function conversation_participants(string $root): array {
     $c=one('SELECT c.iteration_id,i.project_id FROM comments c JOIN iterations i ON i.id=c.iteration_id WHERE c.id=?',[$root]);
     $i=one('SELECT * FROM iterations WHERE id=?',[$c['iteration_id']]);
     $authors=array_column(rows('SELECT DISTINCT author FROM comments WHERE id=? OR parent_id=?',[$root,$root]),'author');
+    array_push($authors,...array_column(rows('SELECT r.recipient FROM comment_confirmations r JOIN comments c ON c.id=r.comment_id WHERE c.id=? OR c.parent_id=?',[$root,$root]),'recipient'));
     $people=[];
     foreach(confirmation_recipients($i) as $p)if($p['available']&&in_array($p['email'],$authors,true))$people[$p['email']]=['email'=>$p['email'],'name'=>$p['name']];
     foreach(rows('SELECT g.*,? AS project_id FROM conversation_grants g WHERE root_id=?',[$c['project_id'],$root]) as $g)if(conversation_grant_valid($g))$people[$g['email']]=['email'=>$g['email'],'name'=>$g['name']];
@@ -43,13 +48,15 @@ function conversation_participants(string $root): array {
 function conversation_payload(string $root): array {
     $g=conversation_access($root);$user=authenticated_user();
     $comments=rows('SELECT id,parent_id,author,body,created_at FROM comments WHERE id=? OR parent_id=? ORDER BY created_at,rowid',[$root,$root]);
-    foreach($comments as &$c){$c['mentions']=comment_mentions($c['id']);$p=profile_for(person_key($c['author'],true));$c['name']=$p['name']?:one('SELECT name FROM users WHERE email=?',[$c['author']])['name']??$c['author'];}unset($c);
+    foreach($comments as &$c){$c['thread_details']=!$c['parent_id']?communication_topic($c['id']):null;$c['mentions']=comment_mentions($c['id']);$p=profile_for(person_key($c['author'],true));$c['name']=$p['name']?:one('SELECT name FROM users WHERE email=?',[$c['author']])['name']??$c['author'];}unset($c);
     $profile=profile_for(person_key($user['email'],true));$language=project_language($g['project_id']);
+    $linked=[];foreach(rows('SELECT c.id,COALESCE(t.title,c.body) AS title FROM comments c LEFT JOIN communication_threads t ON t.comment_id=c.id JOIN communication_topics topic ON topic.root_id=c.id WHERE topic.related_root_id=? OR c.id=(SELECT related_root_id FROM communication_topics WHERE root_id=?)',[$root,$root]) as $other){$grant=one('SELECT g.*,? AS project_id FROM conversation_grants g WHERE root_id=? AND email=?',[$g['project_id'],$other['id'],$user['email']]);if($grant&&conversation_grant_valid($grant))$linked[]=$other;}
     return ['root'=>$root,'project_name'=>one('SELECT name FROM projects WHERE id=?',[$g['project_id']])['name'],
         'title'=>one('SELECT title FROM communication_threads WHERE comment_id=?',[$root])['title']??'Conversation',
         'actor'=>$user['email'],'language'=>$profile['language']?:($language['language']?:$language['studio_language']),
         'locked'=>(bool)one('SELECT locked FROM iterations WHERE id=?',[$g['iteration_id']])['locked'],
-        'comments'=>$comments,'recipients'=>conversation_participants($root),
+        'comments'=>$comments,'linked_threads'=>$linked,'recipients'=>conversation_participants($root),
+        'items'=>rows('SELECT q.id,q.question,q.item_type,q.responsible,q.resolved FROM open_questions q JOIN checklist_threads t ON t.iteration_id=q.iteration_id AND t.question_id=q.id WHERE t.root_id=? AND q.published=1 AND q.dismissed=0',[$root]),
         'confirmations'=>rows('SELECT r.* FROM comment_confirmations r JOIN comments c ON c.id=r.comment_id WHERE c.id=? OR c.parent_id=?',[$root,$root]),
         'attachments'=>rows('SELECT a.comment_id,v.id,v.name,v.number,v.mime FROM comment_attachments a JOIN comments c ON c.id=a.comment_id JOIN file_versions v ON v.id=a.version_id WHERE c.id=? OR c.parent_id=?',[$root,$root])];
 }

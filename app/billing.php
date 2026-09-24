@@ -220,5 +220,6 @@ function billing_trial_storage(string $sid,int $additional): void {
     if((int)$b['trial_ends_at']<=time())fail('Choose a package in Billing before adding studio files.',402);
     $files=(int)one('SELECT COALESCE(SUM(v.size),0) n FROM file_versions v JOIN assets a ON a.id=v.asset_id JOIN projects p ON p.id=a.project_id WHERE p.studio_id=?',[$sid])['n'];
     $library=(int)one('SELECT COALESCE(SUM(length(v.data)),0) n FROM studio_pack_versions v JOIN studio_pack_items i ON i.id=v.item_id WHERE i.studio_id=?',[$sid])['n'];
-    if($files+$library+$additional>250*1024*1024)fail('Your trial includes 250 MB of files. Choose a package in Billing for more storage.',402);
+    $media=(int)one('SELECT COALESCE(SUM(length(m.data)),0) n FROM slide_media m JOIN projects p ON p.id=m.project_id WHERE p.studio_id=?',[$sid])['n'];
+    if($files+$library+$media+$additional>250*1024*1024)fail('Your trial includes 250 MB of files. Choose a package in Billing for more storage.',402);
 }

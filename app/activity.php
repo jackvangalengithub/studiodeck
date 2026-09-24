@@ -10,7 +10,7 @@ function activity_with_questions(array $events): array {
 function question_slide_title(string $iid,string $slide): string {
     require_once __DIR__.'/slides.php';
     if(!in_array($slide,editor_slide_ids($iid),true))fail('This slide was not found in the presentation.',404);
-    $titles=['intro'=>'Welcome home','changes'=>'What’s new','budget'=>'The investment','open-questions'=>'Open questions','contacts'=>'Your project team','summary'=>'Everything, together'];
+    $titles=['intro'=>'Welcome home','changes'=>'What’s new','budget'=>'The investment','open-questions'=>'Checklist','contacts'=>'Your project team','summary'=>'Everything, together'];
     $slide=system_slide_type($iid,$slide)??$slide;
     $custom=one('SELECT title FROM slide_content WHERE iteration_id=? AND slide_id=?',[$iid,$slide]);if($custom)return $custom['title'];
     if(isset($titles[$slide]))return $titles[$slide];

@@ -1,8 +1,9 @@
+import {checkText} from './consistency.js';
 import {tr} from './i18n.js';
 const processingStepKeys=["studio_read_pages_text", "studio_understand_page_layouts", "studio_extract_images_colors", "studio_find_the_design_direction", "studio_build_presentation"];
 export const processingSteps=processingStepKeys.map(()=>'');
 processingStepKeys.forEach((key,index)=>Object.defineProperty(processingSteps,index,{get:()=>tr(key)}));
-export const extractionStages={get uploading(){return tr("studio_uploading_your_files");},get queued(){return tr("studio_waiting_to_start");},get reading_pages(){return tr("studio_reading_document_pages");},get extracting_text(){return tr("studio_reading_pages_extracting_text");},get classifying_pages(){return tr("studio_understanding_page_layouts_identifying_logos");},get extracting_images(){return tr("studio_extracting_complete_images");},get extracting_colors(){return tr("studio_extracting_colors");},get analyzing_moodboard(){return tr("studio_analyzing_moodboards_materials");},get finding_style(){return tr("studio_finding_the_design_direction");},get classifying_images(){return tr("studio_classifying_images_detecting_before_concept");},get matching_subquotes(){return tr("studio_matching_subcontractor_quotes");},get applying_results(){return tr("studio_assembling_your_presentation");},get complete(){return tr("studio_ready_to_review");}};
+export const extractionStages={get checking_sources(){return checkText("checking_sources");},get comparing_sources(){return checkText("comparing_sources");},get verifying_mismatch(){return checkText("verifying_mismatch");},get uploading(){return tr("studio_uploading_your_files");},get queued(){return tr("studio_waiting_to_start");},get reading_pages(){return tr("studio_reading_document_pages");},get extracting_text(){return tr("studio_reading_pages_extracting_text");},get classifying_pages(){return tr("studio_understanding_page_layouts_identifying_logos");},get extracting_images(){return tr("studio_extracting_complete_images");},get extracting_colors(){return tr("studio_extracting_colors");},get analyzing_moodboard(){return tr("studio_analyzing_moodboards_materials");},get finding_style(){return tr("studio_finding_the_design_direction");},get classifying_images(){return tr("studio_classifying_images_detecting_before_concept");},get matching_subquotes(){return tr("studio_matching_subcontractor_quotes");},get applying_results(){return tr("studio_assembling_your_presentation");},get complete(){return tr("studio_ready_to_review");}};
 export function extractionProgress(job={}){
     const p=job.progress||{},stage=job.status==='done'?'complete':job.status==='queued'?'queued':p.stage||'reading_pages';
     const steps={uploading:0,queued:0,reading_pages:0,extracting_text:0,classifying_pages:1,extracting_images:2,extracting_colors:2,analyzing_moodboard:3,finding_style:3,classifying_images:3,applying_results:4,matching_subquotes:4,complete:4};
@@ -11,10 +12,12 @@ export function extractionProgress(job={}){
     const [from,to]=ranges[stage]||[0,0];
     const page=Number(p.page),total=Number(p.total),image=Number(p.image),images=Number(p.total_images);
     const hasPage=page>0&&total>=page,hasImage=image>0&&images>=image;
-    // Announced counters describe the item currently being processed, not completed work.
-    const fraction=hasPage?(page-1)/total:hasImage?(image-1)/images:0;
+    const completed=Number(p.completed),active=Number(p.active);
+    const hasCompleted=stage==='classifying_pages'&&Number.isInteger(completed)&&completed>=0&&Number.isInteger(total)&&total>=completed&&p.completed!==undefined;
+    // Older payloads announce the current item; parallel analysis counts completed work.
+    const fraction=hasCompleted?(total?completed/total:0):hasPage?(page-1)/total:hasImage?(image-1)/images:0;
     const percent=stage==='complete'?100:Math.floor(from+(to-from)*fraction);
     const action=step===0?tr("studio_reading"):step===1?tr("studio_classifying"):step===2?tr("studio_cropping"):tr("studio_reviewing");
-    const counter=hasPage?tr("studio_page_of_2",{v0:action,v1:page,v2:total}):hasImage?tr("studio_reviewing_image_of",{v0:image,v1:images}):'';
+    const counter=hasCompleted?tr("studio_pages_completed",{completed,total})+(active>0?' · '+tr("studio_pages_active",{active}):''):hasPage?tr("studio_page_of_2",{v0:action,v1:page,v2:total}):hasImage?tr("studio_reviewing_image_of",{v0:image,v1:images}):'';
     return {stage,step,percent,title:extractionStages[stage]||tr("studio_processing_your_files"),get detail(){return tr("studio_step_of",{v0:step+1,v1:processingSteps.length,v2:counter?' · '+counter:''});}};
 }

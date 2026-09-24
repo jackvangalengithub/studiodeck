@@ -14,10 +14,12 @@ function migrate_mentions(PDO $db): void {
 
 function mention_people(array $i,string $root='',bool $scoped=false): array {
     if($root&&!one('SELECT 1 FROM comments WHERE id=? AND iteration_id=? AND parent_id IS NULL',[$root,$i['id']]))fail('Conversation not found.',404);
+    if($root)communication_guard(one('SELECT * FROM comments WHERE id=?',[$root]),$scoped||!str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client '));
     if($scoped)return conversation_participants($root);
     $people=[];
     foreach(confirmation_recipients($i) as $n=>$p)$people[$p['email']?:'missing:'.$n]=$p;
     if($root)foreach(rows('SELECT g.*,? AS project_id FROM conversation_grants g WHERE root_id=?',[$i['project_id'],$root]) as $g)if(conversation_grant_valid($g))$people[$g['email']]=['email'=>$g['email'],'name'=>$g['name'],'available'=>true,'invitable'=>false];
+    if($root&&communication_audience($root)==='studio')$people=array_filter($people,fn($p)=>($p['group']??'')==='team');
     return array_values($people);
 }
 

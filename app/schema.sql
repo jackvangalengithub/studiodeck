@@ -73,3 +73,9 @@ CREATE TABLE IF NOT EXISTS client_login_grants (token_hash TEXT PRIMARY KEY REFE
 
 CREATE TABLE IF NOT EXISTS open_questions (id TEXT NOT NULL,iteration_id TEXT NOT NULL REFERENCES iterations(id) ON DELETE CASCADE,question TEXT NOT NULL,kind TEXT NOT NULL DEFAULT 'clarification' CHECK(kind IN ('answered','clarification','preference')),reason TEXT NOT NULL DEFAULT '',answer TEXT NOT NULL DEFAULT '',citations TEXT NOT NULL DEFAULT '[]',origin TEXT NOT NULL DEFAULT 'designer',published INTEGER NOT NULL DEFAULT 0,dismissed INTEGER NOT NULL DEFAULT 0,resolved INTEGER NOT NULL DEFAULT 0,edited INTEGER NOT NULL DEFAULT 0,fingerprint TEXT NOT NULL DEFAULT '',created_at TEXT NOT NULL,PRIMARY KEY(iteration_id,id));
 CREATE TABLE IF NOT EXISTS open_question_replies (id TEXT PRIMARY KEY,iteration_id TEXT NOT NULL,question_id TEXT NOT NULL,author TEXT NOT NULL,body TEXT NOT NULL,created_at TEXT NOT NULL,FOREIGN KEY(iteration_id,question_id) REFERENCES open_questions(iteration_id,id) ON DELETE CASCADE);
+
+CREATE TABLE IF NOT EXISTS iteration_covers (
+    iteration_id TEXT PRIMARY KEY REFERENCES iterations(id) ON DELETE CASCADE,
+    slide_id TEXT NOT NULL,
+    FOREIGN KEY(iteration_id,slide_id) REFERENCES presentation_slides(iteration_id,id) ON DELETE CASCADE
+);

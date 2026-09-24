@@ -57,14 +57,33 @@ class ConversationAccessTests(SecurityFixture):
         deck=self.call(self.editor,'project',query={'id':'shared','iteration':self.iid})
         self.assertEqual(deck['total_cents'],100000)
         # Guests can request confirmation from participants, without discovering the directory.
-        reverse=self.call(guest,'communication_post',dict(conversation=root,body='Is the installation included?',recipient='editor@example.test'),201,headers=headers)['id']
+        reverse=self.call(guest,'communication_post',dict(conversation=root,related_thread_id=root,thread_type='confirmation',thread_title='Installation scope',body='Is the installation included?',recipient='editor@example.test'),201,headers=headers)['id']
         self.call(self.editor,'confirmation_decide',dict(iteration=self.iid,id=reverse,decision='confirmed'))
-        self.assertEqual(next(r for r in self.call(guest,'conversation',query={'id':root})['confirmations'] if r['comment_id']==reverse)['status'],'confirmed')
+        self.assertEqual(next(r for r in self.call(guest,'conversation',query={'id':reverse})['confirmations'] if r['comment_id']==reverse)['status'],'confirmed')
+    def test_guest_linked_grant_cannot_outlive_its_source(self):
+        root=self.invite();guest,csrf,_=self.login_guest(root);headers={'X-CSRF-Token':csrf}
+        linked=self.call(guest,'communication_post',dict(conversation=root,related_thread_id=root,thread_type='todo',assignee='joiner@example.test',body='Bring samples'),201,headers=headers)['id']
+        self.call(guest,'communication_work_decide',dict(conversation=linked,id=linked,resolved=True),headers=headers)
+        self.assertEqual(self.sql('SELECT answered FROM comments WHERE id=?',(linked,)),[(1,)])
+        self.assertEqual([t['id'] for t in self.call(guest,'conversation',query={'id':root})['linked_threads']],[linked])
+        self.call(guest,'communication_post',dict(conversation=root,related_thread_id='comment-shared',thread_type='discussion',body='Wrong parent'),404,headers=headers)
+        self.call(guest,'communication_post',dict(conversation=root,related_thread_id=root,thread_type='confirmation',recipient='painter@example.test',body='Unknown participant'),400,headers=headers)
+        self.call(guest,'communication_post',dict(conversation=root,related_thread_id=root,body='Unauthorized pin',slide='visual-slide-shared'),403,headers=headers)
+        self.sql('UPDATE conversation_grants SET revoked=1 WHERE root_id=?',(root,))
+        self.denied(guest.api('conversation',query={'id':linked}))
+        self.sql('UPDATE conversation_grants SET revoked=0 WHERE root_id=?',(root,))
+        self.call(guest,'conversation',query={'id':linked})
+        self.sql('DELETE FROM conversation_grants WHERE root_id=?',(root,))
+        self.denied(guest.api('conversation',query={'id':linked}))
+
     def test_existing_thread_scope_and_revocation(self):
         root=self.call(self.editor,'communication_post',dict(iteration=self.iid,thread_title='Paint discussion',body='Earlier message'),201)['id']
-        request=self.invite(parent_id=root)
+        original=root
+        request=self.invite(related_thread_id=root)
+        root=request
         guest,csrf,_=self.login_guest(root)
-        self.assertEqual({c['id'] for c in self.call(guest,'conversation',query={'id':root})['comments']},{root,request})
+        self.assertEqual({c['id'] for c in self.call(guest,'conversation',query={'id':root})['comments']},{request})
+        self.denied(guest.api('conversation',query={'id':original}))
         other=self.invite()
         self.call(guest,'confirmation_decide',dict(conversation=root,id=other,decision='confirmed'),404,headers={'X-CSRF-Token':csrf})
         grant=self.sql('SELECT id FROM conversation_grants WHERE root_id=?',(root,))[0][0]
@@ -82,10 +101,10 @@ class ConversationAccessTests(SecurityFixture):
         self.assertFalse((self.tmp/'mail.log.messages.jsonl').exists())
     def test_inviting_from_an_old_general_message_creates_a_manageable_thread(self):
         root=self.call(self.editor,'communication_post',dict(iteration=self.iid,body='Earlier general message'),201)['id']
-        self.invite(parent_id=root)
+        linked=self.invite(related_thread_id=root)
         deck=self.call(self.editor,'project',query={'id':'shared','iteration':self.iid})
-        self.assertIn({'id':root,'title':'Earlier general message'},deck['communication']['threads'])
-        self.assertEqual(deck['communication']['guests'][0]['root_id'],root)
+        self.assertIn({'id':linked,'title':'Please confirm the paint specification.'},deck['communication']['threads'])
+        self.assertEqual(deck['communication']['guests'][0]['root_id'],linked)
 
     def test_expiry_pending_login_and_existing_session_are_enforced(self):
         root=self.invite();guest,csrf,_=self.login_guest(root)

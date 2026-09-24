@@ -41,7 +41,7 @@ try {
         foreach($catalogs['en'] as $key=>$value)$replacements['{{'.$key.'}}']=htmlspecialchars($value,ENT_QUOTES,'UTF-8');
         echo strtr($html,$replacements);return;
     }
-    if(in_array($path,['/auth/login.js','/auth/login.css'],true)){
+    if(in_array($path,['/auth/login.js','/auth/login.css','/auth/error-page.js','/auth/error-page.css'],true)){
         header('Content-Type: '.(str_ends_with($path,'.js')?'text/javascript':'text/css').'; charset=utf-8');readfile(__DIR__.$path);return;
     }
     $appPage=$path==='/'||$path==='/index.html'||$path==='/choose';
@@ -106,12 +106,14 @@ try {
     echo $html;
 } catch(Throwable $e){
     $status=$e instanceof RuntimeException && in_array($e->getCode(),[400,401,403,404],true)?$e->getCode():500;
-    if($status===403&&!empty($studioPage)){
-        http_response_code(403);header('Content-Type: text/html; charset=utf-8');
-        header("Content-Security-Policy: default-src 'none'; style-src 'self'; base-uri 'none'; frame-ancestors 'none'");
-        $email=htmlspecialchars($user['email']??'',ENT_QUOTES,'UTF-8');
-        echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Studio access · Studiodeck</title><link rel="stylesheet" href="/auth/login.css"></head><body><main><a class="brand" href="/">studio<strong>deck</strong></a><h1>This studio isn’t available to your account.</h1><p>Signed in as '.$email.'.</p><p>'.htmlspecialchars($e->getMessage(),ENT_QUOTES,'UTF-8').'</p><p><a href="/choose">Choose another workspace or project</a></p><p><a href="/login?returnTo=%2Fchoose">Sign in with another email</a></p></main></body></html>';return;
-    }
-    http_response_code($status);header('Content-Type: text/plain; charset=utf-8');echo $status===500?'The application is unavailable.':$e->getMessage();
     if($status===500)error_log((string)$e);
+    // Resource/API responses retain their machine-readable behavior. Browser
+    // navigation gets a complete page even when app assets cannot be loaded.
+    if(!empty($asset)||str_starts_with($path,'/assets/')||str_starts_with($path,'/auth/')||$path==='/api.php'){
+        http_response_code($status);header('Content-Type: text/plain; charset=utf-8');echo $status===500?'The application is unavailable.':$e->getMessage();return;
+    }
+    require_once __DIR__.'/../app/error_page.php';
+    $language='en';
+    if(!empty($user['email']))try{$language=profile_for(person_key($user['email'],true))['language']?:'en';}catch(Throwable $ignored){}
+    render_error_page($status,$e->getMessage(),['signed_in'=>!empty($user),'email'=>$user['email']??'','language'=>$language]);
 }

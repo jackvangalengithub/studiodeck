@@ -11,10 +11,10 @@ if(in_array($action,['profile','save_profile','upload_avatar','remove_avatar'],t
 }
 if($action==='read_comments'){
     $b=input();[$key]=profile_identity(true);$ids=$b['ids']??[];if(!is_array($ids)||count($ids)>100)fail('Read up to 100 comments at a time.');
-    transaction(function()use($ids,$key){foreach($ids as $id){$c=one('SELECT iteration_id FROM comments WHERE id=?',[text_field($id,80)]);if(!$c)fail('Comment not found.',404);access_iteration($c['iteration_id']);query('INSERT OR IGNORE INTO comment_reads(comment_id,person_key,read_at) VALUES(?,?,?)',[$id,$key,now()]);}});json_response(['ok'=>true]);
+    transaction(function()use($ids,$key){foreach($ids as $id){$c=one('SELECT * FROM comments WHERE id=?',[text_field($id,80)]);if(!$c)fail('Comment not found.',404);[$i,$actor,$designer]=access_iteration($c['iteration_id']);communication_guard($c,$designer);query('INSERT OR IGNORE INTO comment_reads(comment_id,person_key,read_at) VALUES(?,?,?)',[$id,$key,now()]);}});json_response(['ok'=>true]);
 }
 if($action==='comment_preview'){
-    $c=one('SELECT * FROM comments WHERE id=?',[text_field($_GET['id']??'')]);if(!$c)fail('Comment not found.',404);[$i]=access_iteration($c['iteration_id']);
+    $c=one('SELECT * FROM comments WHERE id=?',[text_field($_GET['id']??'')]);if(!$c)fail('Comment not found.',404);[$i,$actor,$designer]=access_iteration($c['iteration_id']);communication_guard($c,$designer);
     require_once __DIR__.'/slides.php';$slide=str_starts_with($c['slide'],'visual-')?current_slide($i['id'],substr($c['slide'],7)):null;
     $annotation=json_decode($c['annotation']??'null',true);
     if($annotation)$slide=['source_version_id'=>$annotation['source_version_id'],'page_number'=>$annotation['page_number'],'image_number'=>$annotation['image_number'],'image_version_id'=>$annotation['image_version_id']?:null];

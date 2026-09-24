@@ -20,7 +20,7 @@ function normalized_upload(string $field,int $size=640): string {
 function decorate_comments(array $comments,string $key): array {
     foreach($comments as &$comment)$comment['annotation']=isset($comment['annotation'])?json_decode($comment['annotation'],true):null;
     unset($comment);
-    foreach($comments as &$c){$c['mentions']=comment_mentions($c['id']);$c['confirmation']=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']])?:null;$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
+    foreach($comments as &$c){$c['thread_details']=!$c['parent_id']?communication_topic($c['id']):null;$c['mentions']=comment_mentions($c['id']);$c['confirmation']=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']])?:null;$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
         $account=one('SELECT name FROM users WHERE email=?',[$c['author']]);$c['profile']=profile_for(person_key($c['author'],(bool)$account),$account['name']??explode('@',$c['author'])[0]);}
     return $comments;
 }
@@ -49,7 +49,7 @@ function builtin_comment_thumbnail(array $c,array $i): GdImage {
         $slide=one("SELECT * FROM presentation_slides WHERE iteration_id=? AND type IN ('render','photo','moodboard') ORDER BY CASE type WHEN 'render' THEN 0 WHEN 'photo' THEN 1 ELSE 2 END,position LIMIT 1",[$i['id']]);
         if($slide){try{$source=slide_image_source($slide);$photo=@imagecreatefromstring($source['data']);if($photo){$scale=min(191/imagesx($photo),198/imagesy($photo));$w=(int)(imagesx($photo)*$scale);$h=(int)(imagesy($photo)*$scale);imagecopyresampled($im,$photo,265+(int)((191-$w)/2),60+(int)((198-$h)/2),0,0,$w,$h,imagesx($photo),imagesy($photo));imagedestroy($photo);}}catch(Throwable $e){}}
     }else{
-        $titles=['budget'=>'The investment.','open-questions'=>'Open questions','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
+        $titles=['budget'=>'The investment.','open-questions'=>'Checklist','contacts'=>'Your project team.','summary'=>'Everything, together.','changes'=>'A little closer.','general'=>'General comment'];$text($titles[$c['slide']]??'Source slide unavailable',24,85,23);
         if(in_array($c['slide'],['budget','summary'],true)){$total=budget_total(budget_rows($i['id']));$text('€ '.number_format($total/100,0,'.',','),24,155,29);foreach([270,220,165] as $n=>$w)imagefilledrectangle($im,24,182+$n*22,$w,192+$n*22,$soft);}
         elseif($c['slide']==='contacts'){$people=rows("SELECT name FROM contacts WHERE project_id=? AND role<>'Client' LIMIT 3",[$i['project_id']]);foreach($people as $n=>$person){$x=45+$n*145;imagefilledellipse($im,$x+18,145,44,44,$soft);$text(preview_text($person['name'],12),$x-18,195,11);}}
         else{$text(preview_text($p['name'],36),24,148,15);imagefilledrectangle($im,24,178,365,186,$soft);imagefilledrectangle($im,24,202,305,210,$soft);}

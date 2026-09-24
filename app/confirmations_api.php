@@ -1,12 +1,17 @@
 <?php
 declare(strict_types=1);
+if($action==='communication_thread_update')json_response(update_communication_thread(input()));
+if($action==='communication_work_decide')json_response(decide_communication_work(input()));
+if($action==='communication_share')json_response(share_communication(input()));
 if($action==='communication_post')json_response(post_communication(input()),201);
 if($action==='confirmation_decide')json_response(decide_confirmation(input()));
 if($action==='mention_people'){
     $root=text_field($_GET['conversation']??'',80);
     if($root){$g=conversation_access($root);$i=one('SELECT * FROM iterations WHERE id=?',[$g['iteration_id']]);}
     else {[$i]=access_iteration(text_field($_GET['iteration']??'',80));$root=text_field($_GET['parent_id']??'',80);}
-    json_response(mention_people($i,$root,!empty($_GET['conversation'])));
+    $people=mention_people($i,$root,!empty($_GET['conversation']));
+    if(!$root&&($_GET['audience']??'')==='studio')$people=array_values(array_filter($people,fn($p)=>($p['group']??'')==='team'));
+    json_response($people);
 }
 if($action==='conversation')json_response(conversation_payload(text_field($_GET['id']??'',80)));
 if($action==='conversation_file'){

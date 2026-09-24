@@ -11,10 +11,12 @@ try {
     if(in_array($action,['project_testimonial_photo','website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($_GET['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($_GET['website_studio'],32);
     // Every API is private unless explicitly part of the authentication flow.
     if(!in_array($action,['session','request_login','consume_login'],true))$apiUser=authenticated_user();
-    $read=['attention','mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
+    $read=['product_feedback_inbox','product_feedback_image','slide_media','check_image','attention','mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the iteration lock check with simple metadata writes.
     if(in_array($action,['category','theme','save_budget','retry_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    require __DIR__.'/../app/product_feedback_api.php';
+    require __DIR__.'/../app/slide_media_api.php';
     if($action==='session')json_response(session_details(current_session()));
     require __DIR__.'/../app/confirmations_api.php';
     require __DIR__.'/../app/project_testimonials_api.php';
@@ -27,6 +29,7 @@ try {
     require __DIR__.'/../app/drive_api.php';
     require __DIR__.'/../app/project_api.php';
     require __DIR__.'/../app/open_questions_api.php';
+    require __DIR__.'/../app/consistency_api.php';
     require __DIR__.'/../app/project_clients_api.php';
     require __DIR__.'/../app/people_api.php';
     require __DIR__.'/../app/project_directory_api.php';
@@ -111,6 +114,7 @@ try {
             insert('iterations',['id'=>$iid,'project_id'=>$base['project_id'],'number'=>$n,'title'=>text_field($b['title']??('Design development '.$n),120),'status'=>'draft','theme'=>$base['theme'],'created_at'=>now()]);
             foreach(rows('SELECT * FROM iteration_files WHERE iteration_id=?',[$base['id']]) as $r){$r['iteration_id']=$iid;insert('iteration_files',$r);}
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('presentation_slides',$slide);}
+            if($cover=one('SELECT slide_id FROM iteration_covers WHERE iteration_id=?',[$base['id']]))insert('iteration_covers',['iteration_id'=>$iid,'slide_id'=>$cover['slide_id']]);
             foreach(rows('SELECT * FROM presentation_slides WHERE iteration_id=?',[$base['id']]) as $slide)copy_slide_image_history($slide,[...$slide,'iteration_id'=>$iid]);
             foreach(rows('SELECT * FROM system_slides WHERE iteration_id=? ORDER BY rowid',[$base['id']]) as $slide){$slide['iteration_id']=$iid;insert('system_slides',$slide);}
             foreach(rows('SELECT * FROM slide_content WHERE iteration_id=?',[$base['id']]) as $content){$content['iteration_id']=$iid;insert('slide_content',$content);}
@@ -126,6 +130,8 @@ try {
             foreach($items as $r)if($r['parent_id'])query('UPDATE budget_items SET parent_id=? WHERE id=?',[$map[$r['parent_id']],$map[$r['id']]]);
             foreach(rows('SELECT * FROM budget_link_suggestions WHERE iteration_id=?',[$base['id']]) as $suggestion){$suggestion['id']=id();$suggestion['iteration_id']=$iid;$suggestion['child_id']=$map[$suggestion['child_id']];$suggestion['parent_id']=$map[$suggestion['parent_id']];insert('budget_link_suggestions',$suggestion);}
             copy_open_questions($base['id'],$iid);
+            foreach(['check_source_roles','check_source_cache'] as $table)foreach(rows('SELECT * FROM '.$table.' WHERE iteration_id=?',[$base['id']]) as $row){$row['iteration_id']=$iid;insert($table,$row);}
+            queue_consistency_checks($iid);
             audit($base['project_id'],$iid,$u['email'],'iteration_created','Created iteration '.$n.' from iteration '.$base['number']);return ['id'=>$iid];
         });json_response($new,201);
     }
@@ -193,7 +199,7 @@ try {
     if($action==='category') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','legal','presentation','other'],true))fail('Unknown category.');
         if(one("SELECT 1 FROM jobs j JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? AND v.asset_id=? AND j.status IN ('queued','running')",[$i['id'],text_field($b['asset_id']??'')]))fail('Wait for this file to finish processing before changing its category.',409);
-        query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);json_response(['ok'=>true]);
+        query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);queue_consistency_checks($i['id']);json_response(['ok'=>true]);
     }
     if($action==='studio_theme') {
         $u=owner(true);studio_admin($u);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();if($multipart&&isset($b['theme'])){$b['theme']=json_decode($b['theme'],true);if(!is_array($b['theme']))fail('Choose a valid studio font style.');}$theme=clean_studio_theme(json_decode(one('SELECT theme FROM studios WHERE id=?',[$u['studio_id']])['theme'],true));
@@ -274,6 +280,7 @@ try {
     if($action==='retry_job') {
         $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);
         if($j['status']!=='failed')fail('This task is not waiting for a retry.');
+        if($j['type']==='slide_video')fail('To avoid a duplicate paid video request, generate a new preview from Add motion after reviewing this task.');
         if(in_array($j['type'],['image_edit','slide_image_edit'],true))fail('To avoid a duplicate paid image request, start a new image variation after reviewing the failed task.');
         query("UPDATE jobs SET status='queued',error='',started_at=NULL,payload='{}' WHERE id=?",[$j['id']]);json_response(['ok'=>true]);
     }
@@ -294,6 +301,7 @@ try {
             copy_slide_image_history($slide,$slide);
             query('UPDATE presentation_slides SET image_version_id=? WHERE iteration_id=? AND id=?',[$vid,$i['id'],$slide['id']]);
             audit($i['project_id'],$i['id'],$u['email'],'slide_image_selected',$slide['title']);
+            queue_consistency_checks($i['id']);
         });json_response(['ok'=>true]);
     }
     if($action==='reorder_slide_groups') {
@@ -359,7 +367,7 @@ try {
     if($action==='save_slide') {
         if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This photo is too large. Choose an image up to 100 MB.',413);
         $u=owner(true);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
-        json_response(save_designed_slide($i,$b,$u));
+        $result=save_designed_slide($i,$b,$u);queue_consistency_checks($i['id']);json_response($result);
     }
     if($action==='slide_image_edit') {
         $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$sid=text_field($b['slide_id']??'');$mode=text_field($b['mode']??'edit',30);

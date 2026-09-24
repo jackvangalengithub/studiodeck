@@ -7,20 +7,29 @@ $once=in_array('--once',$argv,true);
 do {
     billing_worker_tick();
     $mailed=dispatch_comment_email();
+    dispatch_product_feedback_email();
     $job=transaction(function(){
         // An interrupted job is surfaced for an explicit retry; image API calls are never retried blindly.
         query("UPDATE jobs SET status='failed',error='Processing was interrupted. Please retry this file.' WHERE status='running' AND started_at<?",[gmdate('Y-m-d\TH:i:s\Z',time()-600)]);
-        $j=one("SELECT * FROM jobs WHERE status='queued' AND (type!='open_questions' OR NOT EXISTS (SELECT 1 FROM jobs active WHERE active.iteration_id=jobs.iteration_id AND active.type='ingest' AND active.status IN ('queued','running'))) ORDER BY CASE WHEN type='open_questions' THEN 1 ELSE 0 END,created_at LIMIT 1");
+        $j=one("SELECT * FROM jobs WHERE status='queued' AND (type!='slide_video' OR COALESCE(json_extract(payload,'$.poll_after'),0)<=".time().") AND (type!='consistency' OR NOT EXISTS (SELECT 1 FROM jobs running WHERE running.iteration_id=jobs.iteration_id AND running.type='consistency' AND running.status='running')) AND (type NOT IN ('open_questions','consistency') OR NOT EXISTS (SELECT 1 FROM jobs active WHERE active.iteration_id=jobs.iteration_id AND active.type IN ('ingest','image_edit','slide_image_edit') AND active.status IN ('queued','running'))) ORDER BY CASE WHEN type IN ('open_questions','consistency') THEN 1 ELSE 0 END,created_at LIMIT 1");
         if($j)query("UPDATE jobs SET status='running',started_at=? WHERE id=?",[now(),$j['id']]);return $j;
     });
     if(!$job){if($once)break;usleep(750000);continue;}
     try {
         billing_require_project($job['project_id']);
+        if($job['type']==='consistency'){
+            $GLOBALS['processing_job']=$job['id'];
+            run_consistency_checks($job['iteration_id']);
+            unset($GLOBALS['processing_job']);
+            query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
+            continue;
+        }
         if($job['type']==='open_questions'){
             generate_open_questions($job['iteration_id']);
             query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
             continue;
         }
+        if($job['type']==='slide_video'){process_slide_video($job);continue;}
         $v=one('SELECT * FROM file_versions WHERE id=?',[$job['version_id']]);
         $current=one('SELECT version_id,category FROM iteration_files WHERE iteration_id=? AND asset_id=?',[$job['iteration_id'],$v['asset_id']]);
         if(!$current||$current['version_id']!==$v['id'])throw new RuntimeException('This file was replaced before processing finished.');
@@ -87,7 +96,7 @@ do {
         unset($GLOBALS['processing_job']);
         transaction(function()use($job){
             query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
-            if($job['type']==='ingest'&&!one("SELECT 1 FROM jobs WHERE iteration_id=? AND type='ingest' AND status IN ('queued','running')",[$job['iteration_id']]))queue_open_questions($job['iteration_id']);
+            if(in_array($job['type'],['ingest','image_edit','slide_image_edit'],true)&&!one("SELECT 1 FROM jobs WHERE iteration_id=? AND type='ingest' AND status IN ('queued','running')",[$job['iteration_id']])){queue_consistency_checks($job['iteration_id']);}
         });
     }catch(Throwable $e){unset($GLOBALS['processing_job']);query("UPDATE jobs SET status='failed',error=? WHERE id=?",[substr($e->getMessage(),0,500),$job['id']]);fwrite(STDERR,$e->getMessage()."\n");}
     unset($e,$analysis,$v,$items,$theme,$visuals,$source,$raw,$r);

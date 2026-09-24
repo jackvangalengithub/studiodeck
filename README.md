@@ -6,6 +6,14 @@ The hosted version is an explicitly labelled, in-memory pitch demo. **It does no
 
 ## Run locally
 
+**Product feedback:** studio members can open **Help improve Studiodeck** above
+their profile for a short, adaptive feedback form. Configure
+`PRODUCT_FEEDBACK_TEAM_EMAILS` to grant your product team access to the private
+inbox, with themes, impact filters and review statuses. Set
+`PRODUCT_FEEDBACK_NOTIFY_EMAIL` to receive new submissions by email (captured in
+MailCatcher during local development). See
+[product feedback setup and verification](docs/product-feedback.md).
+
 Install PHP 8.3+ with `pdo_sqlite`, `fileinfo`, `zip`, `simplexml`, `gd` (JPEG/WebP), and `curl`. Install Python 3 with PyMuPDF and Pillow (`python3-fitz`, `python3-pil` on Debian), Tesseract with English and Dutch language data, and LibreOffice Impress/Calc. The Docker image includes these dependencies. LibreOffice renders PPT/PPTX slides to PDF; PyMuPDF extracts pages and visible image regions; Tesseract reads scans. `OCR_LANGUAGES` defaults to `eng+nld`.
 
 Copy `.env.example` to `.env`. In one terminal, from this folder:
@@ -33,7 +41,7 @@ docker compose up -d --build
 
 The local `docker-compose.override.yml` mounts `app/`, `public/`, and `scripts/` read-only from your workspace, so local edits appear without rebuilding and older images cannot hide newer code. To run only the files packaged in the image, use `docker compose -f docker-compose.yml up -d --build`.
 
-This runs two app containers from one image: `web` (PHP server) and `worker` (background processing). Both share `./storage`, so the database is on your machine. The local override also starts MailCatcher and FakeStripe. Use `docker compose logs -f` to follow output and `docker compose down` to stop. The PHP built-in web server is for development and demonstrations; deploy `public/` with your usual PHP web server and HTTPS for client use.
+This runs two app containers from one image: `web` (PHP server) and `worker` (background processing). Both share `./storage`, so the database is on your machine. The local override also starts MailCatcher, FakeStripe, and the sales website at [http://localhost:4180](http://localhost:4180). The sales website serves `www/` directly; set `MARKETING_PORT` to change its port. Use `docker compose logs -f` to follow output and `docker compose down` to stop. The PHP built-in web server is for development and demonstrations; deploy `public/` with your usual PHP web server and HTTPS for client use.
 
 **Local email inbox: [http://localhost:1081](http://localhost:1081).** Both app containers override `MAIL_TRANSPORT` to `mail` and use `docker/local-mail.ini` to send PHP mail through msmtp to `mailcatcher:1025`. Sign-in links, client invitations, conversation notifications and billing emails all arrive in this inbox, regardless of their recipient address. No SMTP port is published to the host, and the inbox is bound to loopback. Set `MAILCATCHER_PORT` in `.env` to change the inbox port. MailCatcher is a temporary inbox; messages reset when it restarts.
 
@@ -64,6 +72,7 @@ The included PHP router authenticates pages and assets and authorizes project ro
 - Automatic file categorization using filename, type and extracted text; optional AI classification and visual style detection. Categories and the deck palette/font can be corrected by the designer.
 - The presentation has an introduction, an individual slide for each extracted image, and changes, budget, contacts and downloads. Moodboard, photo, render and drawing slide types can repeat as often as needed. Each visual has its own source page/crop reference and feedback identifier. Collages and moodboards are retained as one composed visual instead of duplicated component slides. All original files remain downloadable.
 - Included vendor subquotes and additional subquotes, expandable at multiple levels. Integer-cent money; unknown amounts remain `NULL`; quoted and estimated costs are distinguished. Each imported budget row points to its source file version. Cyclic subquotes are rejected.
+- **Inconsistency suggestions** in Communication compare specifications, detailed designs and project images, with source roles in Files, evidence links and a private discussion option. **Suggest items** explains the comparison before starting. Inspiration and before photos normally do not generate mismatches. See [consistency checks](docs/consistency-checks.md) for coverage and processing details.
 - Budget questions based on the current iteration, with downloadable source references. Legal & scope documents also supply page-linked evidence for inclusion questions. Without AI, the helper provides factual totals and matching source excerpts.
 - Click an image or use **Zoom in** in the Presentation editor to magnify it with a quick animation. This works for photos, renders, moodboards and document images. Left/right arrow keys navigate the presentation, keeping adjacent photo slides full-screen and returning to the normal layout for any other slide type. Escape or the close button returns to the current photo slide. Reduced-motion preferences are respected.
 - The **Presentation** editor opens in list view with thumbnails, slide types, descriptions and source file/page references; **Grid** offers a larger preview layout. Drag the handle to reorder; a ghost marks the insertion position. Keyboard users can press Space, choose a position with arrow keys, then Enter. **Hide** skips a slide in client previews while keeping it editable; **Show** brings it back. **Delete** removes a slide from that iteration’s presentation and retains its source file. These controls also apply to introduction, budget and other project sections. Order, visibility and deletion are copied into new iterations; previously shared iterations remain unchanged.
@@ -74,15 +83,20 @@ The included PHP router authenticates pages and assets and authorizes project ro
 - Project **Activity** shows 20 events per page with **Prev**/**Next** controls. **Manage links** sits beside the iteration selector.
 - Activity records cover uploads, replacements, processing, iteration creation, previews/client opens, file downloads, feedback, sends, generated links and revocations. Preview/client-open events are requested by the browser, so this is a useful project history, not tamper-proof compliance logging.
 
-## Open questions
+## Communication and checklist
 
-The **Open questions** slide has its own **Open questions** entry in presentation navigation and in the Presentation editor. Its default position follows the budget. After the last uploaded document is processed, the worker prepares up to six project-specific suggestions from extracted text, page summaries, design captions, budget choices and recent conversations. Existing projects can use **Suggest questions** on the slide.
+**Communication** is the project-wide home for discussions, feedback, questions, actions, and approvals. Each subject has one thread. Slides and feedback pins open that same thread; the thread header holds its purpose and status. New threads and photo pins offer Conversation, To do and Approval. Conversations can name someone to wait for; approvals can include a signed budget adjustment. Replies are plain messages, shown newest first beneath a reply field at the top; separate approvals use linked threads. Filters show all communication, unread subjects, subjects needing your response, open actions, pending approvals, and completed subjects.
 
-Suggestions are private drafts. Designers can review sources, edit the question, add an answer, and select **Include in the client presentation**. The three states are **Answer available**, **Needs clarification** and **Your preference**. AI answers require matching quotes from current source documents; missing or invalid citations leave the question unanswered. Without AI, the helper suggests questions about unknown or optional costs.
+- **New conversation** starts a subject. Studio conversations default to **Studio only**; choose the shared audience when clients should participate. Slide feedback and client-created conversations are shared with clients who have access to their original iteration.
+- **Add action** attaches work to the current subject. Choose Question or Action, add a responsible name and context, and optionally include the item in the client presentation. The responsible name is a label, not an invitation. Private work details can remain inside a shared subject without being exposed to clients.
+- **Suggest items** prepares private suggestions. Accepting a suggestion creates its conversation; it never shares or completes work automatically. Consistency-check follow-ups use the same path.
+- **Share conversation** explicitly shares all earlier messages and attachments with clients who can access the original iteration. Item details remain private until separately included. A private conversation must be shared before its items can be included or an external approval requested. Project files retain their existing file access rules.
+- **Ask for confirmation** records a named recipient's decision in the same thread, optionally with a signed budget adjustment. Completing an action never approves a request or changes the budget. Approval never automatically completes work.
+- **Presentation → Checklist** remains a summary of the same work. Its discussion buttons open Communication. New linked items retain one identity and history when another iteration is created; messages, pins, files, and budget decisions keep their original iteration references. Clients see only iterations covered by their current, valid shares. Locked iterations still allow discussion, while preserving existing restrictions on work edits, uploads, and financial decisions.
 
-Clients can read answers, discuss individual questions and add their own. Replies appear in project activity. Designers can dismiss, restore, resolve or reopen questions. Refreshing suggestions preserves published questions, edits, dismissals and conversations. Unresolved questions and their replies are copied into new iterations; earlier iterations retain their own conversation history. A change to project evidence flags existing questions for review and hides their saved answer until reviewed. Locked iterations permit conversations but prevent designer edits and generation.
+**Needs attention** is a preset in Communication for unread messages, open questions/to dos and pending approvals. Each conversation appears once. New conversations and accepted work use the shared messaging, unread tracking, mentions, and notification system. Historical records are not bulk converted.
 
-Run `python3 tests/test_open_questions.py -v` with PHP and SQLite available. Tests use isolated databases and mocked AI, covering publication, citations, access controls, replies, worker processing and iteration snapshots.
+Validation: `python3 -m unittest discover -s tests -p test_communication_hub.py -v`, the checklist/attention/confirmation/access/security suites, and `node tests/test_communication.cjs` against the isolated Communication fixture. Tests use temporary databases and do not deliver real email or make paid AI calls.
 
 ## Import behaviour and review
 
@@ -96,6 +110,8 @@ Run `python3 tests/test_open_questions.py -v` with PHP and SQLite available. Tes
 | PPT / XLS | LibreOffice renders PPT slides or converts XLS to XLSX, original retained | Same analysis after conversion |
 
 After upload, a dismissible full-screen animation reports the actual worker stage and page number. **Continue working** closes it; the project banner keeps reporting progress and **View progress** reopens it. Completion and failures are shown explicitly.
+
+Whole-page AI planning uses PHP `curl_multi` with up to four concurrent requests per document worker. Set `DOCUMENT_PAGE_CONCURRENCY` to an integer from `1` to `8` (default `4`); `1` restores sequential requests. Page previews are loaded only when a request slot opens. Results keep source-page order, and failed pages retain the existing conservative extraction fallback without automatic API retries. During this stage, progress counts processed pages and active requests, and the worker refreshes its heartbeat while waiting. Extraction and final document analysis still wait for all page plans. Structured `document_page_analysis` log entries record elapsed milliseconds, eligible pages, concurrency and failures. The limit is per worker, so account for worker count when tuning API load. Restart an idle worker after deploying code; recreate it when changing Compose environment settings.
 
 In **Studio settings**, upload a PNG/JPEG/WebP logo (up to 2 MB) and edit the studio name. Workspace chrome is fixed to Warm grayscale, editorial style and serif titles. Personal colors apply to avatars and comments. **Project style** controls presentation colors, typography and light/dark backgrounds; these settings also appear on the project tile alongside its cover photo and palette swatches.
 
@@ -139,10 +155,15 @@ For a small studio, keeping bytes in SQLite makes backups and deployment simple.
 PHP_BIN=php python3 tests/test_workflows.py
 python3 tests/test_extraction.py
 php tests/test_analysis.php
+python3 tests/test_ai_parallel.py
+python3 tests/test_ai_parallel.py --benchmark
+node tests/test_progress.mjs
 node tests/test_slides.mjs
 node tests/test_themes.mjs
 PHP_BIN=php python3 tests/test_studios.py
 ```
+
+The parallel API tests use a threaded local mock server and PHP with the cURL extension. The benchmark compares concurrency `1` and `4` across eight 500 ms responses, reporting the median of three runs, observed peak concurrency and identical-result checks. It measures transport overlap, not live AI or total import speed. Without a local PHP/cURL installation, run either command in the application image, for example `docker run --rm --network none -v "$PWD:/app:ro" --entrypoint python3 studiodeck /app/tests/test_ai_parallel.py --benchmark`.
 
 The integration suite uses an isolated temporary database and fake `.test` addresses. It checks token replay/expiry, 14-day sessions, CSRF, tenant isolation, upload validation, PDF/CSV/XLSX/PPTX ingestion, integer-cent totals, subquote cycles, shared snapshot immutability, replacement accounting, version download restrictions, feedback, revocation and link expiry. It also checks page/image access, progress stages, palette provenance, re-extraction snapshots and manual theme preservation. The extraction suite exercises multi-page PDF, rotated pages, scanned text, slide ordering, intact collages, white dividers inside photos, rejected repeated logos, malformed plans and model-directed scan crops with real document tools. The analysis test verifies whole-page planning before final crops, mismatched page rejection, one-slide collage preservation, multi-page vision requests, independent image classification across batches, mixed Before/Concept captions and partial API failure handling. Slide tests cover repeating types, stable identifiers and crop references. Workflow tests also simulate image edit results to check preservation of originals, stale-result rejection and immutable shared slide images. These tests send no real email and make no live AI calls.
 
@@ -278,12 +299,14 @@ Studios with no projects, including archived projects, see a welcome page with a
 
 Studio admins can open **Website** to build a portfolio from curated project copies and approved testimonials. Ten one-page starting designs with full-screen previews, freely editable HTML/CSS/JavaScript, chat-driven source edits, sandboxed private previews, explicit static publication, optimized images, SEO metadata, ZIP export and version restore are implemented. Publishing is included with every active Solo, Studio and Practice subscription (or explicit local development mode). Project changes and deletion never alter published snapshots. See [website setup, limits and deployment](docs/website.md) for Stripe and custom-domain HTTPS configuration.
 
-### Needs attention
+### Communication: Needs attention
 
-Open **Needs attention** in the studio sidebar to see published open questions, pending confirmations, unread feedback and project deadlines in one place. It includes active projects where you are a team member. Deadlines cover overdue projects and the next 14 days (UTC); overdue projects and confirmations assigned to you appear first.
+The **Needs attention** preset filters Communication to subjects with unread messages, open questions or to dos, or pending approvals. It is available in the studio-wide Communication list and each project’s Communication tab. Project deadlines remain project details and do not create communication subjects.
 
-Category cards filter the queue and show totals. Filters survive refresh and browser navigation at `/{studioId}/attention?kind=feedback`. **Load more** pages through 50 items at a time, and **Refresh** checks for updates. Opening an item takes you to its question, conversation or project. Merely viewing this dashboard never marks comments as read.
+The studio preset survives reload and browser navigation at `/{studioId}/comments?filter=attention`. Old `/{studioId}/attention` links open this preset. There is no separate sidebar item or dashboard. Filtering happens before pagination and preserves team access restrictions. Viewing the list does not mark messages read; opening the conversation does.
 
-Unanswered published questions use their latest copy to avoid listing copied questions twice; new questions on older shared iterations still appear. Pending confirmations and unread conversations retain their original iteration. Replies are grouped into one unread item per conversation; messages you wrote are excluded. Resolved/dismissed questions, completed/withdrawn confirmations and archived projects drop out on refresh.
+Checks: `tests/test_communication_hub.py`, `tests/test_routes.mjs`, and `tests/test_attention_browser.cjs` against the isolated Communication fixture.
 
-Checks: `python3 -m unittest discover -s tests -p test_attention.py -v`, `node tests/test_routes.mjs`, and `tests/test_attention_browser.cjs` against the isolated Communication fixture. No real email or external API calls are needed.
+### Video slides and photo motion
+
+Video slides support MP4/WebM uploads, YouTube, full-screen layout and optional muted autoplay. Photos and renders offer **Add motion** with gentle pan/zoom or a previewed AI camera movement that ends on the actual photo. AI video uses optional Google Veo credentials and the existing worker. See [setup, playback behavior and tests](docs/slide-media.md).

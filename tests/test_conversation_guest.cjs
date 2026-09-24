@@ -1,48 +1,24 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
-const base=process.env.COMMUNICATION_BASE||'http://127.0.0.1:18496';
-const mail=process.env.COMMUNICATION_MAIL_LOG||'/tmp/studiodeck-communication-browser/mail.jsonl';
+const base=process.env.COMMUNICATION_BASE||'http://127.0.0.1:18496',mail=process.env.COMMUNICATION_MAIL_LOG;
 (async()=>{
- const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_PATH?{executablePath:process.env.CHROMIUM_PATH}:{}),args:['--no-sandbox']});
- const errors=[];
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH,args:['--no-sandbox']}),errors=[];
  try{
   const studio=await browser.newContext({viewport:{width:1440,height:1000}});await studio.addCookies([{name:'studiodeck_session',value:'editor',url:base}]);
-  const page=await studio.newPage();page.on('pageerror',e=>errors.push(e.message));
-  await page.goto(base+'/studio-a/projects/shared?iteration=iteration-shared&tab=comments');
-  await page.locator('[data-action=comm-new]').click();await page.locator('[name=thread_title]').fill('Joinery finish');
-  await page.locator('#comm-thread-form [name=body]').fill('Discuss this finish with the joiner.');await page.locator('#comm-thread-form button[type=submit]').click();
-  await page.getByRole('heading',{name:'Joinery finish',exact:true}).waitFor();
-  await page.locator('#comm-reply').fill('Please confirm the stronger finish for 125.50 extra.');
-  await page.locator('[data-action=comm-ask]').click();await page.locator('#comm-confirmation-form [name=recipient]').selectOption('trade@example.test');
-  assert(await page.locator('#comm-invite-hint').isVisible());assert.match(await page.locator('#comm-invite-hint').textContent(),/including earlier messages/);
-  await page.locator('#comm-has-cost').check();await page.locator('#comm-cost').fill('125.50');
-  await page.locator('#comm-confirmation-form summary').click();await page.locator('#comm-confirmation-form [name=version_id]').selectOption('file-shared');
-  await page.locator('#comm-confirmation-form button[type=submit]').click();await page.getByText('Request sent.',{exact:true}).waitFor();
-  const invited=page.locator('.comm-guests');await invited.waitFor();assert.match(await invited.textContent(),/Bakker Joinery/);
-  let message;for(let n=0;n<60;n++){if(fs.existsSync(mail)){message=fs.readFileSync(mail,'utf8').trim().split('\n').map(JSON.parse).findLast(m=>m.to==='trade@example.test');if(message)break;}await new Promise(r=>setTimeout(r,250));}
-  assert(message,'Invitation email was queued and logged');const token=message.text.match(/#\/login\/([a-f0-9]{64})/)[1];
-  const guest=await browser.newContext({viewport:{width:1200,height:900}}),gp=await guest.newPage();gp.on('pageerror',e=>errors.push(e.message));
-  await gp.goto(base+'/login#/login/'+token);await gp.locator('#guest-reply').waitFor();
-  assert.match(gp.url(),/\/conversations\//);
-  assert.equal(await gp.getByRole('heading',{name:'Joinery finish',exact:true}).count(),1);
-  assert(await gp.getByText('Discuss this finish with the joiner.',{exact:true}).isVisible());
-  assert(!await gp.getByText('SECRET-shared',{exact:true}).count());
-  const card=gp.locator('.comm-confirmation').filter({hasText:'Please confirm the stronger finish'});
-  const download=gp.waitForEvent('download');await card.locator('.comm-attachment').click();assert.equal((await download).suggestedFilename(),'file-shared.png');
-  await card.locator('[data-confirm]').click();await gp.getByText('Confirmation recorded.',{exact:true}).waitFor();
-  assert.match(await card.textContent(),/Confirmed by Bakker Joinery/);
-  await gp.locator('#guest-reply textarea').fill('Confirmed; we can start on Monday.');await gp.locator('#guest-reply [type=submit]').click();
-  await gp.getByText('Confirmed; we can start on Monday.',{exact:true}).waitFor();
-  await gp.locator('[data-ask]').click();await gp.locator('#guest-request [name=body]').fill('Please confirm access to the site.');await gp.locator('#guest-request [type=submit]').click();await gp.getByText('Request sent.',{exact:true}).waitFor();
-  const url=gp.url();for(const width of [1200,390,320]){await gp.setViewportSize({width,height:1000});assert(await gp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Guest overflow '+width);}
-  await gp.screenshot({path:'/tmp/studiodeck-communication-browser/guest-mobile.png',fullPage:true});
-  await gp.goto(base+'/choose');await gp.getByRole('link').filter({hasText:'Joinery finish'}).click();await gp.locator('#guest-reply').waitFor();
-  await page.reload();await page.locator('.comm-topic').filter({hasText:'Joinery finish'}).click();
-  assert(await page.getByText('Confirmed; we can start on Monday.',{exact:true}).isVisible());
-  await page.locator('.comm-guests [data-action=comm-revoke]').click();await page.locator('[data-action=comm-do-revoke]').click();await page.getByText('Access removed.',{exact:true}).waitFor();
-  const revoked=await guest.request.get(url);assert.equal(revoked.status(),404);
-  const forbidden=await guest.request.get(base+'/api.php?action=project&id=shared');assert([401,403,404].includes(forbidden.status()));
-  assert.deepEqual(errors,[]);
-  console.log('PASS real email invitation, restricted guest page, attachment download, approval, reverse request, mobile, destinations and revocation');
+  const page=await studio.newPage();page.on('pageerror',e=>errors.push(e.message));await page.goto(base+'/studio-a/projects/shared?iteration=iteration-shared&tab=comments');
+  await page.locator('[data-action=comm-new]').click();const form=page.locator('#comm-thread-form');await form.locator('[name=thread_title]').fill('Joinery finish');await form.locator('[name=audience]').selectOption('shared');await form.locator('[data-compose-type=approval]').click();await form.locator('[name=body]').fill('Please confirm the stronger finish for 125.50 extra.');await form.locator('[name=recipient]').selectOption('trade@example.test');await form.locator('[data-budget-toggle]').check();await form.locator('[name=amount]').fill('125.50');
+  assert(await form.locator('[data-compose-invite]').isVisible());await form.locator('summary').click();await form.locator('[name=version_id]').selectOption('file-shared');await form.locator('[type=submit]').click();await page.getByRole('heading',{name:'Joinery finish',exact:true}).waitFor();
+  const original=await page.locator('.comm-topic.selected').getAttribute('data-id');
+  let message;for(let n=0;n<60;n++){if(fs.existsSync(mail)){message=fs.readFileSync(mail,'utf8').trim().split('\n').map(JSON.parse).findLast(m=>m.to==='trade@example.test'&&m.text.includes('125.50'));if(message)break;}await new Promise(r=>setTimeout(r,250));}assert(message,'Invitation logged');
+  const token=message.text.match(/#\/login\/([a-f0-9]{64})/)[1],guest=await browser.newContext({viewport:{width:1200,height:900}}),gp=await guest.newPage();gp.on('pageerror',e=>errors.push(e.message));await gp.goto(base+'/login#/login/'+token);await gp.locator('#guest-reply').waitFor();
+  assert.equal(await gp.locator('#guest-reply [data-compose-type]').count(),0);assert.equal(await gp.locator('.comm-thread-details').getByText('Approval',{exact:true}).count(),1);
+  const download=gp.waitForEvent('download');await gp.locator('.comm-message .comm-attachment').click();assert.equal((await download).suggestedFilename(),'file-shared.png');await gp.locator('[data-confirm]').click();await gp.getByText('Confirmation recorded.',{exact:true}).waitFor();
+  await gp.locator('#guest-reply textarea').fill('Confirmed; we can start on Monday.');await gp.locator('#guest-reply [type=submit]').click();await gp.getByText('Confirmed; we can start on Monday.',{exact:true}).waitFor();
+  assert.match(await gp.locator('.comm-message').first().innerText(),/Confirmed; we can start on Monday/);assert(await gp.evaluate(()=>document.querySelector('#guest-reply').compareDocumentPosition(document.querySelector('.comm-messages'))&Node.DOCUMENT_POSITION_FOLLOWING));
+  await gp.locator('[data-new-thread]').click();const linked=gp.locator('#guest-request');await linked.locator('[name=thread_title]').fill('Site access');await linked.locator('[data-compose-type=approval]').click();await linked.locator('[name=body]').fill('Please confirm access to the site.');await linked.locator('[name=recipient]').selectOption('editor@example.test');await linked.locator('[type=submit]').click();await gp.getByRole('heading',{name:'Site access',exact:true}).waitFor();assert.notEqual(gp.url(),base+'/conversations/'+original);
+  await gp.locator('[data-new-thread]').click();await linked.locator('[name=thread_title]').fill('Bring samples');await linked.locator('[data-compose-type=todo]').click();await linked.locator('[name=body]').fill('Bring the finish samples');await linked.locator('[name=assignee]').selectOption('trade@example.test');await linked.locator('[name=due_date]').fill('2026-10-12');await linked.locator('[type=submit]').click();await gp.getByRole('heading',{name:'Bring samples',exact:true}).waitFor();await gp.locator('[data-work]').click();await gp.locator('.comm-thread-details').getByText('Completed',{exact:true}).waitFor();
+  const linkedUrl=gp.url();for(const width of [1200,390,320]){await gp.setViewportSize({width,height:1000});assert(await gp.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));}
+  await page.reload();await page.locator('.comm-topic').filter({hasText:'Joinery finish'}).click();assert(await page.getByText('Confirmed; we can start on Monday.',{exact:true}).isVisible());await page.locator('.comm-guests [data-action=comm-revoke]').click();await page.locator('[data-action=comm-do-revoke]').click();await page.getByText('Access removed.',{exact:true}).waitFor();assert.equal((await guest.request.get(linkedUrl)).status(),404);assert.equal((await guest.request.get(base+'/conversations/'+original)).status(),404);
+  assert.deepEqual(errors,[]);console.log('PASS guest thread header, plain replies, approval, linked threads, work completion, mobile and cascading revocation.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1);});

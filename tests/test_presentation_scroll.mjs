@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import {readWorkspaceRoute,workspaceUrl} from '../public/assets/routes.js';
+import {readClientRoute,clientProjectUrl} from '../public/assets/destinations.js';
+import {scrollPresentation} from '../public/assets/presentation-scroll.js';
+
+const studio={studioId:'studio',view:'slide',slide:'visual-one',projectId:'project',iteration:'iteration',presentationMode:'scroll'};
+const studioUrl=workspaceUrl(studio);
+assert.equal(studioUrl,'/studio/slide/visual-one?project=project&iteration=iteration&view=scroll');
+assert.equal(readWorkspaceRoute(new URL(studioUrl,'https://example.test')).presentationMode,'scroll');
+const clientUrl=clientProjectUrl('project','iteration','visual-one','scroll');
+assert.deepEqual(readClientRoute(new URL(clientUrl,'https://example.test')),{projectId:'project',iteration:'iteration',slide:'visual-one',presentationMode:'scroll'});
+assert.equal(readClientRoute(new URL('/client/projects/project?view=unknown','https://example.test')).presentationMode,undefined);
+assert.ok(!workspaceUrl({...studio,presentationMode:'slides'}).includes('view='));
+assert.ok(!clientProjectUrl('project','iteration','visual-one','slides').includes('view='));
+const html=scrollPresentation({slides:[{id:'one',section:'first',type:'text',title:'A & B'},{id:'two',section:'second',type:'photo',title:'Second'}],groups:{first:'Story',empty:'Invisible',second:'<Designs>'},project:'<Home>',iteration:'iteration',branding:'',preview:'',actions:'',content:id=>`content:${id}`,footer:()=>''});
+assert.ok(!html.includes('Invisible'));
+assert.ok(html.includes('&lt;Designs&gt;'));
+assert.ok(html.includes('&lt;Home&gt;'));
+assert.ok(html.indexOf('content:one')<html.indexOf('content:two'));
+assert.ok(html.includes('data-scroll-slide="one"'));
+console.log('PASS reading-mode URLs, safe labels, original content order and omission of empty chapters.');

@@ -24,10 +24,10 @@ class ConfirmationTests(SecurityFixture):
     def test_named_threads_keep_replies_and_confirmations_together(self):
         root=self.call(self.editor,'communication_post',dict(iteration=self.iid,thread_title='Paint options',body='Which finish?',version_id='old-shared'),expected=201)['id']
         reply=self.call(self.client,'communication_post',dict(iteration=self.iid,parent_id=root,body='Matte, please.'),expected=201)['id']
-        request=self.request(parent_id=root)
+        request=self.request(related_thread_id=root)
         deck=self.deck()
         self.assertIn({'id':root,'title':'Paint options'},deck['communication']['threads'])
-        self.assertEqual({c['id'] for c in deck['comments'] if c['parent_id']==root},{reply,request})
+        self.assertEqual({c['id'] for c in deck['comments'] if c['parent_id']==root},{reply})
         self.assertEqual(next(c for c in deck['comments'] if c['id']==root)['slide'],'general')
         self.assertTrue(any(a['comment_id']==root and a['id']=='old-shared' for a in deck['communication']['attachments']))
         self.call(self.client,'communication_post',dict(iteration=self.iid,thread_title='Client question',body='Can we discuss lighting?'),expected=201)
@@ -85,12 +85,12 @@ class ConfirmationTests(SecurityFixture):
         self.assertEqual(self.deck()['communication']['confirmations'][0]['status'],'withdrawn')
 
     def test_client_to_team_and_legacy_replies(self):
-        request=self.call(self.client,'communication_post',dict(iteration=self.iid,body='Is this colour included?',recipient='editor@example.test',parent_id='comment-shared'),expected=201)['id']
+        request=self.call(self.client,'communication_post',dict(iteration=self.iid,body='Is this colour included?',recipient='editor@example.test',related_thread_id='comment-shared'),expected=201)['id']
         self.call(self.editor,'comment',dict(iteration=self.iid,parent_id='comment-shared',slide='intro',body='A reply alone is not approval.'))
         self.assertEqual(self.deck()['communication']['confirmations'][0]['status'],'pending')
         self.decide(request,self.editor)
         message=next(c for c in self.deck()['comments'] if c['id']==request)
-        self.assertEqual((message['parent_id'],message['slide']),('comment-shared','intro'))
+        self.assertEqual((message['parent_id'],message['slide']),(None,'general'))
         self.assertEqual(len(self.deck()['budget']),1)
         self.call(self.client,'communication_post',dict(iteration=self.iid,body='Wrong thread',parent_id='comment-foreign'),expected=404)
 
@@ -123,7 +123,8 @@ class ConfirmationTests(SecurityFixture):
         linked=next(b for b in copied['budget'] if b['confirmation'])
         self.assertEqual(linked['confirmation']['comment_id'],request)
         self.assertEqual(linked['confirmation']['iteration_id'],self.iid)
-        self.assertEqual(copied['communication']['confirmations'],[])
+        self.assertTrue(copied['communication']['confirmations'])
+        self.assertTrue(all(r['iteration_id']==self.iid for r in copied['communication']['confirmations']))
         self.call(self.editor,'save_budget',dict(iteration=clone,id=linked['id'],label='Changed',amount='12'),expected=409)
 
 if __name__=='__main__':unittest.main()

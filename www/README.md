@@ -7,6 +7,14 @@ A standalone, responsive marketing site for interior designers, architects, gard
 From the repository root:
 
 ```sh
+docker compose up -d marketing
+```
+
+Open http://localhost:4180. The local Docker setup serves `www/` directly and restarts the sales website automatically. It uses the app image; on a fresh checkout, first run `docker compose build web`. Set `MARKETING_PORT` to change the port. The service also starts with the full `docker compose up -d --build` command.
+
+To preview without Docker:
+
+```sh
 python3 -m http.server 4180 --directory www
 ```
 
@@ -19,6 +27,7 @@ Upload the contents of `www/` to any static host. All assets and internal refere
 - Editorial design using the exact seven Warm grayscale colors from `public/assets/studio.js`, with locally hosted fonts and imagery.
 - Original AI-generated luxury villa exterior and architectural garden in `assets/architecture.jpg` and `assets/garden.jpg`, plus three original AI-generated villa interiors: Mediterranean, Japandi and contemporary classic. Panoramic hero and supporting project imagery. Prompts are in `assets/villas/PROMPTS.md`.
 - An opening business-type selector with the same six choices and exact image files as studio setup: interiors, gardens/landscapes, architecture, furniture/cabinetry events/exhibitions and sign makers. Selection updates the hero, presentation, approval and portfolio examples, plus all three AI evidence examples, document excerpts, follow-up discussions, pinned-feedback copy, checklist tasks and AI FAQ example. The `audience` URL parameter preserves a choice on refresh or when shared; no cookies or local storage are used.
+- A prominent AI photo-movement showcase below the hero, with editable preset examples, an eight-second local pan/zoom demo, original-photo ending, full-screen uploaded-video messaging and a dedicated FAQ. The demo is explicitly illustrative, makes no AI calls, adapts to each discipline and respects reduced motion.
 - A prominent AI consistency-check showcase has three tailored comparisons for each of the six disciplines (18 examples total), covering materials, finishes or models, written dimensions, and scope. Native expandable examples work with the keyboard and without JavaScript. Copy reflects private evidence review, automatic checks and designer control.
 - Communication follows the AI showcase: pinned feedback, questions, assigned work, mentions, private discussion and explicit client approvals. A dedicated checklist section shows how follow-up work stays linked to its conversation.
 - Dedicated customer communication/approval and studio website sections, with illustrative project conversations and connected portfolio showcases. The studio website is included with every monthly subscription.

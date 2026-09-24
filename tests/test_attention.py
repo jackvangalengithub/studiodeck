@@ -36,7 +36,7 @@ class AttentionTests(SecurityFixture):
 
     def test_latest_questions_and_all_iteration_confirmations(self):
         self.question('question')
-        for id,fields in [('private',dict(published=0)),('dismissed',dict(dismissed=1)),('resolved',dict(resolved=1)),('answered',dict(kind='answered',answer='Yes'))]:
+        for id,fields in [('private',dict(published=0)),('dismissed',dict(dismissed=1)),('resolved',dict(resolved=1)),('answered',dict(kind='answered',answer='Yes',resolved=1))]:
             self.question(id,**fields)
         request=self.ok(self.client.api('communication_post',dict(iteration='iteration-shared',body='Please confirm',recipient='editor@example.test')),201)['id']
         self.sql("INSERT INTO iterations(id,project_id,number,title,created_at) VALUES('latest','shared',2,'Next','2026-01-02')")

@@ -31,7 +31,12 @@ export async function demoRequest(action,body={}) {
   if(action==='session')return {studio:{...demoStudio},studios:[{...demoStudio}],user:{name:demoProfile.name,profile:{...demoProfile},email:'sophie@example.com'},csrf:'demo',studio_theme:studioTheme,capabilities:{demo:true,ai:false,mail:false}};
   if(action==='profile')return {profile:{...demoProfile}};
   if(action==='save_profile'){if(!['','en','nl'].includes(body.language??''))throw Error('Choose English or Dutch.');Object.assign(demoProfile,body);return {profile:{...demoProfile}};}
-  if(action==='projects'){const map=new Map();for(const d of [...decks.values()].sort((a,b)=>a.iteration.number-b.iteration.number))map.set(d.project.id,{...d.project,iteration:d.iteration,file_count:d.files.length});return {projects:[...map.values()]};}
+  if(action==='set_project_cover'){
+    if(Number(d.iteration.locked))throw Error('Create a new iteration to edit slides.');
+    if(!visualSlides(d).some(s=>s.visual&&s.record.id===body.slide_id))throw Error('Choose an image from this project.');
+    d.cover_slide_id=body.slide_id;return {ok:true};
+  }
+  if(action==='projects'){const map=new Map();for(const d of [...decks.values()].sort((a,b)=>a.iteration.number-b.iteration.number))map.set(d.project.id,{...d.project,iteration:d.iteration,file_count:d.files.length});return {projects:[...map.values()].map(p=>{const deck=decks.get(p.iteration.id),cover=visualSlides(deck).find(s=>s.record.id===deck.cover_slide_id)?.visual;return {...p,cover_key:cover?'demo:'+deck.cover_slide_id:null,cover_url:cover?.preview_url||cover?.url};})};}
   if(action==='project'){d=body.iteration?decks.get(body.iteration):[...decks.values()].filter(x=>x.project.id===body.id).sort((a,b)=>b.iteration.number-a.iteration.number)[0];if(!d)throw Error('Project not found.');selected=d.iteration.id;return enrich(d,body.events_page);}
   if(action==='deck'){const result=enrich(decks.get(body.iteration||selected));result.open_questions=(result.open_questions||[]).filter(q=>Number(q.published)&&!Number(q.dismissed));return result;}
   if(action==='project_settings'){if(typeof body.tags==='string')body.tags=body.tags.split(/[,;\n]/).map(t=>t.trim()).filter(Boolean);if(body.logo?.size){const logo=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(body.logo);});d.branding={...d.branding,logo,has_project_logo:true};}else if(body.remove_logo)d.branding={...d.branding,logo:null,has_project_logo:false};for(const key of ['visibility','location','tags','deadline','archived','language'])if(key in body)for(const deck of decks.values())if(deck.project.id===d.project.id)deck.project[key]=body[key];return {ok:true};}

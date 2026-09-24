@@ -1,5 +1,14 @@
 # Local development: use the current workspace even when an older image is rebuilt.
 services:
+  marketing:
+    image: studiodeck
+    command: python3 -m http.server 8080 --directory /app/www
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ./www:/app/www:ro
+    ports:
+      - "127.0.0.1:${MARKETING_PORT:-4180}:8080"
+    restart: unless-stopped
   web:
     environment:
       # All local emails go to this project's MailCatcher, regardless of .env.

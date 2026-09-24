@@ -50,3 +50,52 @@ CREATE TABLE IF NOT EXISTS conversation_outbox (
  error TEXT NOT NULL DEFAULT '',
  UNIQUE(comment_id,grant_id)
 );
+
+-- Audience is explicit for new threads. Existing slide conversations remain shared.
+CREATE TABLE IF NOT EXISTS communication_audiences (
+ root_id TEXT PRIMARY KEY REFERENCES comments(id) ON DELETE CASCADE,
+ audience TEXT NOT NULL CHECK(audience IN ('studio','shared'))
+);
+CREATE TABLE IF NOT EXISTS checklist_threads (
+ iteration_id TEXT NOT NULL,
+ question_id TEXT NOT NULL,
+ root_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+ PRIMARY KEY(iteration_id,question_id),
+ FOREIGN KEY(iteration_id,question_id) REFERENCES open_questions(iteration_id,id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_checklist_threads_root ON checklist_threads(root_id);
+
+-- A message keeps its type and optional work assignment in the same conversation.
+CREATE TABLE IF NOT EXISTS communication_messages (
+ comment_id TEXT PRIMARY KEY REFERENCES comments(id) ON DELETE CASCADE,
+ type TEXT NOT NULL CHECK(type IN ('message','question','todo','confirmation','price_adjustment')),
+ assignee TEXT NOT NULL DEFAULT '',
+ assignee_name TEXT NOT NULL DEFAULT '',
+ due_date TEXT NOT NULL DEFAULT '',
+ question_id TEXT
+);
+
+-- Purpose belongs to the root subject. Replies have no type metadata.
+CREATE TABLE IF NOT EXISTS communication_topics (
+ root_id TEXT PRIMARY KEY REFERENCES comments(id) ON DELETE CASCADE,
+ type TEXT NOT NULL CHECK(type IN ('conversation','todo','approval')),
+ assignee TEXT NOT NULL DEFAULT '', assignee_name TEXT NOT NULL DEFAULT '',
+ due_date TEXT NOT NULL DEFAULT '', question_id TEXT,
+ related_root_id TEXT REFERENCES comments(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS communication_topic_history (
+ id TEXT PRIMARY KEY, root_id TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+ actor TEXT NOT NULL, from_type TEXT NOT NULL, to_type TEXT NOT NULL,
+ assignee_name TEXT NOT NULL DEFAULT '', due_date TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
+);
+
+-- A guest-created linked thread cannot outlive its originating invitation.
+CREATE TABLE IF NOT EXISTS conversation_grant_sources (
+ grant_id TEXT PRIMARY KEY REFERENCES conversation_grants(id) ON DELETE CASCADE,
+ source_grant_id TEXT NOT NULL REFERENCES conversation_grants(id) ON DELETE CASCADE
+);
+CREATE TRIGGER IF NOT EXISTS revoke_linked_conversation_grants
+BEFORE DELETE ON conversation_grants BEGIN
+ UPDATE conversation_grants SET revoked=1 WHERE id IN
+  (SELECT grant_id FROM conversation_grant_sources WHERE source_grant_id=OLD.id);
+END;

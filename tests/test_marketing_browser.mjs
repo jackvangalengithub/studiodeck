@@ -26,7 +26,7 @@ try{
   assert.deepEqual(fs.readFileSync(new URL('../www/assets/studio-types/'+profile.id+'.webp',import.meta.url)),fs.readFileSync(new URL('../public'+profile.image,import.meta.url)));
   const choice=page.locator('.audience-choice').filter({has:page.locator(`[value="${profile.id}"]`)});assert.equal(await choice.locator('strong').innerText(),profile.en.label);assert.equal(await choice.locator('small').innerText(),profile.en.description);
   await choice.click();assert(await choice.locator('input').isChecked());assert(new URL(page.url()).searchParams.get('audience')===profile.id);
-  for(const selector of ['.hero-image','#demo-image','.power-deck-image img','.ai-visual img','.portfolio-example-projects img']){
+  for(const selector of ['.hero-image','.motion-scene img','#demo-image','.power-deck-image img','.ai-visual img','.portfolio-example-projects img']){
    const images=page.locator(selector);for(const img of await images.all()){assert((await img.getAttribute('src')).endsWith('/'+profile.id+'.webp'));assert.equal(await img.getAttribute('alt'),profile.en.alt);}
   }
   assert.deepEqual(await page.locator('.ai-source-pair mark').allTextContents(),expectedEvidence[profile.id]);
@@ -70,5 +70,20 @@ try{
  await page.setViewportSize({width:390,height:844});await page.locator('.menu-toggle').click();await page.locator('#navigation a[href="#pricing"]:not(.nav-cta)').click();assert.equal(await page.locator('.menu-toggle').getAttribute('aria-expanded'),'false');
  await page.locator('#project-checklist').screenshot({path:'/tmp/marketing-checklist-mobile.png'});await page.locator('#client-communication').screenshot({path:'/tmp/marketing-communication-mobile.png'});await page.locator('#studio-website').screenshot({path:'/tmp/marketing-portfolio-mobile.png'});
  await page.setViewportSize({width:1440,height:1000});await page.goto(base+'/?audience=landscape',{waitUntil:'networkidle'});await page.screenshot({path:'/tmp/marketing-audience-desktop.png'});await page.locator('#project-checklist').screenshot({path:'/tmp/marketing-checklist-desktop.png'});await page.locator('#client-communication').screenshot({path:'/tmp/marketing-communication-desktop.png'});await page.locator('#studio-website').screenshot({path:'/tmp/marketing-portfolio-desktop.png'});
+ await page.locator('[data-demo-preset="pan-left"]').click();
+ assert.match(await page.locator('#motion-example-prompt').inputValue(),/right to left/);
+ await page.locator('#motion-example-prompt').fill('Keep the sunset light and move slowly.');
+ await page.locator('[data-motion-demo-play]').click();
+ assert.equal(await page.locator('#motion-example-prompt').inputValue(),'Keep the sunset light and move slowly.');
+ await page.waitForFunction(()=>document.querySelector('.motion-scene img').getAnimations().some(a=>a.playState==='running'));
+ await page.locator('.motion-scene img').evaluate(img=>img.getAnimations().forEach(a=>a.finish()));
+ await page.waitForFunction(()=>getComputedStyle(document.querySelector('.motion-scene img')).transform==='none');
+ assert.match(await page.locator('[data-motion-demo-status]').innerText(),/original photo/);
+ await page.locator('#ai-movement').screenshot({path:'/tmp/marketing-motion-desktop.png'});
+ await page.emulateMedia({reducedMotion:'reduce'});await page.locator('[data-demo-preset="pull-back"]').click();
+ assert.match(await page.locator('#motion-example-prompt').inputValue(),/pull the camera back/);
+ assert.equal(await page.locator('.motion-scene img').evaluate(img=>img.getAnimations().length),0);
+ await page.setViewportSize({width:390,height:844});await page.locator('#ai-movement').screenshot({path:'/tmp/marketing-motion-mobile.png'});
+ console.log('PASS Motion presets, editable prompt, original-photo ending and reduced motion');
  assert.deepEqual(errors,[]);console.log('PASS All audiences fit mobile, tablet and desktop; resources and JavaScript load without errors');
 }finally{await browser.close();}

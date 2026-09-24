@@ -44,6 +44,7 @@ function add_comment(array $i,string $actor,array $input): array {
     return transaction(function()use($i,$actor,$input,$body,$parentId){
         $parent=$parentId?one('SELECT * FROM comments WHERE id=? AND iteration_id=?',[$parentId,$i['id']]):null;
         if($parentId&&!$parent)fail('The comment you are replying to was not found in this iteration.',404);
+        if($parent)communication_guard($parent,!str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client '));
         if($parent&&!empty($parent['parent_id']))fail('Reply to the original comment to keep the conversation in one thread.');
         $slide=text_field($input['slide']??($parent['slide']??'intro'),80);
         if($parent&&$slide!==$parent['slide'])fail('A reply must stay on the same slide as its original comment.');
@@ -59,10 +60,20 @@ function add_comment(array $i,string $actor,array $input): array {
 }
 
 // Page whole threads: a reply is never detached from its original comment.
-function comment_feed_page(string $where,array $params,int $offset,string $personKey,string $sort='newest',bool $showAnswered=false): array {
+function comment_feed_page(string $where,array $params,int $offset,string $personKey,string $sort='newest',bool $showAnswered=false,string $filter='all'): array {
     $direction=$sort==='oldest'?'ASC':'DESC';
-    $select="SELECT c.*,c.rowid AS comment_order,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,COALESCE(sc.title,s.title) AS slide_title,ss.type AS system_slide_type FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide LEFT JOIN system_slides ss ON ss.iteration_id=c.iteration_id AND ss.id=c.slide LEFT JOIN slide_content sc ON sc.iteration_id=c.iteration_id AND sc.slide_id=COALESCE(ss.type,c.slide) WHERE ";
-    $roots=rows($select.$where.' AND c.parent_id IS NULL'.($showAnswered?'':' AND c.answered=0').' ORDER BY c.created_at '.$direction.',c.rowid '.$direction.' LIMIT 101 OFFSET '.$offset,$params);
+    $select="SELECT c.*,c.rowid AS comment_order,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,COALESCE(sc.title,s.title) AS slide_title,ss.type AS system_slide_type,t.title AS thread_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN communication_threads t ON t.comment_id=COALESCE(c.parent_id,c.id) LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide LEFT JOIN system_slides ss ON ss.iteration_id=c.iteration_id AND ss.id=c.slide LEFT JOIN slide_content sc ON sc.iteration_id=c.iteration_id AND sc.slide_id=COALESCE(ss.type,c.slide) WHERE ";
+    $rootParams=$params;$attention='';
+    if($filter==='attention'){
+        // Filter subjects before pagination; replies and each work item keep their original scope.
+        $attention=" AND p.archived=0 AND (
+            EXISTS(SELECT 1 FROM comments unread WHERE (unread.id=c.id OR unread.parent_id=c.id) AND unread.author<>? AND NOT EXISTS(SELECT 1 FROM comment_reads cr WHERE cr.comment_id=unread.id AND cr.person_key=?))
+            OR EXISTS(SELECT 1 FROM checklist_threads ct JOIN open_questions q ON q.iteration_id=ct.iteration_id AND q.id=ct.question_id WHERE ct.root_id=c.id AND (q.accepted=1 OR q.published=1) AND q.dismissed=0 AND q.resolved=0)
+            OR EXISTS(SELECT 1 FROM comments request JOIN comment_confirmations confirmation ON confirmation.comment_id=request.id WHERE (request.id=c.id OR request.parent_id=c.id) AND confirmation.status='pending')
+        )";
+        $rootParams[]=substr($personKey,strpos($personKey,':')+1);$rootParams[]=$personKey;
+    }
+    $roots=rows($select.$where.' AND c.parent_id IS NULL'.$attention.($showAnswered||$filter==='attention'?'':' AND c.answered=0').' ORDER BY c.created_at '.$direction.',c.rowid '.$direction.' LIMIT 101 OFFSET '.$offset,$rootParams);
     $more=count($roots)>100;$roots=array_slice($roots,0,100);$replies=[];
     if($roots){
         $ids=array_column($roots,'id');$marks=implode(',',array_fill(0,count($ids),'?'));
@@ -79,7 +90,10 @@ function set_comment_answered(array $input): array {
         // Team members and assigned clients may resolve threads, with CSRF.
         $comment=one('SELECT * FROM comments WHERE id=? AND iteration_id=?',[text_field($input['id']??'',80),$iteration['id']]);
         if(!$comment)fail('Comment not found in this iteration.',404);
+        communication_guard($comment,$isOwner);
         if($comment['parent_id'])fail('Only the original comment can be marked answered.');
+        $topic=communication_topic($comment['id']);
+        if($topic&&($topic['type']!=='conversation'||$topic['question_id']))fail('Use the thread completion or approval action.');
         $answered=$input['answered']?1:0;
         if((int)$comment['answered']!==$answered){
             query('UPDATE comments SET answered=? WHERE id=?',[$answered,$comment['id']]);
