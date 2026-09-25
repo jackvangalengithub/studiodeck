@@ -1,5 +1,18 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "studio_subquote_intro_title": "Ontdek hoe je offertes samenhangen",
+  "studio_subquote_intro_description": "Vergelijk je offertebestanden om deeloffertes te vinden die al in een hoofdofferte zijn opgenomen.",
+  "studio_subquote_intro_automatic": "Duidelijke overeenkomsten worden automatisch gekoppeld, zodat inbegrepen kosten maar één keer meetellen in je budget.",
+  "studio_subquote_intro_review": "Bij twijfel wordt de overeenkomst bewaard, zodat jij deze kunt beoordelen en beslissen.",
+  "studio_subquote_intro_background": "Je kunt doorwerken terwijl de controle op de achtergrond draait.",
+  "studio_subquote_start": "Controle starten",
+  "studio_subquote_starting": "Starten…",
+
+  "studio_go_to_budget_cost": "Ga naar {v0} · {v1}",
+  "studio_file_filter_hint": "Kies welke categorieën je in je bestandenlijst wilt zien.",
+  "studio_file_categories_selected": "{v0} van {v1} categorieën geselecteerd",
+  "studio_all_file_categories_shown": "Alle bestandscategorieën worden getoond",
+
   "media_motion_presets": "Voorinstellingen voor camerabeweging",
   "media_orbit": "Rustige boogbeweging",
   "media_prompt_label": "Welke beweging wil je?",
@@ -604,6 +617,11 @@ export default {
   "studio_quote_relationship_saved": "Samenhang tussen offertes opgeslagen.",
   "studio_link_removed_this_cost_will_stay_separate": "Koppeling verwijderd. Deze kostenpost blijft apart.",
   "studio_client_link_revoked": "Opdrachtgeverlink ingetrokken.",
+  "studio_processing_open": "Open",
+  "studio_processing_dismissed": "Verborgen",
+  "studio_view_dismissed_processing": "Verborgen items bekijken",
+  "studio_no_dismissed_processing": "Er zijn geen verborgen items.",
+  "studio_no_files_need_attention": "Er zijn geen bestanden die aandacht vragen.",
   "studio_a_closer_look_at_your_files": "Je bestanden van dichtbij bekeken.",
   "studio_retry": "Opnieuw proberen",
   "studio_processing_queued_again": "Verwerking opnieuw ingepland.",

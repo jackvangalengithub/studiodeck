@@ -54,3 +54,80 @@
 @media(max-width:960px){.mock-hub{grid-template-columns:1fr}.mock-topic-list{display:flex;overflow:auto}.mock-topic-heading{display:none}.mock-topic{min-width:180px;max-width:235px;flex:1;border-right:1px solid var(--line);border-bottom:3px solid transparent;border-left:0;padding:14px}.mock-topic.selected{border-bottom-color:var(--green);border-left:0}.mock-topic strong{font-size:13px;margin:7px 0 10px}.mock-topic>small{font-size:9px}.mock-topic>span{font-size:10px}.mock-view-controls{align-items:flex-start}}
 @media(max-width:700px){.mock-toolbar{padding:10px;gap:9px}.mock-demo-label{font-size:10px}.mock-toolbar>.row{width:100%;justify-content:space-between}.mock-perspective{font-size:10px;gap:7px}.mock-perspective select{font-size:11px;max-width:185px}.mock-toolbar .button{font-size:10px;padding:5px}.mock-section-title .muted{font-size:12px}.mock-view-tabs .button{font-size:12px;padding:7px 10px}.mock-view-controls>small{font-size:10px}.mock-check-filters{width:100%;gap:10px;justify-content:space-between}.mock-check-filters select{font-size:11px;max-width:175px}.mock-check-filters .check-label{font-size:11px}.mock-messages{padding:4px 14px 12px}.mock-thread-head{padding:17px}.mock-thread-head h2{font-size:23px}.mock-message-body{margin-left:0}.mock-message-body p{font-size:13px}.mock-message .comment-author small{font-size:10px}.mock-confirmation{padding:14px;margin:13px 0}.mock-confirmation>p{font-size:13px}.mock-status{font-size:10px}.mock-confirmation-top>small{font-size:10px}.mock-confirmation-bottom{gap:7px}.mock-confirmation-bottom>.button{font-size:10px;padding:6px 8px}.mock-confirmed-by{font-size:10px;line-height:1.6}.mock-budget-change{font-size:11px;align-items:flex-start}.mock-budget-change strong{font-size:13px}.mock-budget-change small{display:block;margin-top:5px}.mock-composer{padding:17px}.mock-compose-actions{gap:13px}.mock-compose-actions>.row{width:100%;margin:0;gap:7px}.mock-compose-actions>.row>.button{flex:1;padding:8px;font-size:11px;gap:5px}.mock-compose-actions>.row>.button .icon{width:13px}.mock-context{margin:14px;width:calc(100% - 28px)}.mock-context img{width:55px;height:44px}.mock-context strong{font-size:11px}.mock-context small{font-size:10px}.mock-attachment{font-size:11px}.mock-tooltip{right:-15px;width:235px}#mock-confirmation-form .modal-footer{flex-wrap:wrap}#mock-confirmation-form .modal-footer .button{font-size:12px}.mock-cost-label>label{font-size:11px}.mock-checklist .mock-confirmation>p{font-size:13px}.mock-overview-note{margin-bottom:0}}
 @media(prefers-reduced-motion:reduce){.mock-confirmation{scroll-behavior:auto}}
+
+/* Communication design study: neutral list, one shared message-card layout. */
+.mock-toolbar{padding:0 0 16px;margin:0 0 22px;border:0;border-bottom:1px solid var(--line);background:transparent}
+.mock-demo-label{font-size:11px;letter-spacing:.02em}
+.mock-toolbar .mock-perspective{font-size:11px}
+.mock-toolbar .mock-perspective select{background:transparent;border-color:transparent}
+.mock-conversation-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.mock-conversation-heading h2{font:24px var(--heading);letter-spacing:-.4px}
+.mock-conversation-heading .button{border-radius:10px;font-size:13px;min-height:40px}
+.mock-inbox-tabs{display:flex;align-items:center;gap:6px;margin-bottom:20px}
+.mock-inbox-tabs button{display:flex;align-items:center;gap:9px;padding:8px 13px;border-radius:8px;font-size:13px;color:var(--muted);min-height:36px}
+.mock-inbox-tabs button[aria-pressed=true]{color:var(--ink);background:#eeece7;font-weight:600}
+.mock-inbox-tabs button:hover{background:#f4f2ee}
+.mock-inbox-tabs button span{font-size:11px;font-weight:400;color:#85817a}
+.mock-conversation-view .mock-hub{grid-template-columns:285px minmax(0,1fr);gap:0;align-items:stretch;min-height:590px;border:1px solid #e5e2dc;border-radius:20px;background:#fff}
+.mock-conversation-view .mock-topic-list{border:0;border-right:1px solid #e5e2dc;border-radius:20px 0 0 20px;overflow:hidden;background:#fff}
+.mock-conversation-view .mock-topic{border:0;border-bottom:1px solid #eeece7;background:#fff;padding:22px;text-align:left;color:#49463f;width:100%;margin:0;position:relative}
+.mock-conversation-view .mock-topic:last-child{border-bottom:0}
+.mock-conversation-view .mock-topic:hover{background:#f8f7f4}
+.mock-conversation-view .mock-topic.selected{background:#f0eee9;border-left:0;border-bottom-color:#e5e2dc}
+.mock-conversation-view .mock-topic.selected::before{content:'';position:absolute;left:0;top:24px;bottom:24px;width:3px;border-radius:0 2px 2px 0;background:#898277}
+.mock-conversation-view .mock-topic-title{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.mock-conversation-view .mock-topic strong{font-size:14px;font-weight:600;line-height:1.5;margin:0;color:#3e3b35;overflow-wrap:anywhere}
+.mock-conversation-view .mock-topic p{margin-top:8px;color:#89847b;font-size:12px;line-height:1.6;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.mock-conversation-view .mock-topic-meta{display:flex;gap:7px;margin-top:14px;font-size:11px;color:#777168}
+.mock-topic-done{display:flex;color:#777168;flex:none}.mock-topic-done .icon{width:16px;height:16px}
+.mock-conversation-view .mock-thread{border:0;border-radius:0 20px 20px 0;padding:24px;min-width:0;background:#fff}
+.mock-thread-summary{--topic-color:#276bcd;--topic-tint:#edf3fc;background:var(--topic-tint);border-radius:18px;padding:24px;color:#303d50}
+.mock-thread-summary[data-thread-type=todo]{--topic-color:#b37813;--topic-tint:#faf3e5;color:#4c402c}
+.mock-thread-summary[data-thread-type=approval]{--topic-color:#178363;--topic-tint:#eaf5ef;color:#2a453a}
+.mock-summary-main{display:grid;grid-template-columns:minmax(0,1fr) 58px;gap:24px;align-items:start}
+.mock-summary-copy{min-width:0}
+.mock-summary-eyebrow{display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;color:var(--topic-color);min-height:18px}
+.mock-summary-state{font-weight:400;font-size:11px;color:color-mix(in srgb,var(--topic-color) 45%,#79766f);padding-left:12px;border-left:1px solid color-mix(in srgb,var(--topic-color) 20%,transparent)}
+.mock-summary-copy h2{font:26px/1.2 var(--heading);letter-spacing:-.45px;margin:12px 0 13px;overflow-wrap:anywhere}
+.mock-summary-copy>p{font-size:14px;line-height:1.75;min-height:49px;margin:0;color:color-mix(in srgb,var(--topic-color) 18%,#5b5b56);overflow-wrap:anywhere}
+.mock-complete-wrap{position:relative;display:inline-flex;margin-top:2px;justify-self:end}
+.mock-complete{display:grid;place-items:center;width:58px;height:58px;flex:none;padding:0;border-radius:50%;border:2px solid color-mix(in srgb,var(--topic-color) 35%,#c8cbc9);background:color-mix(in srgb,var(--topic-color) 5%,#ffffff);color:color-mix(in srgb,var(--topic-color) 52%,#aaa);transition:background .15s,color .15s,border-color .15s,box-shadow .15s}
+.mock-complete svg{height:40px;width:40px;fill:none;stroke:currentColor;stroke-width:3.1;stroke-linecap:round;stroke-linejoin:round}
+.mock-complete:hover{border-color:var(--topic-color);color:var(--topic-color);box-shadow:0 0 0 5px color-mix(in srgb,var(--topic-color) 8%,transparent)}
+.mock-complete[aria-checked=true]{background:var(--topic-color);border-color:var(--topic-color);color:#fff;box-shadow:0 3px 7px color-mix(in srgb,var(--topic-color) 16%,transparent)}
+.mock-complete:focus-visible{outline:2px solid var(--topic-color);outline-offset:5px}
+.mock-complete-tooltip{position:absolute;bottom:calc(100% + 11px);right:-4px;z-index:20;white-space:nowrap;padding:8px 11px;background:#393832;color:#fff;border-radius:7px;font:12px/1.4 var(--body, sans-serif);box-shadow:0 3px 12px #0002;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .12s}
+.mock-complete-tooltip::after{content:'';position:absolute;top:100%;right:27px;border:5px solid transparent;border-top-color:#393832}
+.mock-complete-wrap:hover .mock-complete-tooltip,.mock-complete-wrap:focus-within .mock-complete-tooltip{opacity:1;visibility:visible}
+.mock-summary-footer{min-height:59px;display:flex;justify-content:space-between;align-items:center;gap:18px;border-top:1px solid color-mix(in srgb,var(--topic-color) 13%,transparent);padding-top:18px;margin-top:22px}
+.mock-summary-person{display:flex;align-items:center;gap:10px;min-width:0}
+.mock-summary-person>.avatar{height:32px;width:32px;flex:none;font-size:11px;background:color-mix(in srgb,var(--topic-color) 9%,#fff);color:var(--topic-color);border:1px solid color-mix(in srgb,var(--topic-color) 10%,transparent)}
+.mock-summary-person span{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mock-summary-person small,.mock-summary-detail small{font-size:10px;color:color-mix(in srgb,var(--topic-color) 20%,#7a7973)}
+.mock-summary-person strong{font-size:12px;font-weight:500;overflow-wrap:anywhere}
+.mock-summary-detail{text-align:right;display:flex;flex-direction:column;gap:4px;flex:none}
+.mock-summary-detail strong{font-size:12px;font-weight:500}
+.mock-thread-summary[data-thread-type=approval] .mock-summary-detail strong{font-size:18px;font-weight:600;letter-spacing:-.3px;color:var(--topic-color)}
+.mock-conversation-view .mock-composer{padding:24px 0 22px;border:0;border-bottom:1px solid #eeece7;background:transparent}
+.mock-conversation-view .mock-composer textarea{min-height:86px;resize:vertical;padding:16px;border-radius:12px;border:1px solid #e7e3dc;background:#fff;font-size:13px;line-height:1.6}
+.mock-conversation-view .mock-composer textarea::placeholder{color:#aaa49a}
+.mock-conversation-view .mock-compose-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:10px}
+.mock-conversation-view .mock-compose-actions>small{font-size:10px;line-height:1.5;color:#9b958b}
+.mock-conversation-view .mock-compose-actions .button{font-size:12px;min-height:36px;border-radius:9px;padding:8px 14px;flex:none}
+.mock-conversation-view .mock-compose-actions .icon{width:14px;height:14px}
+.mock-conversation-view .mock-messages{padding:8px 0 0}
+.mock-conversation-view .mock-message{padding:20px 0}
+.mock-conversation-view .mock-message+.mock-message{border-top:1px solid #f0ede8}
+.mock-conversation-view .comment-author{display:flex;gap:10px;align-items:center}
+.mock-conversation-view .comment-author>.avatar{width:30px;height:30px;font-size:10px;flex:none;background:#f1efea}
+.mock-conversation-view .comment-author>div{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.mock-conversation-view .comment-author strong{font-size:12px;font-weight:600}
+.mock-conversation-view .comment-author time{font-size:10px;color:#9b958b}
+.mock-conversation-view .mock-message-body{margin-left:40px}
+.mock-conversation-view .mock-message-body>p{font-size:13px;line-height:1.8;color:#656057;margin:7px 0 0}
+.mock-no-replies,.mock-list-empty,.mock-empty-thread{font-size:12px;color:#999288;padding:24px 0;line-height:1.7}
+.mock-list-empty{padding:24px}.mock-empty-thread{text-align:center;padding:80px 20px}
+@media(max-width:1200px){.mock-conversation-view .mock-hub{grid-template-columns:240px minmax(0,1fr)}.mock-conversation-view .mock-thread{padding:20px}.mock-thread-summary{padding:22px}.mock-summary-main{gap:18px}.mock-summary-copy h2{font-size:24px}}
+@media(max-width:960px){.mock-conversation-view .mock-hub{grid-template-columns:1fr;min-height:0}.mock-conversation-view .mock-topic-list{display:flex;overflow:auto;border-right:0;border-bottom:1px solid #e5e2dc;border-radius:20px 20px 0 0}.mock-conversation-view .mock-topic{flex:0 0 230px;min-width:0;max-width:none;border-bottom:0;border-right:1px solid #eeece7;padding:18px}.mock-conversation-view .mock-topic.selected{border-bottom:0}.mock-conversation-view .mock-topic.selected::before{top:auto;bottom:0;left:18px;right:18px;width:auto;height:3px}.mock-conversation-view .mock-thread{border-radius:0 0 20px 20px}}
+@media(max-width:600px){.mock-toolbar{gap:8px;flex-wrap:wrap}.mock-toolbar>.row{width:auto;gap:4px}.mock-toolbar .mock-perspective select{max-width:158px}.mock-conversation-heading{gap:12px;margin-bottom:16px}.mock-conversation-heading h2{font-size:21px}.mock-conversation-heading .button{font-size:11px;padding:9px 11px;gap:6px}.mock-inbox-tabs{margin-bottom:16px}.mock-conversation-view .mock-thread{padding:14px}.mock-conversation-view .mock-topic{flex-basis:210px;padding:16px}.mock-thread-summary{padding:20px;border-radius:15px}.mock-summary-main{display:block;position:relative}.mock-complete-wrap{position:absolute;right:0;top:0;margin:0}.mock-summary-eyebrow{padding-right:68px;min-height:24px;gap:8px;flex-wrap:wrap}.mock-summary-state{padding-left:8px}.mock-summary-copy h2{font-size:25px;margin:40px 0 12px;line-height:1.18}.mock-summary-copy>p{font-size:13px;min-height:0}.mock-summary-footer{margin-top:20px;padding-top:16px;gap:12px;align-items:flex-start;flex-wrap:wrap}.mock-summary-person{gap:8px}.mock-summary-detail{margin-left:auto}.mock-summary-detail strong{font-size:11px}.mock-summary-person strong{font-size:11px}.mock-conversation-view .mock-composer{padding-top:20px}.mock-conversation-view .mock-compose-actions{flex-wrap:nowrap}.mock-conversation-view .mock-compose-actions>small{max-width:170px}.mock-conversation-view .mock-message-body{margin-left:0}.mock-conversation-view .comment-author>div{gap:3px;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){.mock-complete,.mock-complete-tooltip{transition:none}}

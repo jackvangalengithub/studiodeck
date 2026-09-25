@@ -7,6 +7,47 @@ function activity_with_questions(array $events): array {
     foreach($events as &$event)if(isset($questions[$event['id']])){$q=$questions[$event['id']];$q['answer_meta']=json_decode($q['answer_meta'],true)?:[];unset($q['event_id']);$event['question_answer']=$q;}unset($event);
     return $events;
 }
+// Scope and facets use the same authorized project set; filters run before pagination.
+function activity_page_data(string $scope,array $scopeParams,array $options,int $offset=0,int $limit=100): array {
+    $scope="($scope) AND e.type<>'comment_status_changed'";
+    $from=' FROM events e JOIN projects p ON p.id=e.project_id';
+    $facets=[
+        'types'=>array_column(rows('SELECT DISTINCT e.type'.$from.' WHERE '.$scope.' ORDER BY e.type',$scopeParams),'type'),
+        'actors'=>array_column(rows('SELECT DISTINCT e.actor'.$from.' WHERE '.$scope.' ORDER BY e.actor COLLATE NOCASE',$scopeParams),'actor'),
+        'projects'=>rows('SELECT DISTINCT p.id,p.name'.$from.' WHERE '.$scope.' ORDER BY p.name COLLATE NOCASE,p.id',$scopeParams)
+    ];
+    $where=$scope;$params=$scopeParams;
+    $sort=text_field($options['sort']??'newest',10);
+    if(!in_array($sort,['newest','oldest'],true))fail('Choose newest or oldest first.');
+    foreach(['type'=>'e.type','actor'=>'e.actor','project'=>'p.id'] as $key=>$column){
+        $value=text_field($options[$key]??'',200);
+        if($value!==''){$where.=' AND '.$column.'=?';$params[]=$value;}
+    }
+    $dates=[];
+    foreach(['from','to'] as $key){
+        $value=text_field($options[$key]??'',10);
+        if($value==='')continue;
+        $date=DateTimeImmutable::createFromFormat('!Y-m-d',$value);
+        if(!$date||$date->format('Y-m-d')!==$value)fail('Choose a valid activity date.');
+        $dates[$key]=$value;
+        $where.=' AND substr(e.created_at,1,10)'.($key==='from'?'>=':'<=').'?';$params[]=$value;
+    }
+    if(isset($dates['from'],$dates['to'])&&$dates['from']>$dates['to'])fail('The end date must be on or after the start date.');
+    $search=text_field($options['search']??'',200);
+    if($search!==''){
+        $pattern='%'.strtr($search,['!'=>'!!','%'=>'!%','_'=>'!_']).'%';
+        $columns=['e.detail','e.actor','p.name',"replace(e.type,'_',' ')"];
+        $clauses=array_map(fn($column)=>$column." LIKE ? ESCAPE '!'",$columns);
+        $clauses[]="EXISTS (SELECT 1 FROM event_questions q WHERE q.event_id=e.id AND (q.question LIKE ? ESCAPE '!' OR q.answer LIKE ? ESCAPE '!' OR q.slide_title LIKE ? ESCAPE '!'))";
+        $where.=' AND ('.implode(' OR ',$clauses).')';
+        array_push($params,...array_fill(0,7,$pattern));
+    }
+    $total=(int)one('SELECT COUNT(*) AS n'.$from.' WHERE '.$where,$params)['n'];
+    $limit=max(1,min(100,$limit));$offset=min(max(0,$offset),max(0,(int)ceil($total/$limit)-1)*$limit);
+    $direction=$sort==='oldest'?'ASC':'DESC';
+    $items=activity_with_questions(rows('SELECT e.*,p.name AS project_name'.$from.' WHERE '.$where.' ORDER BY e.created_at '.$direction.',e.rowid '.$direction.' LIMIT '.$limit.' OFFSET '.$offset,$params));
+    return ['items'=>$items,'total'=>$total,'offset'=>$offset,'has_more'=>$offset+count($items)<$total,'next_offset'=>$offset+count($items),'facets'=>$facets];
+}
 function question_slide_title(string $iid,string $slide): string {
     require_once __DIR__.'/slides.php';
     if(!in_array($slide,editor_slide_ids($iid),true))fail('This slide was not found in the presentation.',404);

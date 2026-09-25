@@ -27,7 +27,7 @@ class ConsistencyTests(SecurityFixture):
     def deck(self, actor=None):
         return self.ok((actor or self.editor).api('deck', query={'iteration': 'iteration-shared'}))
 
-    def generate(self, role='detailed_design', verdict='conflict', identity='high', colour='green', extra_fact=None, mutate=False):
+    def generate(self, role='detailed_design', verdict='conflict', identity='high', colour='green', extra_fact=None, mutate=False, question='Should the main bathroom toilet be red as specified, or green as shown in the design?'):
         facts = [dict(object='toilet bowl', room='Main bathroom', identifier='WC-01', property='colour', value='red', basis='text', quote='Main bathroom toilet bowl: red.', role='specification', confidence='high'),
                  dict(object='toilet bowl', room='Main bathroom', identifier='WC-01', property='colour', value=colour, basis='visual', bbox=[.1, .2, .6, .8], role=role, confidence='high')]
         if extra_fact:
@@ -47,9 +47,9 @@ class ConsistencyTests(SecurityFixture):
             }
             if(count(array_filter($content,fn($c)=>$c['type']==='image_url'))<1)throw new Exception('Verification did not receive actual image');
             MUTATION
-            return ['verdict'=>VERDICT,'identity'=>IDENTITY,'title'=>'Toilet colour differs','explanation'=>'The specification requires red; the detailed image appears green.'];
+            return ['verdict'=>VERDICT,'identity'=>IDENTITY,'title'=>'Toilet colour differs','explanation'=>'The specification requires red; the detailed image appears green.','question'=>PREPARED_QUESTION];
         });echo json_encode(['calls'=>count($calls)]);
-        """.replace('VERDICT', json.dumps(verdict)).replace('IDENTITY', json.dumps(identity)).replace('MUTATION', "query(\"UPDATE presentation_slides SET situation='before' WHERE iteration_id='iteration-shared'\");" if mutate else '')
+        """.replace('PREPARED_QUESTION', json.dumps(question)).replace('VERDICT', json.dumps(verdict)).replace('IDENTITY', json.dumps(identity)).replace('MUTATION', "query(\"UPDATE presentation_slides SET situation='before' WHERE iteration_id='iteration-shared'\");" if mutate else '')
         if mutate:
             code = "try{" + code + "}catch(RuntimeException $e){echo $e->getMessage();}"
         return self.php(code)
@@ -133,7 +133,14 @@ class ConsistencyTests(SecurityFixture):
         q=self.ok(self.editor.api('review_consistency_finding',dict(**body,operation='question')))['question_id']
         self.assertEqual(self.ok(self.editor.api('review_consistency_finding',dict(**body,operation='question')))['question_id'],q)
         self.assertEqual(self.deck(self.client)['open_questions'],[])
-        self.assertEqual(self.deck()['open_questions'][0]['accepted'],1)
+        created=self.deck()['open_questions'][0]
+        self.assertEqual(created['accepted'],1)
+        self.assertEqual(created['question'],finding['question'])
+        root=self.sql('SELECT root_id FROM checklist_threads WHERE question_id=?',(q,))[0][0]
+        message=self.sql('SELECT body FROM comments WHERE id=?',(root,))[0][0]
+        self.assertTrue(message.startswith(finding['question']+'\n\n'))
+        self.assertIn('red',message)
+        self.assertIn('green',message)
         self.ok(self.editor.api('review_consistency_finding',dict(**body,operation='resolved')))
         self.generate()
         self.assertEqual(self.deck()['checks']['findings'][0]['status'],'resolved')
@@ -141,6 +148,31 @@ class ConsistencyTests(SecurityFixture):
         self.assertTrue(self.deck()['checks']['run']['stale'])
         self.assertTrue(self.deck()['checks']['findings'][0]['stale'])
         self.assertEqual(self.editor.api('review_consistency_finding',dict(**body,operation='question'))[0],409)
+
+    def test_prepared_question_is_saved_and_legacy_findings_get_a_question(self):
+        question='Which toilet colour should we use for the main bathroom: red or green?'
+        self.generate(question=question)
+        finding=self.deck()['checks']['findings'][0]
+        self.assertEqual(finding['question'],question)
+        self.sql("UPDATE consistency_findings SET question=''")
+        fallback=self.deck()['checks']['findings'][0]['question']
+        self.assertIn('red',fallback)
+        self.assertIn('green',fallback)
+        self.assertTrue(fallback.endswith('?'))
+        self.sql("UPDATE projects SET language='nl' WHERE id='shared'")
+        self.assertIn('Welke moeten we aanhouden?',self.deck()['checks']['findings'][0]['question'])
+        self.generate(question='This is not a question')
+        self.assertIn('Welke moeten we aanhouden?',self.deck()['checks']['findings'][0]['question'])
+
+    def test_existing_findings_migrate_without_losing_review_decisions(self):
+        self.generate()
+        self.sql("UPDATE consistency_findings SET status='dismissed'")
+        self.sql('ALTER TABLE consistency_findings DROP COLUMN question')
+        self.sql("DELETE FROM migrations WHERE name='consistency-questions-v1'")
+        self.php('migrate_consistency_questions(db());migrate_consistency_questions(db());')
+        finding=self.deck()['checks']['findings'][0]
+        self.assertEqual(finding['status'],'dismissed')
+        self.assertTrue(finding['question'].endswith('?'))
 
     def test_role_and_image_access_are_scoped_and_locked_writes_rejected(self):
         for actor in (self.client, Client(self.base,'outsider'), self.anon):

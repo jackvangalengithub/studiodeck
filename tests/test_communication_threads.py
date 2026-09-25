@@ -64,7 +64,7 @@ class CommunicationThreadTests(SecurityFixture):
             return {c['id'] for c in self.ok(self.editor.api('comments_feed',query={'filter':'attention'}))['items']}
         self.assertNotIn(root,attention())
         self.ok(self.change(root,thread_type='conversation',assignee='client@example.test'))
-        self.assertIn(root,attention())
+        self.assertNotIn(root,attention())  # Waiting on the client, not the editor.
         self.ok(self.client.api('communication_work_decide',dict(iteration=self.iid,id=root,resolved=True)))
         self.assertNotIn(root,attention())
         self.ok(self.change(root,thread_type='conversation',assignee='editor@example.test'))
@@ -112,3 +112,58 @@ class CommunicationThreadTests(SecurityFixture):
         self.assertEqual(self.sql('SELECT amount_cents FROM comment_confirmations WHERE comment_id=?',(price,)),[(125000,)])
         self.assertEqual(self.sql('PRAGMA foreign_key_check'),[])
         self.deck()  # Applying the schema again is harmless.
+
+    def test_edit_metadata_assignment_and_slide_save_together(self):
+        root=self.post(thread_type='conversation',thread_title='Original subject',audience='studio',version_id='file-shared')
+        reply=self.post(parent_id=root)
+        body=self.sql('SELECT body FROM comments WHERE id=?',(root,))
+        self.ok(self.change(root,thread_title='Updated subject',audience='shared',share_history=True,assignee='client@example.test',slide='visual-slide-shared'))
+        self.assertEqual(self.sql('SELECT title FROM communication_threads WHERE comment_id=?',(root,)),[('Updated subject',)])
+        self.assertEqual(self.sql('SELECT body FROM comments WHERE id=?',(root,)),body)
+        self.assertEqual(self.sql('SELECT slide FROM comments WHERE id IN (?,?)',(root,reply)),[('visual-slide-shared',),('visual-slide-shared',)])
+        self.assertEqual(self.sql('SELECT version_id FROM comment_attachments WHERE comment_id=?',(root,)),[('file-shared',)])
+        self.assertEqual(self.sql('SELECT assignee FROM communication_topics WHERE root_id=?',(root,)),[('client@example.test',)])
+        self.assertIn(root,{c['id'] for c in self.deck(self.client)['communication']['comments']})
+        self.ok(self.change(root,thread_title='Must not save',slide='budget'),409)
+        self.assertEqual(self.sql('SELECT title FROM communication_threads WHERE comment_id=?',(root,)),[('Updated subject',)])
+        self.ok(self.change(root,thread_title='Must not save',body='Rewritten message'),400)
+        self.assertEqual(self.sql('SELECT body FROM comments WHERE id=?',(root,)),body)
+
+    def test_private_edit_hides_work_and_revokes_guest_access(self):
+        root=self.post(thread_type='todo',assignee='editor@example.test',thread_title='Team work')
+        self.sql("INSERT INTO conversation_grants(id,root_id,email,name,invited_by,created_at,expires_at) VALUES('edit-guest',?,'guest@example.test','Guest','editor@example.test','2026-01-01',9999999999)",(root,))
+        self.ok(self.change(root,audience='studio'))
+        self.assertNotIn(root,{c['id'] for c in self.deck(self.client)['communication']['comments']})
+        self.assertEqual(self.sql('SELECT q.published FROM open_questions q JOIN communication_topics t ON t.question_id=q.id WHERE t.root_id=?',(root,)),[(0,)])
+        self.assertEqual(self.sql("SELECT revoked FROM conversation_grants WHERE id='edit-guest'"),[(1,)])
+        self.ok(self.change(root,audience='shared'),400)
+        self.ok(self.change(root,audience='shared',share_history=True))
+        self.assertEqual(self.sql("SELECT revoked FROM conversation_grants WHERE id='edit-guest'"),[(1,)])
+        self.assertEqual(self.sql('SELECT q.published FROM open_questions q JOIN communication_topics t ON t.question_id=q.id WHERE t.root_id=?',(root,)),[(1,)])
+
+    def test_approval_metadata_can_change_without_changing_terms(self):
+        root=self.post(thread_type='approval',recipient='client@example.test',amount='125',thread_title='Original approval')
+        self.ok(self.client.api('confirmation_decide',dict(iteration=self.iid,id=root,decision='confirmed')))
+        terms=self.sql('SELECT * FROM comment_confirmations WHERE comment_id=?',(root,))
+        total=self.deck()['total_cents']
+        self.ok(self.change(root,thread_title='Updated approval subject',slide='visual-slide-shared'))
+        self.assertEqual(self.sql('SELECT title FROM communication_threads WHERE comment_id=?',(root,)),[('Updated approval subject',)])
+        self.assertEqual(self.sql('SELECT * FROM comment_confirmations WHERE comment_id=?',(root,)),terms)
+        self.assertEqual(self.deck()['total_cents'],total)
+        self.ok(self.change(root,audience='studio'),400)
+        self.ok(self.change(root,thread_title='Must not save',amount='250'),400)
+        self.assertEqual(self.sql('SELECT title FROM communication_threads WHERE comment_id=?',(root,)),[('Updated approval subject',)])
+
+    def test_edit_fields_keep_actor_scope_locks_and_atomic_validation(self):
+        root=self.post(thread_title='Studio subject',audience='studio')
+        self.ok(self.change(root,thread_title='Must not save',audience='shared',share_history=True,slide='visual-slide-foreign'),404)
+        self.assertEqual(self.sql('SELECT title FROM communication_threads WHERE comment_id=?',(root,)),[('Studio subject',)])
+        self.assertEqual(self.sql('SELECT audience FROM communication_audiences WHERE root_id=?',(root,)),[('studio',)])
+        self.ok(self.change(root,thread_title=''),400)
+        self.ok(self.change(root,audience='invalid'),403)
+        client_root=self.post(self.client,thread_title='Client subject')
+        self.ok(self.client.api('communication_thread_update',dict(iteration=self.iid,id=client_root,thread_title='Updated client subject')))
+        self.denied(self.client.api('communication_thread_update',dict(iteration=self.iid,id=client_root,audience='studio')))
+        self.denied(self.client.api('communication_thread_update',dict(iteration=self.iid,id=root,thread_title='Not mine')))
+        self.sql('UPDATE iterations SET locked=1 WHERE id=?',(self.iid,))
+        self.ok(self.change(root,thread_title='Locked edit'),409)

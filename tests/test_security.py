@@ -59,7 +59,7 @@ WRITE_ACTIONS = {
     'website_page', 'billing_change_checkout', 'complete_studio_setup',
     'project_testimonial_save', 'project_testimonial_delete',
     'conversation_revoke',
-    'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload',
+    'communication_slide_link', 'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload',
     'website_reset', 'website_start', 'website_save', 'website_import', 'website_upload', 'website_publish', 'website_restore', 'website_undo',
     'website_chat', 'website_checkout', 'website_refresh_billing', 'website_domain',
     'project_activate', 'billing_checkout', 'billing_resume_checkout', 'billing_cancel_checkout', 'billing_cancel_change',
@@ -77,7 +77,7 @@ WRITE_ACTIONS = {
     'create_project', 'new_iteration', 'upload', 'reprocess', 'category',
     'studio_theme', 'theme', 'match_subquotes', 'review_subquote',
     'unlink_subquote', 'save_budget', 'save_contact', 'share', 'revoke_share',
-    'retry_job', 'select_slide_image', 'reorder_slide_groups', 'add_slide_group', 'remove_slide_group',
+    'retry_job', 'dismiss_job', 'restore_job', 'select_slide_image', 'reorder_slide_groups', 'add_slide_group', 'remove_slide_group',
     'slide_layout', 'save_slide', 'add_system_slide', 'slide_image_edit', 'image_edit',
     'save_project_client', 'remove_project_client',
 }
@@ -89,7 +89,7 @@ PROJECT_WRITES = {
     'lock_iteration', 'save_project_person', 'remove_project_person', 'add_project_pack_slide', 'comment_answered',
     'project_settings', 'project_members', 'new_iteration', 'reprocess',
     'category', 'theme', 'match_subquotes', 'save_budget', 'save_contact',
-    'share', 'revoke_share', 'retry_job', 'select_slide_image',
+    'share', 'revoke_share', 'retry_job', 'dismiss_job', 'restore_job', 'select_slide_image',
     'reorder_slide_groups', 'add_slide_group', 'remove_slide_group', 'slide_layout', 'save_slide', 'add_system_slide',
     'slide_image_edit', 'image_edit', 'remove_project_logo', 'apply_project_pack',
     'review_subquote', 'unlink_subquote',
@@ -457,7 +457,7 @@ class SecurityTests(SecurityFixture):
             for action in sorted(PROJECT_WRITES):
                 with self.subTest(project=project, action=action):
                     body = self.write_body(project)
-                    if action == 'retry_job':
+                    if action in ('retry_job', 'dismiss_job', 'restore_job'):
                         body['id'] = 'job-' + project
                     if action == 'revoke_share':
                         continue
@@ -526,7 +526,7 @@ class SecurityTests(SecurityFixture):
                                 'image_version_id': 'variant-' + project}))
 
     def test_client_cannot_call_studio_write_endpoints(self):
-        excluded = PUBLIC_ACTIONS | {'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
+        excluded = PUBLIC_ACTIONS | {'communication_slide_link', 'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
                                      'save_profile', 'upload_avatar', 'remove_avatar', 'read_comments', 'comment_answered', 'reply_open_question', 'add_client_question'}
         # Successful forbidden operations must not alter the identity of later
         # cases (e.g. create_studio could otherwise grant admin to this client).
@@ -538,7 +538,7 @@ class SecurityTests(SecurityFixture):
                     body = self.write_body('shared')
                     if action == 'revoke_share':
                         body['id'] = 'client-share'
-                    elif action == 'retry_job':
+                    elif action in ('retry_job', 'dismiss_job', 'restore_job'):
                         body['id'] = 'job-shared'
                     self.denied(self.client.api(action, body))
             snapshot.backup(original)

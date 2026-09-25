@@ -21,5 +21,8 @@ assert.equal(workspaceUrl({studioId:'200',view:'website',websiteEditing:false}),
 assert.deepEqual(parse('/200/attention'),{studioId:'200',view:'all-comments',filter:'attention'});
 assert.deepEqual(parse('/200/attention?kind=feedback'),{studioId:'200',view:'all-comments',filter:'attention'});
 assert.deepEqual(parse('/200/comments?filter=attention'),{studioId:'200',view:'all-comments',filter:'attention'});
-assert.equal(parse('/200/comments?filter=invalid').filter,'all');
+assert.equal(parse('/200/comments?filter=invalid').filter,'open');
 assert.equal(workspaceUrl({studioId:'200',view:'all-comments',communicationFilter:'attention'}),'/200/comments?filter=attention');
+
+assert.equal(parse('/200/comments').filter,'open');
+assert.equal(parse(workspaceUrl({studioId:'200',view:'all-comments',communicationFilter:'all'})).filter,'all');

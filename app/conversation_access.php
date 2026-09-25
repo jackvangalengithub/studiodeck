@@ -40,9 +40,12 @@ function conversation_participants(string $root): array {
     $i=one('SELECT * FROM iterations WHERE id=?',[$c['iteration_id']]);
     $authors=array_column(rows('SELECT DISTINCT author FROM comments WHERE id=? OR parent_id=?',[$root,$root]),'author');
     array_push($authors,...array_column(rows('SELECT r.recipient FROM comment_confirmations r JOIN comments c ON c.id=r.comment_id WHERE c.id=? OR c.parent_id=?',[$root,$root]),'recipient'));
-    $people=[];
-    foreach(confirmation_recipients($i) as $p)if($p['available']&&in_array($p['email'],$authors,true))$people[$p['email']]=['email'=>$p['email'],'name'=>$p['name']];
-    foreach(rows('SELECT g.*,? AS project_id FROM conversation_grants g WHERE root_id=?',[$c['project_id'],$root]) as $g)if(conversation_grant_valid($g))$people[$g['email']]=['email'=>$g['email'],'name'=>$g['name']];
+    $people=[];$groups=[];
+    foreach(confirmation_recipients($i) as $p){
+        if($p['email']!=='')$groups[$p['email']]=$p['group'];
+        if($p['available']&&in_array($p['email'],$authors,true))$people[$p['email']]=['email'=>$p['email'],'name'=>$p['name'],'group'=>$p['group']];
+    }
+    foreach(rows('SELECT g.*,? AS project_id FROM conversation_grants g WHERE root_id=?',[$c['project_id'],$root]) as $g)if(conversation_grant_valid($g))$people[$g['email']]=['email'=>$g['email'],'name'=>$g['name'],'group'=>$groups[strtolower($g['email'])]??'other'];
     return array_values($people);
 }
 function conversation_payload(string $root): array {

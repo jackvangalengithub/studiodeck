@@ -2,13 +2,13 @@ import {syncMockAdditions} from './assets/demo.js';
 
 // Conversation-first prototype. All data, uploads, confirmations and costs stay in this browser.
 export function createMockFeatures({state,render,openModal,closeModal,toast,button,icon,esc,personAvatar,api,refresh,slideDefs,startPresentation}) {
-  const storageKey = 'studiodeck-communication-mock-v3';
+  const storageKey = 'studiodeck-communication-mock-v4';
   const people = {
     studio: {name:'Sophie van Dijk',role:'Designer',budget:true},
     client: {name:'Emma de Vries',role:'Client',budget:true},
     trade: {name:'Thomas Bakker',role:'Bakker Joinery',budget:false}
   };
-  const seed = () => ({role:'studio',messages:[],uploads:[],events:[],legacy:[],requests:[
+  const seed = () => ({role:'studio',messages:[],uploads:[],events:[],legacy:[],topics:[],completed:{},requests:[
     {id:'paint',thread:'paint',text:'Please confirm the more durable, washable paint for the hallway. It will cost €1,000 extra.',from:'studio',to:'client',amount:100000,status:'pending',created:'2026-09-19T09:30:00Z',project:'van-galen',iteration:'it-2',attachment:null},
     {id:'installation',thread:'kitchen',text:'Can you confirm that removing the old cabinets is included in the installation?',from:'client',to:'studio',amount:null,status:'pending',created:'2026-09-19T09:45:00Z',project:'van-galen',iteration:'it-2',attachment:null},
     {id:'colour',thread:'paint',text:'Please confirm RAL 9010 with a matt finish for the hallway walls.',from:'studio',to:'client',amount:null,status:'confirmed',created:'2026-09-18T13:00:00Z',confirmedAt:'2026-09-18T14:32:00Z',project:'van-galen',iteration:'it-2',attachment:null}
@@ -16,7 +16,7 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   let demo=seed();
   try {const stored=JSON.parse(sessionStorage.getItem(storageKey));if(stored&&Array.isArray(stored.requests)&&Array.isArray(stored.uploads))demo={...demo,...stored};} catch {}
   if(!people[demo.role])demo.role='studio';
-  let thread=demo.ui?.thread||'paint',view=demo.ui?.view||'all',pendingOnly=demo.ui?.pendingOnly||false,who=demo.ui?.who||'everyone',drafts={},replyTo=null,requestDraft=null,highlight=null;
+  let thread=demo.ui?.thread||'kitchen',view=demo.ui?.view||'all',pendingOnly=demo.ui?.pendingOnly||false,who=demo.ui?.who||'everyone',drafts={},replyTo=null,requestDraft=null,highlight=null;
   const $=selector=>document.querySelector(selector);
   const btn=(label,action,kind='',extra='',ico='')=>button(label,'mock-'+action,kind,extra,ico);
   const uid=()=>crypto.randomUUID();
@@ -27,7 +27,7 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   const avatar=role=>personAvatar({},people[role]?.name||role);
   const currentProject=()=>state.data?.project.id||'van-galen';
   const projectRequests=()=>demo.requests.filter(r=>r.project===currentProject());
-  const allowedThread=id=>id!=='internal'||demo.role==='studio';
+  const allowedThread=id=>!(id==='internal'||demo.topics.find(t=>t.id===id)?.private)||demo.role==='studio';
   const visibleRequests=()=>projectRequests().filter(r=>allowedThread(r.thread));
   const pendingCount=()=>visibleRequests().filter(r=>r.status==='pending').length;
   const uploadFiles=()=>demo.uploads.map(f=>({id:f.id,asset_id:f.id,iteration_id:f.iteration,project_id:f.project,name:f.name,number:1,mime:f.mime,size:f.size,url:f.data,preview_url:f.mime.startsWith('image/')?f.data:null,has_preview:f.mime.startsWith('image/'),category:'other',metadata:{summary:'Attached in Communication (local demo)'},history:[{id:f.id,name:f.name,number:1,url:f.data}]}));
@@ -50,13 +50,19 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   function syncUrl(replace=false){const path='/mock#'+(state.present?'presentation':state.tab);if(location.pathname+location.hash!==path)history[replace?'replaceState':'pushState'](null,'',path);}
   function restoreRoute(){state.present=false;state.client=false;state.tab=readTab();render();}
   function go(tab){closeModal();state.present=false;state.client=false;state.tab=tab;render();window.scrollTo({top:0,behavior:'instant'});}
-  function toolbar(){return `<div class="mock-toolbar"><span class="mock-demo-label">Concept demo · Communication & confirmations</span><div class="row"><label class="mock-perspective">View as<select id="mock-role" aria-label="Demo perspective">${Object.entries(people).map(([r,p])=>`<option value="${r}" ${demo.role===r?'selected':''}>${p.name.split(' ')[0]} · ${p.role}</option>`).join('')}</select></label>${btn('Reset','reset','small ghost','','history')}</div></div>`;}
+  function toolbar(){return `<div class="mock-toolbar"><span class="mock-demo-label">Communication prototype</span><div class="row"><label class="mock-perspective">View as<select id="mock-role" aria-label="Demo perspective">${Object.entries(people).map(([r,p])=>`<option value="${r}" ${demo.role===r?'selected':''}>${p.name.split(' ')[0]} · ${p.role}</option>`).join('')}</select></label>${btn('Reset','reset','small ghost','','history')}</div></div>`;}
   function overviewPanel(){return `<div class="mock-overview-note"><div>${icon('chat')}<span><strong>Keep the conversation together</strong><small>${pendingCount()} confirmations waiting · Comments and replies in one place</small></span></div>${btn('Communication','communication','small','','arrow')}</div>`;}
+  const typeNames={conversation:'Conversation',todo:'To do',approval:'Approval'};
   function topics(){
-    const base=[{id:'paint',title:'Hallway paint',label:'Materials & finishes',scope:'Emma, Sophie & Thomas'},{id:'kitchen',title:'Kitchen installation',label:'Scope & practical details',scope:'Emma, Sophie & Thomas'},{id:'internal',title:'Material review',label:'Internal team',scope:'Studio team only'}];
+    const base=[
+      {id:'kitchen',type:'conversation',title:'Kitchen installation',body:'Let’s agree on the installation sequence before we book the team. Can the cabinets go in before the stone is delivered?',person:'trade',detail:'Shared with client'},
+      {id:'internal',type:'todo',title:'Review the material samples',body:'Compare the oak and limestone samples in daylight, then choose the combination for the kitchen.',person:'studio',private:true,detail:'Due Fri, 25 Sep'},
+      {id:'paint',type:'approval',title:'Washable paint for the hallway',body:'Use the more durable, washable finish for the hallway walls. The colour stays RAL 9010, as agreed.',person:'client',detail:'+ €1,000',amount:100000}
+    ];
     const roots=demo.legacy.filter(c=>c.project===currentProject()&&!c.parent_id);
-    return [...base,...roots.map(c=>({id:'comment-'+c.id,title:c.slide_title||'Design feedback',label:'Slide comments',scope:'Emma, Sophie & Thomas',source:c}))].filter(t=>allowedThread(t.id));
+    return [...base,...demo.topics.filter(t=>t.project===currentProject()),...roots.map(c=>({id:'comment-'+c.id,type:'conversation',title:c.slide_title||'Design feedback',body:c.body,person:legacyRole(c.author),detail:'Shared with client',source:c}))].filter(t=>allowedThread(t.id));
   }
+  const isDone=topic=>!!demo.completed[currentProject()+':'+topic.id];
   function topicFor(id){return topics().find(t=>t.id===id)||topics()[0];}
   function legacyRole(author){return /emma|family/i.test(author)?'client':/thomas/i.test(author)?'trade':'studio';}
   function entries(id){
@@ -71,18 +77,33 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
     const confirmed=r.status==='confirmed',withdrawn=r.status==='withdrawn',mine=r.to===demo.role;
     return `<article class="mock-confirmation ${confirmed?'is-confirmed':''} ${withdrawn?'is-withdrawn':''} ${highlight===r.id?'is-highlighted':''}" data-confirmation="${esc(r.id)}"><div class="mock-confirmation-top"><span class="mock-status ${confirmed?'done':withdrawn?'closed':'pending'}">${icon(confirmed?'check':withdrawn?'close':'clock')}${confirmed?'Confirmed':withdrawn?'Withdrawn':'Pending confirmation'}</span><small>${people[r.from].name.split(' ')[0]} → ${people[r.to].name}${compact?' · '+esc(topicFor(r.thread).title):''}</small></div><p>${esc(r.text)}</p>${attachmentHtml(r.attachment,r.id)}${r.amount!==null?`<div class="mock-budget-change">${icon('budget')}<span>Budget change <strong>${signed(r.amount)}</strong> <small>including VAT</small></span></div>`:''}<div class="mock-confirmation-bottom">${confirmed?`<span class="mock-confirmed-by">${icon('check')} ${people[r.to].name} confirmed · ${time(r.confirmedAt)}</span>${r.amount!==null?btn('Added to budget','budget-link','small ghost',`data-id="${esc(r.id)}"`,'arrow'):''}`:withdrawn?`<small class="muted">Withdrawn by ${people[r.from].name} · ${time(r.withdrawnAt)}</small>`:`${mine?btn(r.amount!==null?'Confirm change · '+signed(r.amount):'Confirm','confirm','primary small',`data-id="${esc(r.id)}"`,'check'):`<small class="muted">Waiting for ${people[r.to].name.split(' ')[0]}</small>`}${btn('Reply','reply-to','small ghost',`data-id="${esc(r.id)}"`,'chat')}${r.from===demo.role?btn('Withdraw','withdraw','small ghost',`data-id="${esc(r.id)}"`):''}`}${compact?btn('Open conversation','open-request','small ghost',`data-id="${esc(r.id)}"`,'arrow'):''}</div></article>`;
   }
-  function messageCard(m){const r=people[m.role]?m.role:'studio';return `<article class="mock-message" data-message="${esc(m.id)}"><div class="comment-author">${avatar(r)}<small><strong>${esc(m.legacy&&m.author&&!m.author.includes('@')?m.author:people[r].name)}</strong> · ${time(m.created)}${m.legacy?' · Slide comment':''}</small></div><div class="mock-message-body">${m.replyTo?`<small class="mock-reply-ref">Reply to a confirmation request</small>`:''}<p>${esc(m.text)}</p>${attachmentHtml(m.attachment,m.id)}${btn('Ask for confirmation','ask-existing','small ghost',`data-message="${esc(m.id)}"`,'check')}</div></article>`;}
+  function messageCard(m){
+    const role=people[m.role||m.from]?m.role||m.from:'studio',author=m.legacy&&m.author&&!m.author.includes('@')?m.author:people[role].name;
+    return `<article class="mock-message" data-message="${esc(m.id)}"><div class="comment-author">${avatar(role)}<div><strong>${esc(author)}</strong><time datetime="${esc(m.created)}">${time(m.created)}</time></div></div><div class="mock-message-body"><p>${esc(m.text)}</p>${attachmentHtml(m.attachment,m.id)}</div></article>`;
+  }
+  function threadSummary(topic){
+    const done=isDone(topic),label=done?'Mark as open':'Mark as done',person=people[topic.person||'studio'];
+    const personLabel={conversation:'Waiting for',todo:'Responsible',approval:'Confirm with'}[topic.type];
+    return `<header class="mock-thread-summary" data-thread-type="${topic.type}" data-done="${done}">
+      <div class="mock-summary-main"><div class="mock-summary-copy"><div class="mock-summary-eyebrow"><span>${typeNames[topic.type]}</span><span class="mock-summary-state">${done?'Done':'Open'}${topic.private?' · Internal':''}</span></div><h2>${esc(topic.title)}</h2><p>${esc(topic.body)}</p></div>
+      <span class="mock-complete-wrap"><button type="button" class="mock-complete" role="checkbox" aria-checked="${done}" aria-label="${label}" aria-describedby="mock-complete-tooltip" data-action="mock-complete" data-thread="${esc(topic.id)}"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="m6 16 6.5 6.5L26 9"/></svg></button><span class="mock-complete-tooltip" role="tooltip" id="mock-complete-tooltip">${label}</span></span></div>
+      <div class="mock-summary-footer"><div class="mock-summary-person">${avatar(topic.person||'studio')}<span><small>${personLabel}</small><strong>${esc(person.name)}</strong></span></div><div class="mock-summary-detail"><strong>${esc(topic.detail||'Shared with client')}</strong>${topic.amount!==undefined?'<small>Budget change · incl. VAT</small>':''}</div></div>
+    </header>`;
+  }
   function sourceContext(topic){if(!topic.source)return '';const def=findSource(topic.source);return `<button class="mock-context" data-action="mock-source" data-thread="${esc(topic.id)}"><img src="${esc(def?.visual?.url||'assets/interior.webp')}" alt="Original commented design"><span><strong>${esc(def?.title||'Original design slide')}</strong><small>Comments and replies from the presentation</small></span>${icon('arrow')}</button>`;}
   function findSource(c){return slideDefs().find(s=>s.id===c.slide||s.record?.id===c.slide)||slideDefs().find(s=>s.visual&&['photo','render'].includes(s.type));}
   function communication(){
-    const list=topics();if(!list.some(t=>t.id===thread))thread=list[0].id;const topic=topicFor(thread);const pending=pendingCount();
-    const controls=`<div class="mock-view-controls"><div class="filter-chips mock-view-tabs">${btn('All communication','view','small '+(view==='all'?'primary':''),'data-view="all"')}${btn('Confirmations <span class="mock-count">'+visibleRequests().length+'</span>','view','small '+(view==='confirmations'?'primary':''),'data-view="confirmations"')}</div>${view==='confirmations'?`<div class="row wrap mock-check-filters"><label class="check-label"><input id="mock-pending-only" type="checkbox" ${pendingOnly?'checked':''}>Pending only <span class="mock-count">${pending}</span></label><select id="mock-who" aria-label="Filter confirmations by person"><option value="everyone">Everyone</option><option value="mine" ${who==='mine'?'selected':''}>Needs my confirmation</option><option value="waiting" ${who==='waiting'?'selected':''}>Waiting for someone else</option></select></div>`:`<small class="muted">${pending} pending · Slide comments included</small>`}</div>`;
-    const heading=`<div class="section-title mock-section-title"><div><h2>Communication</h2><p class="muted">Discuss the details. Ask for a go-ahead. Keep the answer here.</p></div></div>${controls}`;
-    if(view==='confirmations'){
-      const matches=visibleRequests().filter(r=>(!pendingOnly||r.status==='pending')&&(who!=='mine'||r.status==='pending'&&r.to===demo.role)&&(who!=='waiting'||r.status==='pending'&&r.from===demo.role&&r.to!==demo.role)).sort((a,b)=>(a.status==='pending'?0:1)-(b.status==='pending'?0:1)||new Date(b.created)-new Date(a.created));
-      return heading+`<div class="mock-checklist">${matches.map(r=>confirmationCard(r,true)).join('')||'<div class="notice">No confirmations match this view. Try showing all confirmations.</div>'}</div>`;
-    }
-    return heading+`<div class="mock-hub"><aside class="mock-topic-list"><div class="mock-topic-heading">Conversations <small>${list.length}</small></div>${list.map(t=>{const count=projectRequests().filter(r=>r.thread===t.id&&r.status==='pending').length;return `<button class="mock-topic ${t.id===thread?'selected':''}" data-action="mock-thread" data-thread="${esc(t.id)}" aria-pressed="${t.id===thread}"><small>${esc(t.label)}</small><strong>${esc(t.title)}</strong><span>${count?`<i class="mock-pending-dot"></i>${count} pending confirmation${count===1?'':'s'}`:t.id==='internal'?'Studio team only':t.source?'Comments & replies':'Everyone is up to date'}</span></button>`;}).join('')}</aside><section class="mock-thread"><header class="mock-thread-head"><div><h2>${esc(topic.title)}</h2><p class="muted">${icon(thread==='internal'?'lock':'users')}${topic.scope}</p></div>${thread==='internal'?'<span class="tag">Internal</span>':''}</header>${sourceContext(topic)}<div class="mock-messages">${entries(thread).map(m=>m.confirmation?confirmationCard(m):messageCard(m)).join('')}</div><form id="mock-reply-form" class="mock-composer">${replyTo?`<div class="mock-replying">Replying to a confirmation ${btn('Cancel','cancel-reply','small ghost')}</div>`:''}<label for="mock-reply">Message<textarea id="mock-reply" required maxlength="1500" rows="3" placeholder="Add a thought, ask a question, or confirm a detail…">${esc(drafts[thread]||'')}</textarea></label><div class="mock-compose-actions"><small class="muted">${thread==='internal'?'Visible to the studio team':'Shared with Emma, Sophie & Thomas'}</small><div class="row wrap"><button class="button" type="submit">Post reply ${icon('send')}</button>${btn('Ask for confirmation','ask','primary','','check')}</div></div></form></section></div>`;
+    if(!['all','open','done'].includes(view))view='all';
+    const all=topics(),list=all.filter(t=>view==='all'||isDone(t)===(view==='done'));
+    if(!list.some(t=>t.id===thread))thread=list[0]?.id||'';
+    const topic=list.find(t=>t.id===thread);
+    const heading=`<div class="mock-conversation-heading"><h2>Communication</h2>${btn('New conversation','new-topic','primary','','plus')}</div><div class="mock-inbox-tabs" role="group" aria-label="Filter conversations">${[['all','All'],['open','Open'],['done','Done']].map(([key,label])=>`<button type="button" data-action="mock-view" data-view="${key}" aria-pressed="${view===key}">${label}<span>${all.filter(t=>key==='all'||isDone(t)===(key==='done')).length}</span></button>`).join('')}</div>`;
+    const listHtml=`<aside class="mock-topic-list" aria-label="Conversation threads">${list.map(t=>`<button type="button" class="mock-topic ${t.id===thread?'selected':''}" data-action="mock-thread" data-thread="${esc(t.id)}" aria-pressed="${t.id===thread}"><span class="mock-topic-title"><strong>${esc(t.title)}</strong>${isDone(t)?`<span class="mock-topic-done" aria-label="Done">${icon('check')}</span>`:''}</span><p>${esc(t.body)}</p><span class="mock-topic-meta">${typeNames[t.type]}<span aria-hidden="true">·</span>${t.private?'Internal':'With client'}</span></button>`).join('')||'<p class="mock-list-empty">No conversations here yet.</p>'}</aside>`;
+    const messages=topic?entries(thread).filter(m=>m.id!=='paint'&&m.text!==topic.body&&!(topic.source&&m.id==='legacy-'+topic.source.id)).reverse():[];
+    return `<div class="mock-conversation-view">${heading}<div class="mock-hub">${listHtml}<section class="mock-thread" aria-label="Selected conversation">${topic?`${threadSummary(topic)}${sourceContext(topic)}<form id="mock-reply-form" class="mock-composer"><label for="mock-reply" class="sr-only">Reply to ${esc(topic.title)}</label><textarea id="mock-reply" required maxlength="1500" rows="2" placeholder="Write a reply…">${esc(drafts[thread]||'')}</textarea><div class="mock-compose-actions"><small>${topic.private?'Only visible to the studio':'Shared with everyone in this conversation'}</small><button class="button primary" type="submit">Send ${icon('send')}</button></div></form><div class="mock-messages">${messages.map(messageCard).join('')||'<p class="mock-no-replies">No replies yet. Start the conversation.</p>'}</div>`:'<div class="mock-empty-thread">No conversations to show.</div>'}</section></div></div>`;
+  }
+  function newTopic(){
+    openModal('New conversation',`<form id="mock-new-topic"><label>Type<select name="type">${Object.entries(typeNames).map(([value,label])=>`<option value="${value}">${label}</option>`).join('')}</select></label><label>Subject<input name="title" required maxlength="160"></label><label>Message<textarea name="body" required maxlength="1500" rows="3"></textarea></label><label>Person<select name="person"><optgroup label="Clients"><option value="client">Emma de Vries</option></optgroup><optgroup label="Studio members"><option value="studio">Sophie van Dijk</option></optgroup><optgroup label="Third party / other people"><option value="trade">Thomas Bakker</option></optgroup></select></label><div class="modal-footer">${button('Cancel','close-modal','ghost')}<button type="submit" class="button primary">Start conversation</button></div></form>`);
   }
   function recipients(amount){return Object.entries(people).filter(([role,p])=>role!==demo.role&&(requestDraft.thread!=='internal'||role==='studio')&&(amount===null||p.budget));}
   function requestPopup(text=''){
@@ -96,6 +117,8 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
     demo.ui={thread,view,pendingOnly,who};save();
     const top=$('.demo-indicator');if(top){top.innerHTML='Concept demo '+icon('help');top.dataset.action='mock-about';}
     const nav=$('.tabs'),active=nav?.querySelector('.tab.active');if(active){const n=nav.getBoundingClientRect(),a=active.getBoundingClientRect();if(a.left<n.left||a.right>n.right)nav.scrollLeft+=a.left-n.left-16;}
+    const threadList=$('.mock-topic-list'),selectedThread=threadList?.querySelector('.selected');
+    if(threadList&&selectedThread&&threadList.scrollWidth>threadList.clientWidth){const list=threadList.getBoundingClientRect(),item=selectedThread.getBoundingClientRect();if(item.left<list.left||item.right>list.right)threadList.scrollLeft+=item.left-list.left-(list.width-item.width)/2;}
     const globalComments=$('[data-action="all-comments"] .side-link-label');if(globalComments)globalComments.textContent='Communication';
     for(const r of projectRequests().filter(r=>r.status==='confirmed'&&r.amount!==null)){
       const row=document.querySelector(`[data-budget-row="confirmation-${CSS.escape(r.id)}"]`);
@@ -129,6 +152,12 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
     if(['all-comments','all-activity'].includes(action)&&state.data){e.preventDefault();e.stopImmediatePropagation();go(action==='all-comments'?'comments':'activity');return;}
     if(!action.startsWith('mock-'))return;e.preventDefault();e.stopImmediatePropagation();action=action.slice(5);
     try{
+      if(action==='new-topic')newTopic();
+      if(action==='complete'){
+        const topic=topics().find(t=>t.id===target.dataset.thread);if(!topic)return;
+        demo.completed[currentProject()+':'+topic.id]=!isDone(topic);save();render();
+        document.querySelector('[data-action="mock-complete"]')?.focus({preventScroll:true});
+      }
       if(action==='communication'){view='all';highlight=null;go('comments');}
       if(action==='thread'){thread=target.dataset.thread;replyTo=null;highlight=null;render();}
       if(action==='view'){view=target.dataset.view;highlight=null;render();}
@@ -145,7 +174,7 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
       if(action==='budget-link'){highlight=null;go('budget');const row=document.querySelector(`[data-budget-row="confirmation-${CSS.escape(target.dataset.id)}"]`);row?.scrollIntoView({block:'center'});}
       if(action==='reset')openModal('Reset the mock?',`<p>Clear the demo replies, uploaded files, confirmations, and budget changes.</p><div class="modal-footer">${button('Cancel','close-modal','ghost')}${btn('Reset demo','confirm-reset','primary','','history')}</div>`);
       if(action==='confirm-reset'){sessionStorage.removeItem(storageKey);location.assign('/mock#comments');location.reload();}
-      if(action==='about')openModal('Communication, with a simple go-ahead.',`<p>Post a reply or ask someone to confirm a message. You can attach a file and optionally include a positive or negative budget change.</p><p class="notice">Use “View as” to try both sides. All data, uploads, and confirmations are local to this fictional mock.</p>`);
+      if(action==='about')openModal('Communication prototype',`<p>Explore Conversation, To do and Approval. The round checkmark toggles between open and done.</p><p class="notice">All changes stay in this browser tab.</p>`);
     }catch(error){toast(error.message||'This demo action could not be completed.');}
   },true);
   document.addEventListener('input',e=>{if(e.target.id==='mock-reply')drafts[thread]=e.target.value;},true);
@@ -160,12 +189,17 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   document.addEventListener('submit',async e=>{
     if(!e.target.id.startsWith('mock-'))return;e.preventDefault();e.stopImmediatePropagation();
     try{
+      if(e.target.id==='mock-new-topic'){
+        const values=Object.fromEntries(new FormData(e.target));if(!values.title.trim()||!values.body.trim()||!typeNames[values.type])return;
+        const topic={id:uid(),project:currentProject(),type:values.type,title:values.title.trim(),body:values.body.trim(),person:values.person,detail:'Shared with client'};
+        demo.topics.push(topic);thread=topic.id;view='all';save();closeModal();render();return;
+      }
       if(e.target.id==='mock-reply-form'){
         const text=$('#mock-reply').value.trim();if(!text)return;
         const topic=topicFor(thread),root=topic.source;
         if(root&&(state.data.comments||[]).some(c=>c.id===root.id)){await api('comment',{iteration:state.data.iteration.id,slide:root.slide,parent_id:root.id,body:text});}
         else demo.messages.push({id:uid(),thread,project:currentProject(),role:demo.role,text,created:new Date().toISOString(),replyTo});
-        drafts[thread]='';replyTo=null;highlight=null;save();await refresh(true);$('#mock-reply')?.focus();toast('Reply posted.');
+        drafts[thread]='';replyTo=null;highlight=null;save();await refresh(true);render();$('#mock-reply')?.focus();toast('Reply posted.');
       }
       if(e.target.id==='mock-confirmation-form'){
         const text=$('#mock-request-text').value.trim(),to=$('#mock-recipient').value,hasCost=$('#mock-has-cost').checked,amount=hasCost?parseAmount($('#mock-cost').value):null;

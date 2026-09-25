@@ -60,27 +60,40 @@ function add_comment(array $i,string $actor,array $input): array {
 }
 
 // Page whole threads: a reply is never detached from its original comment.
-function comment_feed_page(string $where,array $params,int $offset,string $personKey,string $sort='newest',bool $showAnswered=false,string $filter='all'): array {
+function comment_feed_page(string $where,array $params,int $offset,string $personKey,string $sort='newest',bool $showAnswered=false,string $filter='all',string $type='all',string $search='',int $limit=100): array {
     $direction=$sort==='oldest'?'ASC':'DESC';
     $select="SELECT c.*,c.rowid AS comment_order,p.id AS project_id,p.name AS project_name,i.number AS iteration_number,COALESCE(sc.title,s.title) AS slide_title,ss.type AS system_slide_type,t.title AS thread_title FROM comments c JOIN iterations i ON i.id=c.iteration_id JOIN projects p ON p.id=i.project_id LEFT JOIN communication_threads t ON t.comment_id=COALESCE(c.parent_id,c.id) LEFT JOIN presentation_slides s ON s.iteration_id=c.iteration_id AND 'visual-'||s.id=c.slide LEFT JOIN system_slides ss ON ss.iteration_id=c.iteration_id AND ss.id=c.slide LEFT JOIN slide_content sc ON sc.iteration_id=c.iteration_id AND sc.slide_id=COALESCE(ss.type,c.slide) WHERE ";
-    $rootParams=$params;$attention='';
-    if($filter==='attention'){
-        // Filter subjects before pagination; replies and each work item keep their original scope.
-        $attention=" AND p.archived=0 AND (
-            EXISTS(SELECT 1 FROM comments unread WHERE (unread.id=c.id OR unread.parent_id=c.id) AND unread.author<>? AND NOT EXISTS(SELECT 1 FROM comment_reads cr WHERE cr.comment_id=unread.id AND cr.person_key=?))
-            OR EXISTS(SELECT 1 FROM checklist_threads ct JOIN open_questions q ON q.iteration_id=ct.iteration_id AND q.id=ct.question_id WHERE ct.root_id=c.id AND (q.accepted=1 OR q.published=1) AND q.dismissed=0 AND q.resolved=0)
-            OR EXISTS(SELECT 1 FROM comments request JOIN comment_confirmations confirmation ON confirmation.comment_id=request.id WHERE (request.id=c.id OR request.parent_id=c.id) AND confirmation.status='pending')
-        )";
-        $rootParams[]=substr($personKey,strpos($personKey,':')+1);$rootParams[]=$personKey;
+    $rootParams=$params;$conditions='';
+    $views=communication_view_sql($personKey);
+    if($type==='none')$conditions.=' AND 0=1';
+    elseif($type!=='all'){
+        $types=explode(',',$type);$marks=implode(',',array_fill(0,count($types),'?'));
+        $conditions.=" AND COALESCE((SELECT topic.type FROM communication_topics topic WHERE topic.root_id=c.id),CASE WHEN EXISTS(SELECT 1 FROM comment_confirmations confirmation WHERE confirmation.comment_id=c.id) THEN 'approval' ELSE 'conversation' END) IN ($marks)";
+        array_push($rootParams,...$types);
     }
-    $roots=rows($select.$where.' AND c.parent_id IS NULL'.$attention.($showAnswered||$filter==='attention'?'':' AND c.answered=0').' ORDER BY c.created_at '.$direction.',c.rowid '.$direction.' LIMIT 101 OFFSET '.$offset,$rootParams);
-    $more=count($roots)>100;$roots=array_slice($roots,0,100);$replies=[];
+    if($search!==''){
+        // Literal substring search includes replies without detaching their subject.
+        $conditions.=" AND (instr(lower(COALESCE(t.title,'')||char(10)||p.name||char(10)||COALESCE(sc.title,s.title,'')),lower(?))>0 OR EXISTS(SELECT 1 FROM comments message WHERE (message.id=c.id OR message.parent_id=c.id) AND instr(lower(message.body||char(10)||message.author),lower(?))>0))";
+        array_push($rootParams,$search,$search);
+    }
+    // View badges count every matching subject, independently of the current page/view.
+    $countFields=[];
+    foreach($views as $name=>$predicate)$countFields[]="COALESCE(SUM(CASE WHEN p.archived=0 AND $predicate THEN 1 ELSE 0 END),0) AS $name";
+    $counts=one('SELECT '.implode(',',$countFields).substr($select,strpos($select,' FROM comments c ')).$where.' AND c.parent_id IS NULL'.$conditions,$rootParams);
+    $counts=array_map('intval',$counts);
+    if(isset($views[$filter]))$conditions.=' AND p.archived=0 AND '.$views[$filter];
+    $rootQuery=$select.$where.' AND c.parent_id IS NULL'.$conditions.($showAnswered||isset($views[$filter])?'':' AND c.answered=0');
+    $total=(int)one('SELECT COUNT(*) AS n FROM ('.$rootQuery.')',$rootParams)['n'];
+    $limit=max(1,min(100,$limit));
+    $offset=min($offset,max(0,(int)ceil($total/$limit)-1)*$limit);
+    $roots=rows($rootQuery.' ORDER BY c.created_at '.$direction.',c.rowid '.$direction.' LIMIT '.($limit+1).' OFFSET '.$offset,$rootParams);
+    $more=count($roots)>$limit;$roots=array_slice($roots,0,$limit);$replies=[];
     if($roots){
         $ids=array_column($roots,'id');$marks=implode(',',array_fill(0,count($ids),'?'));
         foreach(rows($select.$where.' AND c.parent_id IN ('.$marks.') ORDER BY c.created_at '.$direction.',c.rowid '.$direction,array_merge($params,$ids)) as $reply)$replies[$reply['parent_id']][]=$reply;
     }
     $items=[];foreach($roots as $root){$items[]=$root;foreach($replies[$root['id']]??[] as $reply)$items[]=$reply;}
-    return ['items'=>decorate_comments($items,$personKey),'has_more'=>$more,'next_offset'=>$offset+count($roots)];
+    return ['items'=>decorate_comments($items,$personKey),'has_more'=>$more,'next_offset'=>$offset+count($roots),'offset'=>$offset,'total'=>$total,'limit'=>$limit,'view_counts'=>$counts];
 }
 
 function set_comment_answered(array $input): array {

@@ -89,7 +89,9 @@ function post_communication(array $b): array {
             $amount=confirmation_amount($b['amount']??null);
             if($amount!==null&&!empty($i['locked']))fail('This iteration is locked. Unlock it before requesting a budget change.',409);
         }elseif(isset($b['amount']))fail('A budget change needs a confirmation recipient.');
-        $c=['id'=>id(),'iteration_id'=>$i['id'],'parent_id'=>$parentId?:null,'slide'=>$parent['slide']??text_field($b['slide']??'general',80),'author'=>$actor,'body'=>$body,'created_at'=>now()];$c['annotation']=$parent?null:comment_annotation($i,$c['slide'],$b['annotation']??null);insert('comments',$c);
+        $slide=$parent['slide']??text_field($b['slide']??'general',80);
+        if(!$parent&&!$scoped)validate_communication_slide($i,$slide,$isOwner);
+        $c=['id'=>id(),'iteration_id'=>$i['id'],'parent_id'=>$parentId?:null,'slide'=>$slide,'author'=>$actor,'body'=>$body,'created_at'=>now()];$c['annotation']=$parent?null:comment_annotation($i,$c['slide'],$b['annotation']??null);insert('comments',$c);
         if(!$parentId)insert('communication_audiences',['root_id'=>$c['id'],'audience'=>$audience]);
         if($scoped&&$relatedId){
             foreach(array_unique([$actor,$recipient,$assignee]) as $email){

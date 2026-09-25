@@ -57,10 +57,11 @@ function communication_iterations(array $i,bool $designer): array {
     return rows("SELECT i.id,i.number,i.title,i.locked,(SELECT s.id FROM shares s WHERE s.iteration_id=i.id AND s.email=? AND s.revoked=0 AND s.expires_at>? ORDER BY s.created_at DESC LIMIT 1) AS share_id FROM iterations i WHERE i.project_id=? AND i.status='shared' AND EXISTS(SELECT 1 FROM project_client_members cm WHERE cm.project_id=i.project_id AND cm.email=?) AND EXISTS(SELECT 1 FROM shares s WHERE s.iteration_id=i.id AND s.email=? AND s.revoked=0 AND s.expires_at>?) ORDER BY i.number DESC",[current_session()['email'],time(),$i['project_id'],current_session()['email'],current_session()['email'],time()]);
 }
 function project_communication_payload(array $i,bool $designer): array {
-    $iterations=communication_iterations($i,$designer);$comments=[];$threads=[];$confirmations=[];$attachments=[];$guests=[];$items=[];$recipients=[];$files=[];
+    $iterations=communication_iterations($i,$designer);$comments=[];$threads=[];$confirmations=[];$attachments=[];$guests=[];$items=[];$recipients=[];$files=[];$slides=[];
     foreach($iterations as $iteration){
         $source=one('SELECT * FROM iterations WHERE id=?',[$iteration['id']]);
         $part=communication_payload($source);
+        $slides[$source['id']]=communication_slides($source['id'],$designer);
         $visible=communication_visible(rows('SELECT *,rowid AS comment_order FROM comments WHERE iteration_id=? ORDER BY created_at,rowid',[$source['id']]),$designer);
         $ids=array_fill_keys(array_column($visible,'id'),true);
         foreach($visible as &$c){$c['audience']=communication_audience(communication_root($c));$c['iteration_number']=$source['number'];}unset($c);
@@ -75,7 +76,7 @@ function project_communication_payload(array $i,bool $designer): array {
     $seen=[];$items=array_values(array_filter($items,function($q)use(&$seen){if(isset($seen[$q['id']]))return false;$seen[$q['id']]=true;return true;}));
     usort($comments,fn($a,$b)=>strcmp($a['created_at'],$b['created_at'])?:$a['comment_order']<=>$b['comment_order']);
     [$key]=profile_identity();
-    return ['actor'=>current_session()['email'],'comments'=>decorate_comments($comments,$key),'threads'=>$threads,'confirmations'=>$confirmations,'attachments'=>$attachments,'guests'=>$guests,'items'=>$items,'iterations'=>$iterations,'recipients'=>$recipients[$i['id']]??[],'iteration_recipients'=>$recipients,'iteration_files'=>$files];
+    return ['actor'=>current_session()['email'],'comments'=>decorate_comments($comments,$key),'threads'=>$threads,'confirmations'=>$confirmations,'attachments'=>$attachments,'guests'=>$guests,'items'=>$items,'iterations'=>$iterations,'recipients'=>$recipients[$i['id']]??[],'iteration_recipients'=>$recipients,'iteration_files'=>$files,'iteration_slides'=>$slides];
 }
 function share_communication(array $b): array {
     return transaction(function()use($b){
@@ -122,27 +123,113 @@ function update_communication_thread(array $b): array {
         communication_guard($c,$designer);
         if(!$designer&&$c['author']!==$actor)fail('Only the author or project team can change the thread.',403);
         if($i['locked'])fail('This iteration is locked.',409);
-        $old=communication_topic($c['id'])??['type'=>'conversation','assignee'=>'','assignee_name'=>'','due_date'=>'','question_id'=>null];
-        $type=communication_type(text_field($b['thread_type']??'',30));
-        if(!in_array($old['type'],['conversation','todo'],true)||!in_array($type,['conversation','todo'],true)||($old['type']==='todo'&&$type!=='todo'))fail('Approval terms are preserved. Start a linked thread for a new request.');
-        foreach(['amount','recipient','body','thread_title'] as $field)if(array_key_exists($field,$b))fail('The original message and approval terms cannot be changed here.');
-        $assignee=text_field($b['assignee']??'',254);$due=text_field($b['due_date']??'',10);$person=null;
+        $request=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']]);
+        $old=communication_topic($c['id'])??['type'=>$request?'approval':'conversation','assignee'=>'','assignee_name'=>'','due_date'=>'','question_id'=>null];
+        $type=communication_type(text_field($b['thread_type']??$old['type'],30));
+        if(($old['type']==='approval'&&$type!=='approval')||($old['type']!=='approval'&&!in_array($type,['conversation','todo'],true))||($old['type']==='todo'&&$type!=='todo'))fail('Approval terms are preserved. Start a linked thread for a new request.');
+        foreach(['amount','recipient','body','annotation','version_id'] as $field)if(array_key_exists($field,$b))fail('The original message and approval terms cannot be changed here.');
+        $title=array_key_exists('thread_title',$b)?text_field($b['thread_title'],160):null;
+        if($title!==null&&$title==='')fail('A conversation needs a subject.');
+        $previousAudience=communication_audience($c['id']);
+        $audience=text_field($b['audience']??$previousAudience,20);
+        if(!in_array($audience,['studio','shared'],true)||(!$designer&&$audience!==$previousAudience))fail('Only the project team can change the conversation audience.',403);
+        if($audience!==$previousAudience&&$audience==='shared'&&($b['share_history']??false)!==true)fail('Sharing includes all earlier messages and attachments.');
+        $people=confirmation_recipients($i);
+        if($audience==='studio'&&$audience!==$previousAudience){
+            $team=array_column(array_filter($people,fn($p)=>$p['group']==='team'),'email');
+            foreach(rows('SELECT r.recipient FROM comment_confirmations r JOIN comments c ON c.id=r.comment_id WHERE c.id=? OR c.parent_id=?',[$c['id'],$c['id']]) as $confirmation)if(!in_array($confirmation['recipient'],$team,true))fail('A conversation with an external approval must remain shared.');
+        }
+        $slide=text_field($b['slide']??$c['slide'],80);
+        if($slide!==$c['slide']){
+            if($c['slide']!=='general')fail('The original slide is already recorded.',409);
+            validate_communication_slide($i,$slide,$designer);
+        }
+        $assignee=text_field($b['assignee']??$old['assignee'],254);$due=text_field($b['due_date']??$old['due_date'],10);$person=null;
+        if($type==='approval'&&($assignee!==''||$due!==''))fail('Approval terms are preserved. Start a linked thread for a new request.');
         if($type==='todo'&&!$assignee)fail('Choose who is responsible for this to do.');
         if($due&&($type!=='todo'||!preg_match('/^\d{4}-\d{2}-\d{2}$/D',$due)||!checkdate((int)substr($due,5,2),(int)substr($due,8,2),(int)substr($due,0,4))))fail('Choose a valid due date.');
-        foreach(confirmation_recipients($i) as $p)if($p['email']===$assignee&&$p['available']&&(communication_audience($c['id'])!=='studio'||$p['group']==='team'))$person=$p;
+        foreach($people as $p)if($p['email']===$assignee&&$p['available']&&($audience!=='studio'||$p['group']==='team'))$person=$p;
         if($assignee&&!$person)fail('Choose a responsible person with access to this conversation.');
-        $qid=$old['question_id'];
-        $linkedWork=$qid?one('SELECT origin,citations FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]):null;
-        $track=$type==='todo'||$assignee!==''||($qid&&(!$old['assignee']||$linkedWork['origin']!=='conversation'||$linkedWork['citations']!=='[]'));
-        $reopen=$type!==$old['type']||($assignee!==$old['assignee']&&$assignee!=='');
-        if($track){
-            if(!$qid){$qid=id();insert('open_questions',['id'=>$qid,'iteration_id'=>$i['id'],'question'=>preview_text($c['body'],240),'source_comment_id'=>$c['id'],'origin'=>'conversation','accepted'=>1,'edited'=>1,'published'=>communication_audience($c['id'])==='shared'?1:0,'created_at'=>now()]);ensure_checklist_thread(one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]),$actor);}
-            query('UPDATE open_questions SET item_type=?,responsible=?,resolved=CASE WHEN ? THEN 0 ELSE resolved END,dismissed=0 WHERE iteration_id=? AND id=?',[$type==='todo'?'action':'question',$person['name']??'',$reopen?1:0,$i['id'],$qid]);
-        }elseif($qid){query('DELETE FROM checklist_threads WHERE iteration_id=? AND question_id=?',[$i['id'],$qid]);query('DELETE FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]);$qid=null;}
-        query('INSERT INTO communication_topics(root_id,type,assignee,assignee_name,due_date,question_id) VALUES(?,?,?,?,?,?) ON CONFLICT(root_id) DO UPDATE SET type=excluded.type,assignee=excluded.assignee,assignee_name=excluded.assignee_name,due_date=excluded.due_date,question_id=excluded.question_id',[$c['id'],$type,$assignee,$person['name']??'',$due,$qid]);
-        if($reopen)query('UPDATE comments SET answered=0 WHERE id=?',[$c['id']]);
-        if($type!==$old['type']||$assignee!==$old['assignee']||$due!==$old['due_date'])insert('communication_topic_history',['id'=>id(),'root_id'=>$c['id'],'actor'=>$actor,'from_type'=>$old['type'],'to_type'=>$type,'assignee_name'=>$person['name']??'','due_date'=>$due,'created_at'=>now()]);
-        audit($i['project_id'],$i['id'],$actor,'communication_thread_updated',$type.' · '.$c['body']);
+        // Save the metadata and work changes in the same transaction.
+        if($title!==null)query('INSERT INTO communication_threads(comment_id,title) VALUES(?,?) ON CONFLICT(comment_id) DO UPDATE SET title=excluded.title',[$c['id'],$title]);
+        if($audience!==$previousAudience)query('INSERT INTO communication_audiences(root_id,audience) VALUES(?,?) ON CONFLICT(root_id) DO UPDATE SET audience=excluded.audience',[$c['id'],$audience]);
+        if($slide!==$c['slide'])query('UPDATE comments SET slide=? WHERE id=? OR parent_id=?',[$slide,$c['id'],$c['id']]);
+        if($type!=='approval'){
+            $qid=$old['question_id'];
+            $linkedWork=$qid?one('SELECT origin,citations FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]):null;
+            $track=$type==='todo'||$assignee!==''||($qid&&(!$old['assignee']||$linkedWork['origin']!=='conversation'||$linkedWork['citations']!=='[]'));
+            $reopen=$type!==$old['type']||($assignee!==$old['assignee']&&$assignee!=='');
+            if($track){
+                if(!$qid){$qid=id();insert('open_questions',['id'=>$qid,'iteration_id'=>$i['id'],'question'=>preview_text($c['body'],240),'source_comment_id'=>$c['id'],'origin'=>'conversation','accepted'=>1,'edited'=>1,'published'=>communication_audience($c['id'])==='shared'?1:0,'created_at'=>now()]);ensure_checklist_thread(one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]),$actor);}
+                query('UPDATE open_questions SET item_type=?,responsible=?,resolved=CASE WHEN ? THEN 0 ELSE resolved END,dismissed=0 WHERE iteration_id=? AND id=?',[$type==='todo'?'action':'question',$person['name']??'',$reopen?1:0,$i['id'],$qid]);
+            }elseif($qid){query('DELETE FROM checklist_threads WHERE iteration_id=? AND question_id=?',[$i['id'],$qid]);query('DELETE FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]);$qid=null;}
+            query('INSERT INTO communication_topics(root_id,type,assignee,assignee_name,due_date,question_id) VALUES(?,?,?,?,?,?) ON CONFLICT(root_id) DO UPDATE SET type=excluded.type,assignee=excluded.assignee,assignee_name=excluded.assignee_name,due_date=excluded.due_date,question_id=excluded.question_id',[$c['id'],$type,$assignee,$person['name']??'',$due,$qid]);
+            if($reopen)query('UPDATE comments SET answered=0 WHERE id=?',[$c['id']]);
+            if($type!==$old['type']||$assignee!==$old['assignee']||$due!==$old['due_date'])insert('communication_topic_history',['id'=>id(),'root_id'=>$c['id'],'actor'=>$actor,'from_type'=>$old['type'],'to_type'=>$type,'assignee_name'=>$person['name']??'','due_date'=>$due,'created_at'=>now()]);
+        }
+        if($audience!==$previousAudience){
+            if($audience==='studio'){
+                query('UPDATE open_questions SET published=0 WHERE EXISTS(SELECT 1 FROM checklist_threads t WHERE t.iteration_id=open_questions.iteration_id AND t.question_id=open_questions.id AND t.root_id=?)',[$c['id']]);
+                query('UPDATE conversation_grants SET revoked=1 WHERE root_id=?',[$c['id']]);
+            }else query('UPDATE open_questions SET published=1 WHERE iteration_id=? AND id=(SELECT question_id FROM communication_topics WHERE root_id=?)',[$i['id'],$c['id']]);
+        }
+        audit($i['project_id'],$i['id'],$actor,'communication_thread_updated',$type.' · '.($title??$c['body']));
+        return ['ok'=>true];
+    });
+}
+
+// The same predicates drive project metadata and the paginated studio feed.
+function communication_view_sql(string $personKey,bool $designer=true): array {
+    $actor=db()->quote(substr($personKey,strpos($personKey,':')+1));$key=db()->quote($personKey);
+    $visible=$designer?'1=1':'q.published=1';
+    $work="EXISTS(SELECT 1 FROM checklist_threads ct JOIN open_questions q ON q.iteration_id=ct.iteration_id AND q.id=ct.question_id WHERE ct.root_id=c.id AND (q.accepted=1 OR q.published=1) AND q.dismissed=0 AND q.resolved=0 AND $visible)";
+    $hasWork="EXISTS(SELECT 1 FROM checklist_threads ct JOIN open_questions q ON q.iteration_id=ct.iteration_id AND q.id=ct.question_id WHERE ct.root_id=c.id AND q.dismissed=0 AND (q.accepted=1 OR q.published=1) AND $visible)";
+    $requests="SELECT 1 FROM comments request JOIN comment_confirmations confirmation ON confirmation.comment_id=request.id WHERE (request.id=c.id OR request.parent_id=c.id)";
+    $pending="EXISTS($requests AND confirmation.status='pending')";
+    $assigned="EXISTS(SELECT 1 FROM communication_topics topic JOIN open_questions q ON q.id=topic.question_id AND q.iteration_id=c.iteration_id WHERE topic.root_id=c.id AND topic.assignee=$actor AND q.resolved=0 AND q.dismissed=0 AND $visible)";
+    $participant="(c.author=$actor OR EXISTS(SELECT 1 FROM comments own WHERE own.parent_id=c.id AND own.author=$actor) OR EXISTS(SELECT 1 FROM communication_topics topic WHERE topic.root_id=c.id AND topic.assignee=$actor) OR EXISTS($requests AND confirmation.recipient=$actor))";
+    $unread="EXISTS(SELECT 1 FROM comments unread WHERE (unread.id=c.id OR unread.parent_id=c.id) AND unread.author<>$actor AND NOT EXISTS(SELECT 1 FROM comment_reads cr WHERE cr.comment_id=unread.id AND cr.person_key=$key) AND ($participant OR EXISTS(SELECT 1 FROM comment_mentions mention WHERE mention.comment_id=unread.id AND mention.email=$actor)))";
+    return ['open'=>"($work OR $pending OR (c.answered=0 AND NOT $hasWork AND NOT EXISTS($requests)))",'attention'=>"($assigned OR EXISTS($requests AND confirmation.status='pending' AND confirmation.recipient=$actor) OR $unread)"];
+}
+
+function communication_slides(string $iid,bool $designer): array {
+    require_once __DIR__.'/slides.php';
+    $titles=['intro'=>'Introduction','changes'=>'Changes','budget'=>'Budget','open-questions'=>'Checklist','contacts'=>'Project team','summary'=>'Summary'];
+    $visuals=array_column(rows('SELECT id,title FROM presentation_slides WHERE iteration_id=?',[$iid]),'title','id');
+    $content=array_column(rows('SELECT slide_id,title FROM slide_content WHERE iteration_id=?',[$iid]),'title','slide_id');
+    $layout=array_column(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$iid]),null,'slide_id');
+    $files=rows('SELECT v.id,v.name FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=?',[$iid]);
+    $slides=[];
+    foreach(array_unique(editor_slide_ids($iid)) as $id){
+        if(!empty($layout[$id]['deleted'])||(!$designer&&!empty($layout[$id]['hidden'])))continue;
+        $type=system_slide_type($iid,$id);
+        $title=$content[$id]??$content[$type??'']??$visuals[substr($id,7)]??$titles[$type??'']??$id;
+        if($title===$id)foreach($files as $file){
+            if($id==='visual-legacy-'.$file['id'])$title=$file['name'];
+            if(str_starts_with($id,'source-'.$file['id'].'-')){$page=(int)substr($id,strlen('source-'.$file['id'].'-'));$title=$file['name'].($page?' · p. '.$page:'');}
+        }
+        $slides[]=['id'=>$id,'title'=>$title];
+    }
+    return $slides;
+}
+function validate_communication_slide(array $i,string $slide,bool $designer): void {
+    if($slide==='general')return;
+    if(!in_array($slide,array_column(communication_slides($i['id'],$designer),'id'),true))fail('Slide not found in this presentation.',404);
+}
+function link_communication_slide(array $b): array {
+    return transaction(function()use($b){
+        [$i,$actor,$designer]=access_iteration(text_field($b['iteration']??''),true);
+        $c=one('SELECT * FROM comments WHERE id=? AND iteration_id=? AND parent_id IS NULL',[text_field($b['id']??'',80),$i['id']]);
+        if(!$c)fail('Conversation not found.',404);
+        communication_guard($c,$designer);
+        if(!$designer&&$c['author']!==$actor)fail('Only the author or project team can link this thread.',403);
+        if($i['locked'])fail('This iteration is locked.',409);
+        if($c['slide']!=='general')fail('The original slide is already recorded.',409);
+        $slide=text_field($b['slide']??'',80);
+        if($slide==='general')fail('Choose an original slide.');
+        validate_communication_slide($i,$slide,$designer);
+        query('UPDATE comments SET slide=? WHERE id=? OR parent_id=?',[$slide,$c['id'],$c['id']]);
+        audit($i['project_id'],$i['id'],$actor,'communication_origin_linked',$slide.' · '.$c['body']);
         return ['ok'=>true];
     });
 }

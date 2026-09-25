@@ -29,7 +29,7 @@
       <button class="menu-toggle" type="button" aria-controls="navigation" aria-expanded="false">Menu <span aria-hidden="true">☰</span></button>
       <nav id="navigation" aria-label="Main navigation">
         <a href="#pricing">Pricing</a>
-        <a class="button button-small button-outline" href="http://localhost:8199/" data-login>Log in</a>
+        <a class="button button-small button-outline" href="http://localhost:8199/login" data-login>Log in</a>
         <a class="button button-small button-dark nav-cta" href="#pricing">Get started <span aria-hidden="true">↗</span></a>
       </nav>
     </div>
@@ -56,7 +56,7 @@
         <h1 id="hero-title">You design.<br><em>AI does the presentation.</em></h1>
         <p class="hero-description">Keep your own tools and your own process. Drag and drop the PDFs, PowerPoints, images and Excel quotes you already have. AI does the hard part: a complete presentation, connected budgets and answers for your clients.</p>
         <p class="hero-connected">An extra pair of eyes on your project. AI automatically checks your files for conflicting details and brings possible issues to you, so you can focus on the design.</p>
-        <div class="hero-actions"><button class="button button-accent" type="button" data-signup>Start your 7-day trial <span aria-hidden="true">↗</span></button><a class="text-link" href="#from-files-to-presentation">Discover Studiodeck <span aria-hidden="true">↓</span></a></div>
+        <div class="hero-actions"><a class="button button-accent" href="http://localhost:8199/starttrial" data-signup>Start your 7-day trial <span aria-hidden="true">↗</span></a><a class="text-link" href="#from-files-to-presentation">Discover Studiodeck <span aria-hidden="true">↓</span></a></div>
         <a class="hero-motion-link" href="#ai-movement">Bring your photos to life with AI <span aria-hidden="true">↓</span></a>
         <p class="hero-note">One project. One payment. 150 days of access.</p>
       </div>
@@ -326,7 +326,7 @@
 
   <footer class="site-footer container"><div class="footer-top"><a class="wordmark" href="#">studio<span>deck</span><i class="brand-star" aria-hidden="true">✳</i></a><p>For the people behind beautiful spaces.</p><a class="text-link" href="#main">Back to the top <span aria-hidden="true">↑</span></a></div><div class="footer-bottom"><span>© <span id="year">2026</span> Studiodeck</span><nav aria-label="Footer navigation"><a href="#live-demo">Explore the demo</a><a href="#pricing">Plans & pricing</a><button class="footer-link" type="button" id="privacy-button">Privacy & credits</button></nav><span>Considered, by design.</span></div></footer>
 
-  <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-dialog-title"><button class="dialog-close icon-button" type="button" data-close-dialog aria-label="Close plan details">×</button><span class="eyebrow">ROOM FOR YOUR NEXT CHAPTER</span><h2 id="plan-dialog-title">Your Solo plan.</h2><p id="plan-dialog-description"></p><div class="plan-summary"><span id="summary-plan"></span><strong id="summary-price"></strong><span id="summary-billing"></span><span id="summary-extra" hidden></span><span>All AI features included.</span><span id="summary-enhancements"></span></div><p class="launch-note">Start with a 7-day trial: one person, one project, no card required. Choose a package in the app when you are ready. Payment is confirmed in Stripe.</p><a class="button button-accent" id="signup-plan" href="/login">Start your 7-day trial ↗</a><button class="button button-outline" type="button" id="download-plan">Save plan details <span aria-hidden="true">↓</span></button><button class="text-link dialog-demo" type="button" id="plan-to-demo">Explore the sample presentation <span aria-hidden="true">↗</span></button><p id="download-status" class="download-status" role="status"></p></dialog>
+  <dialog id="plan-dialog" class="plan-dialog" aria-labelledby="plan-dialog-title"><button class="dialog-close icon-button" type="button" data-close-dialog aria-label="Close plan details">×</button><span class="eyebrow">ROOM FOR YOUR NEXT CHAPTER</span><h2 id="plan-dialog-title">Your Solo plan.</h2><p id="plan-dialog-description"></p><div class="plan-summary"><span id="summary-plan"></span><strong id="summary-price"></strong><span id="summary-billing"></span><span id="summary-extra" hidden></span><span>All AI features included.</span><span id="summary-enhancements"></span></div><p class="launch-note">Start with a 7-day trial: one person, one project, no card required. Choose a package in the app when you are ready. Payment is confirmed in Stripe.</p><a class="button button-accent" id="signup-plan" href="http://localhost:8199/starttrial">Start your 7-day trial ↗</a></dialog>
 
   <dialog id="image-dialog" class="image-dialog" aria-labelledby="image-dialog-title"><div class="image-dialog-header"><div><span class="eyebrow">STUDIODECK · A CONSIDERED POINT OF VIEW</span><h2 id="image-dialog-title">The everyday retreat.</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Close expanded image">×</button></div><img id="expanded-image" src="assets/studio-types/interior.webp" alt="Expanded view of the sample interior project"><p id="expanded-image-credit">AI-generated concept interior · Your own project images take center stage in Studiodeck.</p></dialog>
 

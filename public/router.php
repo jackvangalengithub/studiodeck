@@ -32,10 +32,16 @@ try {
     if(website_public_route($path))return;
     if($path==='/stripe-webhook.php'){require __DIR__.'/stripe-webhook.php';return;}
     if($path==='/api.php'){require __DIR__.'/api.php';return;}
-    if($path==='/login'){
+    if(in_array($path,['/login','/starttrial'],true)){
         header("Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
         header('Content-Type: text/html; charset=utf-8');
-        $catalogs=[];foreach(['en','nl'] as $language){$copy=require __DIR__.'/../app/languages/'.$language.'.php';$catalogs[$language]=array_filter($copy,fn($key)=>str_starts_with($key,'login_'),ARRAY_FILTER_USE_KEY);}
+        $catalogs=[];foreach(['en','nl'] as $language){
+            $copy=require __DIR__.'/../app/languages/'.$language.'.php';
+            $catalogs[$language]=array_filter($copy,fn($key)=>str_starts_with($key,'login_'),ARRAY_FILTER_USE_KEY);
+            if($path==='/starttrial')foreach($copy as $key=>$value){
+                if(str_starts_with($key,'starttrial_'))$catalogs[$language]['login_'.substr($key,11)]=$value;
+            }
+        }
         $html=file_get_contents(__DIR__.'/auth/login.html');
         $replacements=['{{login_translations}}'=>json_encode($catalogs,JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT)];
         foreach($catalogs['en'] as $key=>$value)$replacements['{{'.$key.'}}']=htmlspecialchars($value,ENT_QUOTES,'UTF-8');

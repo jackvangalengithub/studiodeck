@@ -12,7 +12,10 @@ const match=location.hash.match(/^#\/login\/([a-f0-9]{64})$/);
 let loginToken=match?.[1]||'';
 const legacy=location.hash.startsWith('#/view/');
 // Credentials never remain in browser history after the page is opened.
-history.replaceState(null,'','/login');
+const entryPath=location.pathname==='/starttrial'?'/starttrial':'/login';
+history.replaceState(null,'',entryPath);
+document.querySelector('.brand').href=entryPath;
+document.querySelector('#request').href=entryPath;
 const form=document.querySelector('#login'),status=document.querySelector('#status'),submit=document.querySelector('#submit');
 if(loginToken){document.querySelector('#email-label').hidden=true;document.querySelector('#email').required=false;}
 let statusMessage=legacy?translations.en.login_legacy:'';

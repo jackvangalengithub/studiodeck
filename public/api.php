@@ -14,7 +14,7 @@ try {
     $read=['product_feedback_inbox','product_feedback_image','slide_media','check_image','attention','mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
     if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
     // Serialize the iteration lock check with simple metadata writes.
-    if(in_array($action,['category','theme','save_budget','retry_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
+    if(in_array($action,['category','theme','save_budget','retry_job','dismiss_job','restore_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
     require __DIR__.'/../app/product_feedback_api.php';
     require __DIR__.'/../app/slide_media_api.php';
     if($action==='session')json_response(session_details(current_session()));
@@ -277,12 +277,21 @@ try {
         $result=answer_with_activity($i,$actor,$slide,$question,fn()=>budget_answer($question,$items,legal_evidence($i['id'],$question),null,project_view_language($i['project_id'],$actor)));
         access_iteration($i['id'],true);json_response($result);
     }
+    if(in_array($action,['dismiss_job','restore_job'],true)) {
+        $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);
+        if(!$j)fail('Processing task not found.',404);
+        owned_iteration($j['iteration_id'],$u,false,true);
+        if($j['status']!=='failed')fail('Only failed processing tasks can be dismissed.');
+        if($action==='restore_job')query('DELETE FROM job_dismissals WHERE job_id=?',[$j['id']]);
+        else query('INSERT INTO job_dismissals(job_id,dismissed_at) VALUES(?,?) ON CONFLICT(job_id) DO NOTHING',[$j['id'],now()]);
+        json_response(['ok'=>true]);
+    }
     if($action==='retry_job') {
         $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);
         if($j['status']!=='failed')fail('This task is not waiting for a retry.');
         if($j['type']==='slide_video')fail('To avoid a duplicate paid video request, generate a new preview from Add motion after reviewing this task.');
         if(in_array($j['type'],['image_edit','slide_image_edit'],true))fail('To avoid a duplicate paid image request, start a new image variation after reviewing the failed task.');
-        query("UPDATE jobs SET status='queued',error='',started_at=NULL,payload='{}' WHERE id=?",[$j['id']]);json_response(['ok'=>true]);
+        query("UPDATE jobs SET status='queued',error='',started_at=NULL,payload='{}' WHERE id=?",[$j['id']]);query('DELETE FROM job_dismissals WHERE job_id=?',[$j['id']]);json_response(['ok'=>true]);
     }
     if($action==='slide_image') {
         [$i]=access_iteration((string)($_GET['iteration']??''));$slide=current_slide($i['id'],(string)($_GET['slide_id']??''));

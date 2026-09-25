@@ -2,9 +2,9 @@
 
 // Marketing previews remain local. Signup opens the configured application.
 const appBase=(document.querySelector('meta[name="studiodeck-app-url"]')?.content||location.origin).replace(/\/$/,'');
-const signupUrl=plan=>appBase+'/login'+(plan?'?plan='+encodeURIComponent(plan):'');
-document.querySelectorAll('[data-login]').forEach(el=>{el.href=appBase+'/';});
-document.querySelectorAll('[data-signup]').forEach(el=>el.addEventListener('click',()=>location.assign(signupUrl())));
+const signupUrl=plan=>appBase+'/starttrial'+(plan?'?plan='+encodeURIComponent(plan):'');
+document.querySelectorAll('[data-login]').forEach(el=>{el.href=appBase+'/login';});
+document.querySelectorAll('[data-signup]').forEach(el=>{el.href=signupUrl();});
 const plans = {
   solo: { name: 'Solo', monthly: 59, designers: 1, projects: 3, description: 'A considered workspace for your independent practice.' },
   studio: { name: 'Studio', monthly: 199, designers: 5, projects: 15, description: 'A shared home for your creative team and its next great ideas.' },
@@ -146,43 +146,7 @@ document.querySelectorAll('[data-plan]').forEach(button => {
     document.querySelector('#summary-billing').textContent = pass ? `One project · ${plan.durationDays} days of access · excluding VAT`
       : `${euro.format(plan.monthly)} billed monthly · excluding VAT`;
     document.querySelector('#summary-enhancements').textContent = pass ? '10 image enhancements for this project.' : '10 image enhancements per project per calendar month.';
-    document.querySelector('#download-status').textContent = '';
     openDialog(document.querySelector('#plan-dialog'));
   });
-});
-document.querySelector('#download-plan').addEventListener('click', () => {
-  const plan = plans[selectedPlan];
-  const details = [
-    `STUDIODECK — ${plan.name.toUpperCase()}`,
-    'Studiodeck package details · complete your purchase in the application.', '',
-    plan.description, '',
-    document.querySelector('#summary-plan').textContent,
-    document.querySelector('#summary-price').textContent,
-    document.querySelector('#summary-billing').textContent,
-    ...(selectedPlan !== 'pass' ? [document.querySelector('#summary-extra').textContent] : []), '',
-    'Includes: branded presentations, client feedback, budgets, iteration history and client guests.',
-    'All AI features are included in this plan.',
-    document.querySelector('#summary-enhancements').textContent,
-    'Originals and saved enhancements remain available when the allowance is used up.',
-    selectedPlan === 'pass' ? `One payment for one project and ${plan.durationDays} days of access. No recurring subscription. Extend the same project for another 150 days for €15 excluding VAT, without resetting its image allowance. After expiry, private downloads remain available for at least 90 days after notice.` : 'Archived projects are read-only. At the end of paid access, private downloads remain available for at least 90 days after notice.', '',
-    'This is a saved plan preview, not an order, invoice or subscription. No payment has been taken.'
-  ].join('\n');
-  const url = URL.createObjectURL(new Blob([details], { type: 'text/plain;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `studiodeck-${selectedPlan}-proposed-plan.txt`;
-  document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10000);
-  document.querySelector('#download-status').textContent = 'Your plan summary is ready in your downloads.';
-});
-document.querySelector('#plan-to-demo').addEventListener('click', () => {
-  const dialog = document.querySelector('#plan-dialog');
-  dialog.addEventListener('close', () => {
-    showTab(0, true);
-    document.querySelector('#live-demo').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
-  }, { once: true });
-  dialog.close();
 });
 document.querySelector('#year').textContent = new Date().getFullYear();

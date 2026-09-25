@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if($action==='communication_slide_link')json_response(link_communication_slide(input()));
 if($action==='communication_thread_update')json_response(update_communication_thread(input()));
 if($action==='communication_work_decide')json_response(decide_communication_work(input()));
 if($action==='communication_share')json_response(share_communication(input()));

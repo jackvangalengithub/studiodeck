@@ -36,10 +36,12 @@ if($action==='activity_feed'||$action==='comments_feed'){
     if(!empty($_GET['project_id'])){$where.=' AND p.id=?';$params[]=text_field($_GET['project_id']);}
     if($action==='comments_feed'){
         $sort=text_field($_GET['sort']??'newest',10);if(!in_array($sort,['newest','oldest'],true))fail('Choose newest or oldest first.');
-        json_response(comment_feed_page($where,$params,$offset,person_key($u['email'],true),$sort,($_GET['show_answered']??'0')==='1',($_GET['filter']??'all')==='attention'?'attention':'all')+['unread_count'=>unread_comment_count($u)]);
+        $filter=text_field($_GET['filter']??'all',20);$type=text_field($_GET['types']??$_GET['type']??'all',80);
+        $search=text_field($_GET['search']??'',200);$limit=max(1,min(100,(int)($_GET['limit']??100)));
+        if(!in_array($filter,['all','open','attention'],true)||($type!=='all'&&$type!=='none'&&array_diff(explode(',',$type),['conversation','todo','approval'])))fail('Choose a valid communication filter.');
+        json_response(comment_feed_page($where,$params,$offset,person_key($u['email'],true),$sort,($_GET['show_answered']??'0')==='1',$filter,$type,$search,$limit)+['unread_count'=>unread_comment_count($u)]);
     }
-    $items=rows('SELECT e.*,p.name AS project_name FROM events e JOIN projects p ON p.id=e.project_id WHERE '.$where.' ORDER BY e.created_at DESC,e.rowid DESC LIMIT 101 OFFSET '.$offset,$params);
-    $more=count($items)>100;$items=activity_with_questions($items);json_response(['items'=>array_slice($items,0,100),'has_more'=>$more,'unread_count'=>unread_comment_count($u)]);
+    json_response(activity_page_data($where,$params,$_GET,$offset)+['unread_count'=>unread_comment_count($u)]);
 }
 
 if($action==='resolve_slide'){

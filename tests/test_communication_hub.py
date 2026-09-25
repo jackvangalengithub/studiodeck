@@ -147,12 +147,12 @@ class CommunicationHubTests(SecurityFixture):
         for n in range(105):
             self.sql("INSERT INTO comments(id,iteration_id,slide,author,body,answered,created_at) VALUES(?,?,'general','editor@example.test','Finished',1,'2099-01-01')",('finished-'+str(n),self.iid))
         filtered=feed()
-        self.assertEqual({c['id'] for c in filtered['items'] if not c['parent_id']},{task,approval})
+        self.assertEqual({c['id'] for c in filtered['items'] if not c['parent_id']},{task})
         self.assertFalse(filtered['has_more'])
-        self.assertEqual(filtered['next_offset'],2)
-        self.assertEqual({c['id'] for c in filtered['items']},{task,approval})
+        self.assertEqual(filtered['next_offset'],1)
+        self.assertEqual({c['id'] for c in filtered['items']},{task})
         self.ok(self.editor.api('communication_work_decide',dict(iteration=self.iid,id=task,resolved=True)))
-        self.assertTrue(feed()['items'])
+        self.assertEqual(feed()['items'],[])
         self.ok(self.client.api('confirmation_decide',dict(iteration=self.iid,id=approval,decision='confirmed')))
         self.assertEqual(feed()['items'],[])
         reply=self.ok(self.client.api('communication_post',dict(iteration=self.iid,parent_id=root,body='One more detail')),201)['id']

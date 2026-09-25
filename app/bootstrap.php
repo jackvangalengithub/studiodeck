@@ -58,6 +58,7 @@ function db(): PDO {
     if(!in_array('locked',array_column($db->query('PRAGMA table_info(iterations)')->fetchAll(),'name'),true))$db->exec('ALTER TABLE iterations ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
     migrate_comment_threads($db);
     migrate_studios($db);
+    migrate_consistency_questions($db);
     $db->exec(file_get_contents(__DIR__.'/product_feedback_schema.sql'));
     migrate_languages($db);
     migrate_studio_setup($db);
@@ -222,12 +223,13 @@ function deck_payload(array $i, bool $isOwner): array {
         $result['enhancements']=project_enhancement_allowance($p['id']);
         $u=current_session();$project=one('SELECT studio_id,visibility,archived FROM projects WHERE id=?',[$p['id']]);$result['project']=array_merge($result['project'],$project);$result['billing']=billing_access($p['id']);$result['can_edit']=$u&&project_member($p['id'],$u['user_id'])&&$result['billing']['can_edit']&&($result['billing']['source']!=='project_pass'||$result['billing']['designer_id']===$u['user_id']);$result['members']=rows("SELECT u.id,COALESCE(NULLIF(sm.display_name,''),u.name) AS name,u.email FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$p['id']]);
         $result['iterations']=rows('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC',[$p['id']]);
-        $total=(int)one('SELECT COUNT(*) AS n FROM events WHERE project_id=?',[$p['id']])['n'];
-        $page=min(max(0,(int)($_GET['events_page']??0)),max(0,(int)ceil($total/20)-1));
-        $result['events']=activity_with_questions(rows('SELECT * FROM events WHERE project_id=? ORDER BY created_at DESC,rowid DESC LIMIT 20 OFFSET '.($page*20),[$p['id']]));
-        $result['events_pagination']=['page'=>$page,'per_page'=>20,'total'=>$total];
+        $options=[];foreach(['search','type','actor','project','from','to','sort'] as $key)$options[$key]=$_GET['events_'.$key]??'';
+        if($options['sort']==='')$options['sort']='newest';
+        $activity=activity_page_data('p.id=?',[$p['id']],$options,max(0,(int)($_GET['events_page']??0))*20,20);
+        $result['events']=$activity['items'];$result['events_facets']=$activity['facets'];
+        $result['events_pagination']=['page'=>(int)($activity['offset']/20),'per_page'=>20,'total'=>$activity['total']];
         $result['motion_allowance']=motion_allowance($p['id']);
-        $result['jobs']=rows('SELECT j.id,j.version_id,j.type,j.status,j.error,j.payload,v.name FROM jobs j LEFT JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? ORDER BY j.created_at',[$i['id']]);
+        $result['jobs']=rows('SELECT j.id,j.version_id,j.type,j.status,j.error,j.payload,v.name,jd.dismissed_at FROM jobs j LEFT JOIN job_dismissals jd ON jd.job_id=j.id LEFT JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? ORDER BY j.created_at',[$i['id']]);
         foreach($result['jobs'] as &$job) { $payload=json_decode($job['payload'],true)?:[];if($job['type']==='open_questions')$job['name']='Checklist';if($job['type']==='consistency')$job['name']='Consistency checks';$job['progress']=$payload['progress']??null;if(in_array($job['type'],['slide_image_edit','slide_video'],true))$job['slide_id']=$payload['slide_id']??null;unset($job['payload']); }unset($job);
         $result['shares']=rows('SELECT id,email,expires_at,revoked,created_at FROM shares WHERE iteration_id=?',[$i['id']]);
     }

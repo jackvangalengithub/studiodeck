@@ -22,6 +22,11 @@ function decorate_comments(array $comments,string $key): array {
     unset($comment);
     foreach($comments as &$c){$c['thread_details']=!$c['parent_id']?communication_topic($c['id']):null;$c['mentions']=comment_mentions($c['id']);$c['confirmation']=one('SELECT * FROM comment_confirmations WHERE comment_id=?',[$c['id']])?:null;$c['unread']=$c['author']!==substr($key,strpos($key,':')+1)&&!one('SELECT 1 FROM comment_reads WHERE comment_id=? AND person_key=?',[$c['id'],$key]);
         $account=one('SELECT name FROM users WHERE email=?',[$c['author']]);$c['profile']=profile_for(person_key($c['author'],(bool)$account),$account['name']??explode('@',$c['author'])[0]);}
+    $views=communication_view_sql($key,!str_starts_with($_SERVER['HTTP_AUTHORIZATION']??'','Client '));
+    foreach($comments as &$c)if(!$c['parent_id']){
+        $flags=one('SELECT '.$views['open'].' AS is_open,'.$views['attention'].' AS needs_attention FROM comments c WHERE c.id=?',[$c['id']]);
+        $c['is_open']=(bool)$flags['is_open'];$c['needs_attention']=(bool)$flags['needs_attention'];
+    }unset($c);
     return $comments;
 }
 function presentation_branding(string $pid): array {

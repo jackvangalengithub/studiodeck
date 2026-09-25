@@ -36,11 +36,11 @@ if($action==='review_consistency_finding'){
         elseif($op==='question'){
             if($f['fingerprint']!==consistency_context($i['id'])['fingerprint'])fail('Run checks again before creating a question from outdated evidence.',409);
             if($f['question_id']&&one('SELECT 1 FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$f['question_id']]))return ['question_id'=>$f['question_id']];
-            $qid=id();$citations=[];
+            $qid=id();$citations=[];$question=consistency_question($f,consistency_language($i['id']));
             foreach(json_decode($f['evidence'],true) as $e)if($e['basis']==='text')$citations[]=array_intersect_key($e,array_flip(['version_id','name','page','quote']));
-            insert('open_questions',['id'=>$qid,'iteration_id'=>$i['id'],'question'=>substr('Please clarify: '.$f['title'],0,240),'kind'=>'clarification','reason'=>substr($f['explanation'],0,600),'answer'=>'','citations'=>json_encode($citations,JSON_INVALID_UTF8_SUBSTITUTE),'origin'=>'designer','accepted'=>1,'edited'=>1,'published'=>0,'fingerprint'=>open_question_context($i['id'])['fingerprint'],'created_at'=>now()]);
+            insert('open_questions',['id'=>$qid,'iteration_id'=>$i['id'],'question'=>$question,'kind'=>'clarification','reason'=>substr($f['explanation'],0,600),'answer'=>'','citations'=>json_encode($citations,JSON_INVALID_UTF8_SUBSTITUTE),'origin'=>'designer','accepted'=>1,'edited'=>1,'published'=>0,'fingerprint'=>open_question_context($i['id'])['fingerprint'],'created_at'=>now()]);
             $root=ensure_checklist_thread(one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]),$u['email']);
-            $body=$f['title']."\n\n".$f['explanation'];
+            $body=$question."\n\n".$f['explanation'];
             foreach(json_decode($f['evidence'],true) as $e)$body.="\n\n".$e['name'].(!empty($e['page'])?' · p. '.$e['page']:'').": ".$e['object'].' · '.$e['property'].': '.$e['value'].(!empty($e['quote'])?"\n“".$e['quote'].'”':' (visual observation)');
             query('UPDATE comments SET body=? WHERE id=?',[text_field($body,4000),$root]);
             query('UPDATE consistency_findings SET question_id=? WHERE id=?',[$qid,$f['id']]);

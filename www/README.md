@@ -33,10 +33,10 @@ Upload the contents of `www/` to any static host. All assets and internal refere
 - Dedicated customer communication/approval and studio website sections, with illustrative project conversations and connected portfolio showcases. The studio website is included with every monthly subscription.
 - Interactive sample presentation: vision, palette, budget sources and client feedback.
 - Expanded image viewing, keyboard-accessible tabs and dialogs, mobile navigation, native FAQ disclosures, and reduced-motion support.
-- Monthly-only subscriptions at €59/€199/€499, plan details and downloadable text summaries. All AI features are included. Image alterations have an allowance of 10 per project per calendar month, or 10 total with a Project Pass.
+- Monthly-only subscriptions at €59/€199/€499, plan details. All AI features are included. Image alterations have an allowance of 10 per project per calendar month, or 10 total with a Project Pass.
 - Included active-project capacity of 3/15/50, plus extra active projects at €10 each per month. Studio supports up to 5 people; Practice includes 15, with extra people at €20 each per month.
 - A homeowner entry below the company selector links to a dedicated home-project section with finish, written-dimension and fitting-scope examples plus an illustrative supplier conversation. It stays available for every business selection and works without JavaScript.
-- A prominent €19.00 one-time Project Pass with 150 days of access above the Solo, Studio and Practice plans. The card, dialog and downloaded summary describe one project owner, including a homeowner managing their own project. A homeowner FAQ explains the existing studio setup wording; application onboarding is unchanged.
+- A prominent €19.00 one-time Project Pass with 150 days of access above the Solo, Studio and Practice plans. The card and dialog describe one project owner, including a homeowner managing their own project. A homeowner FAQ explains the existing studio setup wording; application onboarding is unchanged.
 - A top-of-page drag-and-drop / AI assembly showcase with a magic-wand illustration and an illustrative client AI conversation. The opening message emphasizes keeping existing design tools and workflow.
 - Honest launch status, illustrative-project labels and privacy/credit information.
 
@@ -56,12 +56,12 @@ Plan amounts are in `script.js` and the static HTML in `index.html`; keep those 
 
 ## Validation
 
-Checked in Chromium at 320, 375, 390, 768, 1024, 1440 and 1920 CSS pixels. Browser checks cover resource loading, horizontal overflow, the mobile menu, monthly prices, plan selection, downloaded summaries, keyboard tabs, budget source disclosure, safe text-only sample comments, expanded images, FAQ and privacy dialogs.
+Checked in Chromium at 320, 375, 390, 768, 1024, 1440 and 1920 CSS pixels. Browser checks cover resource loading, horizontal overflow, the mobile menu, monthly prices, plan selection, keyboard tabs, budget source disclosure, safe text-only sample comments, expanded images, FAQ and privacy dialogs.
 
 No changes or tests are required in the separate PHP application for this static site.
 
 ## Signup connection
 
-Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`), and update the header’s `data-login` link to that origin’s root URL for use without JavaScript. Empty uses the marketing page’s origin. The header’s **Log in** button opens the app root, which redirects signed-out visitors to login. The trial CTA and plan dialog link to `/login`; payment is handled inside the PHP app through Stripe. The local preview is configured for `http://localhost:8199`. See [billing setup](../docs/billing.md).
+Set the `studiodeck-app-url` meta tag in `index.html` to the deployed application origin (for example `https://app.example.com`), and update the header’s `data-login` link to that origin’s `/login` URL for use without JavaScript. Empty uses the marketing page’s origin. The header’s **Log in** button opens `/login`. The trial CTA and plan dialog link to `/starttrial`, which uses the same email-link authentication with trial-focused copy; payment is handled inside the PHP app through Stripe. The local preview is configured for `http://localhost:8199`. See [billing setup](../docs/billing.md).
 
 `tests/test_marketing_browser.mjs` checks audience switching, shared wizard images/labels, refresh and direct links, responsive layouts, example interactions and unchanged pricing. Serve `www/` and supply `MARKETING_TEST_URL`, `PLAYWRIGHT_MODULE` and `CHROMIUM_EXECUTABLE` as needed.

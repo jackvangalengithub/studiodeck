@@ -20,6 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_iteration ON comments(iteration_id);
 CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT, actor TEXT NOT NULL, type TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_events_project_time ON events(project_id,created_at);
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT NOT NULL REFERENCES iterations(id), version_id TEXT REFERENCES file_versions(id), type TEXT NOT NULL, payload TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'queued', error TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, started_at TEXT);
+CREATE TABLE IF NOT EXISTS job_dismissals (job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE, dismissed_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status,created_at);
 CREATE TABLE IF NOT EXISTS document_pages (version_id TEXT NOT NULL REFERENCES file_versions(id), number INTEGER NOT NULL, text TEXT NOT NULL, metadata TEXT NOT NULL, preview BLOB, PRIMARY KEY(version_id,number));
 CREATE TABLE IF NOT EXISTS document_images (version_id TEXT NOT NULL, page_number INTEGER NOT NULL, number INTEGER NOT NULL, metadata TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY(version_id,page_number,number), FOREIGN KEY(version_id,page_number) REFERENCES document_pages(version_id,number) ON DELETE CASCADE);

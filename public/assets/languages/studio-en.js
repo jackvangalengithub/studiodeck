@@ -1,5 +1,18 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "studio_subquote_intro_title": "See how your quotes fit together",
+  "studio_subquote_intro_description": "Compare your quote files to find subquotes already covered by a main quote.",
+  "studio_subquote_intro_automatic": "Clear matches are linked automatically, so included costs are counted only once in your budget.",
+  "studio_subquote_intro_review": "Uncertain matches are saved for you to review and decide.",
+  "studio_subquote_intro_background": "You can keep working while the check runs in the background.",
+  "studio_subquote_start": "Start checking",
+  "studio_subquote_starting": "Starting…",
+
+  "studio_go_to_budget_cost": "Go to {v0} · {v1}",
+  "studio_file_filter_hint": "Choose which categories to show in your file list.",
+  "studio_file_categories_selected": "{v0} of {v1} categories selected",
+  "studio_all_file_categories_shown": "All file categories shown",
+
   "media_motion_presets": "Camera movement presets",
   "media_orbit": "Gentle orbit",
   "media_prompt_label": "What movement would you like?",
@@ -604,6 +617,11 @@ export default {
   "studio_quote_relationship_saved": "Quote relationship saved.",
   "studio_link_removed_this_cost_will_stay_separate": "Link removed. This cost will stay separate.",
   "studio_client_link_revoked": "Client link revoked.",
+  "studio_processing_open": "Open",
+  "studio_processing_dismissed": "Dismissed",
+  "studio_view_dismissed_processing": "View dismissed items",
+  "studio_no_dismissed_processing": "No dismissed items.",
+  "studio_no_files_need_attention": "No files need attention.",
   "studio_a_closer_look_at_your_files": "A closer look at your files.",
   "studio_retry": "Retry",
   "studio_processing_queued_again": "Processing queued again.",
