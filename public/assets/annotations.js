@@ -1,3 +1,4 @@
+import {presentationComments} from './presentation-view.js';
 import {tr} from './i18n.js';
 
 // Coordinates are relative to the actual image, excluding letterboxing.
@@ -30,7 +31,7 @@ function scopedAnnotationUi({state,esc,button,context,openFeedback,root}){
  function schedule(){cancelAnimationFrame(frame);frame=requestAnimationFrame(draw);}
  function draw(){if(!layer?.isConnected)return;const ctx=current(),g=geometry();if(!ctx||!g)return;
   layer.classList.toggle('placing',armed);layer.tabIndex=armed?0:-1;layer.setAttribute('aria-label',tr('pin_keyboard_hint'));
-  const comments=state.data.comments.filter(c=>!c.parent_id&&c.slide===ctx.slide&&sameAnnotationImage(c.annotation,ctx));
+  const comments=presentationComments(state.data).filter(c=>!c.parent_id&&c.slide===ctx.slide&&sameAnnotationImage(c.annotation,ctx));
   layer.innerHTML=comments.map((c,n)=>{const a=c.annotation,x=g.x+a.x*g.width,y=g.y+a.y*g.height;if((Number(c.answered)&&!showResolved)||x<0||y<0||x>host.clientWidth/g.sx||y>host.clientHeight/g.sy)return '';return `<button type="button" class="annotation-pin ${Number(c.answered)?'resolved':''}" data-pin-id="${esc(c.id)}" style="left:${x*g.sx}px;top:${y*g.sy}px" aria-label="${esc(tr('feedback_pin',{number:n+1})+': '+c.body)}" title="${esc(c.body)}">${Number(c.answered)?'✓':n+1}</button>`;}).join('')+(armed?`<span class="annotation-crosshair" style="left:${(g.x+point.x*g.width)*g.sx}px;top:${(g.y+point.y*g.height)*g.sy}px" aria-hidden="true">+</span>`:'');
   root.querySelectorAll('[data-action=annotation-arm]').forEach(b=>{b.setAttribute('aria-pressed',String(armed));const label=b.querySelector('[data-annotation-arm-label]');if(label)label.textContent=tr(armed?'cancel_pin':'pin_feedback');});
   root.querySelectorAll('[data-action=annotation-resolved]').forEach(b=>b.setAttribute('aria-pressed',String(showResolved)));

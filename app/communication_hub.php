@@ -57,11 +57,16 @@ function communication_iterations(array $i,bool $designer): array {
     return rows("SELECT i.id,i.number,i.title,i.locked,(SELECT s.id FROM shares s WHERE s.iteration_id=i.id AND s.email=? AND s.revoked=0 AND s.expires_at>? ORDER BY s.created_at DESC LIMIT 1) AS share_id FROM iterations i WHERE i.project_id=? AND i.status='shared' AND EXISTS(SELECT 1 FROM project_client_members cm WHERE cm.project_id=i.project_id AND cm.email=?) AND EXISTS(SELECT 1 FROM shares s WHERE s.iteration_id=i.id AND s.email=? AND s.revoked=0 AND s.expires_at>?) ORDER BY i.number DESC",[current_session()['email'],time(),$i['project_id'],current_session()['email'],current_session()['email'],time()]);
 }
 function project_communication_payload(array $i,bool $designer): array {
-    $iterations=communication_iterations($i,$designer);$comments=[];$threads=[];$confirmations=[];$attachments=[];$guests=[];$items=[];$recipients=[];$files=[];$slides=[];
-    foreach($iterations as $iteration){
+    $iterations=communication_iterations($i,$designer);$comments=[];$threads=[];$confirmations=[];$attachments=[];$guests=[];$items=[];$recipients=[];$files=[];$slides=[];$publicSlides=[];
+    foreach($iterations as $index=>$iteration){
         $source=one('SELECT * FROM iterations WHERE id=?',[$iteration['id']]);
+        // Historical presentation threads keep the original iteration's audience.
+        // The client payload is already restricted to that client's active shares.
+        $iterations[$index]['status']=$source['status'];
+        $iterations[$index]['presentation_visible']=$source['id']===$i['id']||($source['status']==='shared'&&(bool)one('SELECT 1 FROM shares s JOIN project_client_members m ON m.project_id=? AND m.email=s.email WHERE s.iteration_id=? AND s.revoked=0 AND s.expires_at>?',[$i['project_id'],$source['id'],time()]));
         $part=communication_payload($source);
         $slides[$source['id']]=communication_slides($source['id'],$designer);
+        $publicSlides[$source['id']]=$designer?communication_slides($source['id'],false):$slides[$source['id']];
         $visible=communication_visible(rows('SELECT *,rowid AS comment_order FROM comments WHERE iteration_id=? ORDER BY created_at,rowid',[$source['id']]),$designer);
         $ids=array_fill_keys(array_column($visible,'id'),true);
         foreach($visible as &$c){$c['audience']=communication_audience(communication_root($c));$c['iteration_number']=$source['number'];}unset($c);
@@ -76,7 +81,7 @@ function project_communication_payload(array $i,bool $designer): array {
     $seen=[];$items=array_values(array_filter($items,function($q)use(&$seen){if(isset($seen[$q['id']]))return false;$seen[$q['id']]=true;return true;}));
     usort($comments,fn($a,$b)=>strcmp($a['created_at'],$b['created_at'])?:$a['comment_order']<=>$b['comment_order']);
     [$key]=profile_identity();
-    return ['actor'=>current_session()['email'],'comments'=>decorate_comments($comments,$key),'threads'=>$threads,'confirmations'=>$confirmations,'attachments'=>$attachments,'guests'=>$guests,'items'=>$items,'iterations'=>$iterations,'recipients'=>$recipients[$i['id']]??[],'iteration_recipients'=>$recipients,'iteration_files'=>$files,'iteration_slides'=>$slides];
+    return ['actor'=>current_session()['email'],'comments'=>decorate_comments($comments,$key),'threads'=>$threads,'confirmations'=>$confirmations,'attachments'=>$attachments,'guests'=>$guests,'items'=>$items,'iterations'=>$iterations,'recipients'=>$recipients[$i['id']]??[],'iteration_recipients'=>$recipients,'iteration_files'=>$files,'iteration_slides'=>$slides,'public_iteration_slides'=>$publicSlides];
 }
 function share_communication(array $b): array {
     return transaction(function()use($b){
@@ -194,7 +199,7 @@ function communication_view_sql(string $personKey,bool $designer=true): array {
 
 function communication_slides(string $iid,bool $designer): array {
     require_once __DIR__.'/slides.php';
-    $titles=['intro'=>'Introduction','changes'=>'Changes','budget'=>'Budget','open-questions'=>'Checklist','contacts'=>'Project team','summary'=>'Summary'];
+    $titles=['intro'=>'Introduction','changes'=>'Changes','budget'=>'Budget','open-questions'=>'Open items','contacts'=>'Project team','summary'=>'Summary'];
     $visuals=array_column(rows('SELECT id,title FROM presentation_slides WHERE iteration_id=?',[$iid]),'title','id');
     $content=array_column(rows('SELECT slide_id,title FROM slide_content WHERE iteration_id=?',[$iid]),'title','slide_id');
     $layout=array_column(rows('SELECT * FROM slide_layout WHERE iteration_id=?',[$iid]),null,'slide_id');

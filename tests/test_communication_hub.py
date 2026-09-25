@@ -164,3 +164,36 @@ class CommunicationHubTests(SecurityFixture):
         self.assertEqual(feed(project_id='foreign')['items'],[])
         self.denied(self.client.api('comments_feed',query=dict(filter='attention')))
         self.denied(self.anon.api('comments_feed',query=dict(filter='attention')))
+
+    def test_presentation_history_metadata_preserves_sharing_and_hidden_slides(self):
+        root = self.post(thread_title='Earlier shared discussion', audience='shared')
+        self.ok(self.editor.api('slide_layout', dict(iteration=self.iid, operation='hide', slide_id='budget')))
+        draft = self.ok(self.editor.api('new_iteration', dict(iteration=self.iid)), 201)['id']
+        latest = self.ok(self.editor.api('new_iteration', dict(iteration=draft)), 201)['id']
+        hub = self.deck(iteration=latest)['communication']
+        visible = {i['id']: i['presentation_visible'] for i in hub['iterations']}
+        self.assertTrue(visible[self.iid])
+        self.assertTrue(visible[latest])
+        self.assertFalse(visible[draft])
+        self.assertIn('budget', [s['id'] for s in hub['iteration_slides'][self.iid]])
+        self.assertNotIn('budget', [s['id'] for s in hub['public_iteration_slides'][self.iid]])
+        self.sql("UPDATE iterations SET status='shared' WHERE id=?", (latest,))
+        self.sql("INSERT INTO shares(id,iteration_id,token_hash,email,expires_at,created_at) VALUES('new-share',?,'new-token','client@example.test',9999999999,'2026-01-02')", (latest,))
+        client = Client(self.base, 'client', client_share='new-share')
+        public = self.deck(client, latest)['communication']
+        self.assertIn(root, [c['id'] for c in public['comments']])
+        self.assertNotIn(draft, [i['id'] for i in public['iterations']])
+        self.sql("UPDATE shares SET revoked=1 WHERE id='client-share'")
+        self.assertNotIn(root, [c['id'] for c in self.deck(client, latest)['communication']['comments']])
+        visible = {i['id']: i['presentation_visible'] for i in self.deck(iteration=latest)['communication']['iterations']}
+        self.assertFalse(visible[self.iid])
+
+    def test_presentation_completion_excludes_private_work(self):
+        root = self.post(thread_title='Shared resolved discussion', audience='shared')
+        self.item(source_comment_id=root, published=False)
+        self.sql('UPDATE comments SET answered=1 WHERE id=?', (root,))
+        studio = next(c for c in self.deck()['communication']['comments'] if c['id'] == root)
+        client = next(c for c in self.deck(self.client)['communication']['comments'] if c['id'] == root)
+        self.assertTrue(studio['is_open'])
+        self.assertFalse(studio['presentation_is_open'])
+        self.assertEqual(studio['presentation_is_open'], client['presentation_is_open'])

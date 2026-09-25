@@ -1,5 +1,17 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "studio_undo": "Ongedaan maken",
+  "studio_slide_hidden_undo": "“{title}” verborgen.",
+
+  "studio_tool_unavailable": "Hier niet beschikbaar",
+  "studio_tools": "Studiotools",
+  "studio_image_versions": "Beeldversies",
+  "studio_manage_checklist": "Checklist beheren",
+  "studio_manage_budget": "Begroting beheren",
+  "studio_internal_communication": "Studiocommunicatie",
+  "studio_editor_only": "Alleen studio · editor",
+  "studio_version_preview_hint": "Bekijk hier een versie. De presentatie verandert pas wanneer je “Gebruik deze versie” kiest.",
+
   "studio_subquote_intro_title": "Ontdek hoe je offertes samenhangen",
   "studio_subquote_intro_description": "Vergelijk je offertebestanden om deeloffertes te vinden die al in een hoofdofferte zijn opgenomen.",
   "studio_subquote_intro_automatic": "Duidelijke overeenkomsten worden automatisch gekoppeld, zodat inbegrepen kosten maar één keer meetellen in je budget.",
@@ -153,7 +165,7 @@ export default {
   "studio_system_slide_intro_description": "Verwelkom klanten met de projectintroductie.",
   "studio_system_slide_changes_description": "Toon wat er sinds de vorige iteratie is gewijzigd.",
   "studio_system_slide_budget_description": "Bekijk actuele kosten, opties en prijsbandbreedtes. Budgetwijzigingen verschijnen in elke kopie.",
-  "studio_system_slide_open_questions_description": "Volg projectvragen en acties, met gekoppelde gesprekken en bevestigingen.",
+  "studio_system_slide_open_questions_description": "Bekijk gedeelde gesprekken, taken en goedkeuringen binnen het project, met open en afgeronde punten.",
   "studio_system_slide_contacts_description": "Stel de betrokkenen bij het project voor.",
   "studio_system_slide_summary_description": "Breng het budget, bestanden en vervolgstappen samen.",
 

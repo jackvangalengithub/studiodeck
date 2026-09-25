@@ -1,5 +1,17 @@
 // Studio workspace and editor copy. Keep keys identical across languages.
 export default {
+  "studio_undo": "Undo",
+  "studio_slide_hidden_undo": "“{title}” hidden.",
+
+  "studio_tool_unavailable": "Not available here",
+  "studio_tools": "Studio tools",
+  "studio_image_versions": "Image versions",
+  "studio_manage_checklist": "Manage checklist",
+  "studio_manage_budget": "Manage budget",
+  "studio_internal_communication": "Studio communication",
+  "studio_editor_only": "Studio only · editor",
+  "studio_version_preview_hint": "Preview a version here. The presentation changes only when you choose “Use this version”.",
+
   "studio_subquote_intro_title": "See how your quotes fit together",
   "studio_subquote_intro_description": "Compare your quote files to find subquotes already covered by a main quote.",
   "studio_subquote_intro_automatic": "Clear matches are linked automatically, so included costs are counted only once in your budget.",
@@ -153,7 +165,7 @@ export default {
   "studio_system_slide_intro_description": "Welcome clients with the project introduction.",
   "studio_system_slide_changes_description": "Show what changed since the previous iteration.",
   "studio_system_slide_budget_description": "Explore live costs, options and price ranges. Budget changes appear in every copy.",
-  "studio_system_slide_open_questions_description": "Track project questions and actions, with linked discussions and approvals.",
+  "studio_system_slide_open_questions_description": "See shared conversations, to-dos and approvals across the project, with open and completed views.",
   "studio_system_slide_contacts_description": "Introduce the people involved in the project.",
   "studio_system_slide_summary_description": "Bring together the budget, files and next steps.",
 
