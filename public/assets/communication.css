@@ -85,6 +85,18 @@
 .comm-type-tabs button:disabled{opacity:.45;cursor:not-allowed}
 .comm-typed-composer [hidden]{display:none!important}
 .comm-typed-composer [data-compose-fields]{margin-top:12px}
+.comm-person-field{display:flex;align-items:center;flex-wrap:wrap;gap:7px;min-width:0}
+.comm-person-label{font-size:12px;color:var(--muted);margin-right:3px}
+.comm-person-chip{display:inline-flex;align-items:center;max-width:100%;min-height:36px;padding:7px 12px;border:1px solid var(--line,#ddd);border-radius:20px;background:var(--surface,#fff);font-size:13px;overflow-wrap:anywhere;text-align:left}
+.comm-person-chip::before{content:'@';margin-right:6px;color:var(--thread-color,#3976a0);font-weight:600}
+.comm-person-chip:disabled{opacity:.65;cursor:default}
+.comm-person-chip[aria-invalid=true]{border-color:var(--red,#b23e35)}
+.comm-person-clear{border:0;background:transparent;color:var(--muted);font-size:20px;width:36px;min-height:36px;border-radius:50%}
+.comm-waiting-action{display:block;margin-top:12px;padding:6px 0;min-height:36px;border:0;background:transparent;font-size:12px;color:var(--thread-color,#3976a0);text-align:left}
+.comm-person-chip:focus-visible,.comm-person-clear:focus-visible,.comm-waiting-action:focus-visible{outline:2px solid var(--thread-color,#3976a0);outline-offset:2px}
+.comm-person-popover{position:fixed;z-index:10000;max-width:calc(100vw - 24px);padding:7px;background:var(--surface,#fff);border:1px solid var(--line,#ddd);border-radius:12px;box-shadow:0 8px 30px #0002}
+.comm-person-popover>input{width:100%;min-height:40px;margin:0;font-size:14px;border-radius:7px}
+.comm-person-popover .comm-person-results{position:static;max-height:min(220px,35vh);margin-top:5px;padding:0;border:0;box-shadow:none;width:100%}
 .comm-type-label{display:inline-block;background:var(--compose-tint);font-size:12px;border-radius:5px;padding:3px 7px;margin-bottom:6px}
 .comm-suggestions{margin:12px 0 20px;border:1px solid var(--border,#ddd);border-radius:12px;padding:16px}
 .comm-suggestions>summary{cursor:pointer;font-weight:600}

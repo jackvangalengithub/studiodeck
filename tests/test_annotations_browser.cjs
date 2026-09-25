@@ -1,3 +1,4 @@
+const choosePerson=require('./fixtures/person-picker.cjs');
 /* Run against tests/fixtures/communication-server.py (isolated real API). */
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict');
@@ -19,7 +20,7 @@ const base=process.env.COMMUNICATION_BASE||'http://127.0.0.1:18517';
   await page.locator('#comm-thread-form [name=thread_title]').fill('Kitchen materials');
   await page.locator('#comm-thread-form textarea').fill('Pinned kitchen feedback');
   await page.locator('[data-compose-type=todo]').click();
-  await page.locator('#comm-thread-form [name=assignee]').selectOption('editor@example.test');
+  await choosePerson(page,page.locator('#comm-thread-form'),'assignee','editor@example.test');
   assert.equal(await page.locator('.comm-pin-preview img').count(),1);
   await page.locator('#comm-thread-form button[type=submit]').click();
   await page.getByText('Pinned kitchen feedback',{exact:true}).waitFor();await close();

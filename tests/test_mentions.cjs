@@ -1,3 +1,4 @@
+const choosePerson=require('./fixtures/person-picker.cjs');
 /* Isolated communication fixture; emails are logged, never delivered. */
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const assert=require('node:assert/strict'),fs=require('node:fs');
@@ -26,7 +27,7 @@ const mail=process.env.COMMUNICATION_MAIL_LOG||'/tmp/studiodeck-communication-br
   assert.match(await page.getByRole('option').filter({hasText:'Bakker Joinery'}).textContent(),/Invite to this conversation/);
   await input.fill('Hello @Cli');
   await page.getByRole('option',{name:'Client client@example.test'}).waitFor();
-  assert.equal(await page.locator('#mention-picker [role=option]').count(),2);
+  await page.waitForFunction(()=>document.querySelectorAll('#mention-picker [role=option]').length===2);
   assert(!await page.locator('#mention-picker').getByText('Bakker Joinery').count());
   await input.press('ArrowDown');await input.press('ArrowUp');await input.press('Enter');
   assert.equal(await input.inputValue(),'Hello @Client ');
@@ -41,17 +42,29 @@ const mail=process.env.COMMUNICATION_MAIL_LOG||'/tmp/studiodeck-communication-br
 
   // New thread types preserve the selected mention identity.
   await page.locator('[data-action=comm-new]').click();
-  const fresh=page.locator('#comm-thread-form');await fresh.locator('[name=audience]').selectOption('shared');
+  const fresh=page.locator('#comm-thread-form');await fresh.locator('[data-compose-audience=shared]').click();
   await fresh.locator('[name=thread_title]').fill('Finish confirmation');
   await fresh.locator('[name=body]').fill('Could @Cli');await page.getByRole('option',{name:'Client client@example.test',exact:true}).click();
-  await fresh.locator('[data-compose-type=approval]').click();await fresh.locator('[name=recipient]').selectOption('client@example.test');
+  assert.equal(await fresh.locator('[name=assignee]').inputValue(),'');
+  await fresh.locator('[data-compose-type=approval]').click();assert.equal(await fresh.locator('[name=recipient]').inputValue(),'');await choosePerson(page,fresh,'recipient','client@example.test');
   assert.equal(await fresh.locator('[name=body]').inputValue(),'Could @Client ');
-  await fresh.locator('[type=submit]').click();await page.locator('.comm-messages .chat-mention').waitFor();
+  await fresh.locator('[type=submit]').click();await page.locator('.comm-summary-body .chat-mention').waitFor();
 
   // At a narrow viewport the picker stays within the screen; Escape closes only it.
   await page.setViewportSize({width:390,height:844});
   await page.locator('[data-action=comm-new]').click();
   await page.waitForFunction(()=>document.activeElement?.matches('.modal [data-action=close-modal]'));
+  for(const width of [390,320]){
+   await page.setViewportSize({width,height:844});await fresh.locator('[data-compose-type=todo]').click();
+   await fresh.locator('[data-compose-assignee] [data-person-chip]').click();
+   const search=page.locator('.comm-person-popover [role=combobox]');await search.fill('editor');
+   const bounds=await page.locator('.comm-person-popover').boundingBox();
+   assert(bounds.x>=0&&bounds.x+bounds.width<=width&&bounds.y>=0&&bounds.y+bounds.height<=844);
+   await page.locator('.comm-person-popover [role=option]').click();
+   assert.equal(await fresh.locator('[name=assignee]').inputValue(),'editor@example.test');
+   await fresh.locator('[data-person-clear]').first().click();
+  }
+  await page.setViewportSize({width:390,height:844});await fresh.locator('[data-compose-type=conversation]').click();
   const modalInput=page.locator('#comm-thread-form [name=body]');await modalInput.fill('@');
   await page.locator('#mention-picker').waitFor();const bounds=await page.locator('#mention-picker').boundingBox();
   assert(bounds.x>=0&&bounds.x+bounds.width<=390&&bounds.y>=0&&bounds.y+bounds.height<=844);
