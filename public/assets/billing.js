@@ -1,3 +1,4 @@
+import {platformFetch} from './platform/files.js';
 import {tr,getLanguage} from './i18n.js';
 export function billingUi({state,api,esc,button,openModal,closeModal,render,applySession,resetStudio,toast,isModalOpen,resourceHeaders,resumeAccess=async()=>false,hasIntent=()=>false,purchaseStarted=()=>{},createProject=async()=>{}}){
   const date=t=>t?new Date(Number(t)*1000).toLocaleString(getLanguage()==='nl'?'nl-NL':undefined,{dateStyle:'medium',timeStyle:'short'}):'—';
@@ -11,9 +12,13 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
   let drafts={},current=null,invoices=null,invoiceError='',poll=null,checkoutNotice='';
   async function load(){
     if(!admin())throw Error(tr("studio_only_studio_admins_can_view_billing"));
-    const sid=state.studio.id;current=await api('billing');if(state.studio.id!==sid)return;
+    const sid=state.studio.id;
+    const [billingResult,invoiceResult]=await Promise.allSettled([api('billing'),api('billing_invoices')]);
+    if(state.studio.id!==sid)return;
+    if(billingResult.status==='rejected')throw billingResult.reason;
+    current=billingResult.value;
     state.billing=current.summary;drafts={};invoices=null;invoiceError='';
-    try{invoices=(await api('billing_invoices')).invoices;}catch(e){invoiceError=e.message;}
+    if(invoiceResult.status==='fulfilled')invoices=invoiceResult.value.invoices;else invoiceError=invoiceResult.reason.message;
   }
   async function open(){closeModal();state.settingsOpen=false;state.present=false;state.tab='billing';await load();render();}
   function page(){
@@ -90,7 +95,7 @@ export function billingUi({state,api,esc,button,openModal,closeModal,render,appl
     if(a==='billing-cancel-change'){await api('billing_cancel_change',{change_id:el.dataset.id});await load();render();return true;}
     if(a==='billing-confirm-change'){const r=await api('billing_change_confirm',{change_id:el.dataset.id});if(r.url)location.assign(r.url);else{await load();render();await resumeAccess();}return true;}
     if(a==='billing-export'){
-      const response=await fetch('/api.php?'+new URLSearchParams({action:'project_export',project_id:state.data.project.id}),{credentials:'same-origin',headers:resourceHeaders()});if(!response.ok)throw Error((await response.json()).error||tr("studio_export_failed"));
+      const response=await platformFetch(new URLSearchParams({action:'project_export',project_id:state.data.project.id}),{credentials:'same-origin',headers:resourceHeaders()});if(!response.ok)throw Error((await response.json()).error||tr("studio_export_failed"));
       const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download='studiodeck-project.zip';link.click();setTimeout(()=>URL.revokeObjectURL(url),30000);return true;
     }
     return false;

@@ -41,8 +41,6 @@ async function setup(t,{width=1440,view='slides',failedJobs=false}={}){
  deck.comments=[{id:'feedback-1',slide:'general',body:'Please review the warmer finish',author:'client@example.test',created_at:'2026-09-20T12:00:00Z'}];
  if(failedJobs)deck.jobs=[{id:'failed-file',type:'ingest',name:'Kitchen specification.pdf',status:'failed',error:'Could not extract this document.'},{id:'failed-video',type:'slide_video',name:'Living room preview',slide_id:'image-0',status:'failed',error:'The video request could not finish.'}];
  deck.communication={actor:'designer@example.test',recipients:[],threads:[],confirmations:[],attachments:[]};
- const events=Array.from({length:23},(_,n)=>({id:'event-'+n,actor:'Designer',type:'file_uploaded',detail:'Uploaded drawing '+n,created_at:'2026-09-20T12:00:00Z',project_id:'project-a',project_name:'Haus Morgenlicht',iteration_id:deck.iteration.id}));
- events[0]={...events[0],type:'question_answered',question_answer:{slide:'intro',slide_title:'Welcome home',question:'Which finish?',answer:'Natural oak.',status:'answered'}};
  const items=Array.from({length:14},(_,n)=>({kind:n%2?'questions':'feedback',id:n===0?'feedback-1':'item-'+n,title:'Review project detail '+n,project_id:'project-a',project_name:'Haus Morgenlicht',iteration_id:deck.iteration.id,iteration_number:2,unread_count:1}));
  await page.route('**/*',async route=>{
   const url=new URL(route.request().url());if(url.origin!==base)return route.abort();if(url.pathname!=='/api.php')return route.continue();
@@ -50,16 +48,7 @@ async function setup(t,{width=1440,view='slides',failedJobs=false}={}){
   if(action==='session')response={user:{id:'test',name:'Designer'},csrf:'test',studio,studios:[studio],studio_theme:{palette:'sage',style:'modern'},capabilities:{ai:false,mail:false}};
   else if(action==='projects')response={projects:[{...deck.project,iteration:deck.iteration}]};
   else if(action==='project_access')response={reason:'ready'};
-  else if(action==='project'||action==='activity_feed'){
-   const project=action==='project',get=key=>url.searchParams.get((project?'events_':'')+key)||'';
-   const search=get('search').toLowerCase();
-   let filtered=events.filter(e=>(!search||JSON.stringify(e).toLowerCase().includes(search))&&(!get('type')||e.type===get('type'))&&(!get('actor')||e.actor===get('actor'))&&(!get('project')||e.project_id===get('project'))&&(!get('from')||e.created_at.slice(0,10)>=get('from'))&&(!get('to')||e.created_at.slice(0,10)<=get('to')));
-   if(get('sort')==='oldest')filtered.reverse();
-   const facets={types:['file_uploaded','question_answered'],actors:['Designer'],projects:[{id:'project-a',name:'Haus Morgenlicht'}]};
-   if(control.activityDelay&&search===control.activityDelay)await new Promise(resolve=>{control.hold=resolve;});
-   if(project){const n=Math.min(Number(get('page')||0),Math.max(0,Math.ceil(filtered.length/20)-1));response={...deck,events:filtered.slice(n*20,n*20+20),events_facets:facets,events_pagination:{page:n,total:filtered.length}};}
-   else response={items:filtered,facets,total:filtered.length,has_more:false};
-  }
+  else if(action==='project')response=deck;
   else if(action==='match_subquotes'){if(control.subquoteFail)return route.fulfill({status:500,json:{error:'Could not start the quote check.'}});deck.jobs=[{id:'subquote-check',type:'subquote_match',status:'queued'}];response={id:'subquote-check'};}
   else if(action==='dismiss_job'||action==='restore_job'){if(control.dismissFail)return route.fulfill({status:500,json:{error:'Could not dismiss this item.'}});deck.jobs.find(j=>j.id===data.id).dismissed_at=action==='restore_job'?null:'2026-09-25T12:00:00Z';response={ok:true};}
   else if(action==='attention'){
@@ -68,12 +57,12 @@ async function setup(t,{width=1440,view='slides',failedJobs=false}={}){
    const kind=url.searchParams.get('kind');response={items:items.filter(item=>kind==='all'||item.kind===kind),counts:{questions:7,confirmations:0,feedback:7,deadlines:0},total:14,today:'2026-09-24',has_more:false};
   }else if(action==='comment_preview')return route.fulfill({status:404,body:''});
   else if(action==='comments_feed')response={items:deck.comments.map(c=>({...c,project_id:'project-a',project_name:deck.project.name,iteration_id:deck.iteration.id,iteration_number:2,unread:true})),has_more:false};
-  else if(['read_comments','view_event'].includes(action))response={ok:true};
+  else if(action==='read_comments')response={ok:true};
   else{errors.push('Unexpected API action: '+action);return route.fulfill({status:500,json:{error:'Unexpected request'}});}
   return route.fulfill({json:response});
  });
- const url=view==='attention'?`${base}/${studio.id}/attention`:view==='all-activity'?`${base}/${studio.id}/activity`:view==='all-comments'?`${base}/${studio.id}/comments`:`${base}/${studio.id}/projects/project-a?tab=${view}`;
- await page.goto(url);await page.locator(view==='attention'?'.attention-item':view==='all-activity'?'.activity-item':view==='all-comments'?'[data-action=communication-filter]':'.tabs').first().waitFor({state:'visible'});
+ const url=view==='attention'?`${base}/${studio.id}/attention`:view==='all-comments'?`${base}/${studio.id}/comments`:`${base}/${studio.id}/projects/project-a?tab=${view}`;
+ await page.goto(url);await page.locator(view==='attention'?'.attention-item':view==='all-comments'?'[data-action=communication-filter]':'.tabs').first().waitFor({state:'visible'});
  return {page,calls,control,deck};
 }
 for(const width of [1440,390,320])test(`Presentation and Files controls at ${width}px`,async t=>{
@@ -203,43 +192,6 @@ test('Communication owns the Needs attention preset',async t=>{
  await page.locator('[data-action=communication-filter][data-filter=all]').click();
  await page.waitForURL(/\/comments\?filter=all$/);
 });
-for(const width of [1440,390])test(`Project activity cards and pagination at ${width}px`,async t=>{
- const {page}=await setup(t,{width,view:'activity'});await page.locator('.activity-item').first().waitFor();
- assert.equal(await page.locator('.attention-list.activity-list .activity-item').count(),20);
- assert.match(await page.locator('.activity-question-answer').innerText(),/Which finish\?[\s\S]*Natural oak/);
- await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2 of 2',{exact:true}).waitFor();assert.equal(await page.locator('.activity-item').count(),3);
- await page.locator('[data-action=activity-prev]').click();await page.getByText('Page 1 of 2',{exact:true}).waitFor();
- assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.TEST_SCREENSHOT_DIR,`project-activity-${width}.png`),fullPage:true});}
- if(width<700)await page.locator('.mobile-menu').click();await page.locator('.sidebar [data-action=all-activity]').click();await page.locator('.project-activity-page h1').waitFor();assert.equal(await page.locator('.activity-item').count(),23);
- await page.locator('[data-action=activity-project]').first().click();await page.locator('.tabs').waitFor();assert.equal(await page.locator('.tab.active').innerText(),'Activity');
- if(width<700)await page.locator('.mobile-menu').click();await page.locator('.sidebar [data-action=all-comments]').click();await page.locator('[data-action=communication-filter]').first().waitFor();assert.equal(await page.locator('.tabs').count(),0);
-});
-
-for(const view of ['activity','all-activity'])for(const width of [1440,390])test(`Activity search, filters and sorting in ${view} at ${width}px`,async t=>{
- const {page,control}=await setup(t,{width,view}),search=page.getByRole('textbox',{name:'Search activity'});
- if(view==='activity'){await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2 of 2',{exact:true}).waitFor();}
- await search.fill('Natural oak');await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length===1);
- assert.match(await page.locator('.activity-item').innerText(),/Natural oak/);assert.equal(await search.inputValue(),'Natural oak');assert(await search.evaluate(e=>e===document.activeElement));
- await search.fill('');await page.getByRole('button',{name:'Filter activity',exact:true}).click();await page.locator('[data-activity-form]').evaluate(form=>{for(const field of form.querySelectorAll('select,input'))field.value='';});await page.getByRole('button',{name:'Apply filters'}).click();await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length>1);
- await page.getByLabel('Sort activity').selectOption('oldest');await page.waitForFunction(()=>document.querySelector('.activity-copy>p')?.textContent==='Uploaded drawing 22');
- await page.getByRole('button',{name:'Filter activity',exact:true}).click();
- const form=page.locator('[data-activity-form]');await form.getByLabel('Activity type').selectOption('question_answered');await form.getByLabel('Person',{exact:true}).selectOption('Designer');
- if(view==='all-activity')await form.getByLabel('Project',{exact:true}).selectOption('project-a');
- await form.getByLabel('From',{exact:true}).fill('2026-09-20');await form.getByLabel('Through',{exact:true}).fill('2026-09-20');
- if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.TEST_SCREENSHOT_DIR,`activity-filters-${view}-${width}.png`)});}
- await form.getByRole('button',{name:'Apply filters'}).click();await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length===1);
- assert.equal(await page.locator('.activity-filter.is-active').count(),1);assert.match(await page.locator('.activity-filter-summary').innerText(),/question answered/);
- await search.fill('no results');await page.getByRole('heading',{name:'No matching activity'}).waitFor();
- await search.fill('');await page.getByRole('button',{name:'Filter activity',exact:true}).click();await page.locator('[data-activity-form]').evaluate(form=>{for(const field of form.querySelectorAll('select,input'))field.value='';});await page.getByRole('button',{name:'Apply filters'}).click();await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length>1);
- // A slower search must not overwrite the later one.
- control.activityDelay='drawing 1';await search.fill('drawing 1');await page.waitForTimeout(350);await search.fill('drawing 22');await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length===1);control.hold?.();control.hold=null;await page.waitForTimeout(100);
- assert.match(await page.locator('.activity-item').innerText(),/Uploaded drawing 22/);
- await search.fill('');await page.getByRole('button',{name:'Filter activity',exact:true}).click();await page.locator('[data-activity-form]').evaluate(form=>{for(const field of form.querySelectorAll('select,input'))field.value='';});await page.getByRole('button',{name:'Apply filters'}).click();await page.waitForFunction(()=>document.querySelectorAll('.activity-item').length>1);
- assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
- if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:resolve(process.env.TEST_SCREENSHOT_DIR,`activity-tools-${view}-${width}.png`),fullPage:true});
-});
-
 for(const width of [1440,390])test(`Dismiss failed file processing items at ${width}px`,async t=>{
  const {page,calls,control}=await setup(t,{width,view:'overview',failedJobs:true});
  await page.locator('[data-action=job-status]').click();await page.getByRole('dialog',{name:'A closer look at your files.'}).waitFor();

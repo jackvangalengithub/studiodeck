@@ -33,7 +33,6 @@ function conversation_invite(array $i,string $root,array $person,string $actor):
     }
     // Provision an identity, never studio membership or a presentation share.
     if(!one('SELECT 1 FROM users WHERE email=?',[$person['email']]))insert('users',['id'=>id(),'email'=>$person['email'],'name'=>$person['name'],'created_at'=>now()]);
-    audit($i['project_id'],$i['id'],$actor,'conversation_invited',$person['email'].' · conversation '.$root);
 }
 function conversation_participants(string $root): array {
     $c=one('SELECT c.iteration_id,i.project_id FROM comments c JOIN iterations i ON i.id=c.iteration_id WHERE c.id=?',[$root]);

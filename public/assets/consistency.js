@@ -1,3 +1,4 @@
+import {platformFetch} from './platform/files.js';
 import {getLanguage,tr} from './i18n.js';
 const labels={
   checking_sources:['Classifying sources and reading design details','Bronnen classificeren en ontwerpdetails lezen'],comparing_sources:['Comparing specifications and images','Specificaties en afbeeldingen vergelijken'],verifying_mismatch:['Reviewing a possible mismatch','Een mogelijk verschil beoordelen'],checks:['Checks','Controles'],run:['Scan for inconsistencies','Scannen op tegenstrijdigheden'],running:['Checking sources…','Bronnen controleren…'],intro:['Compare specifications, detailed designs and project images. Inspiration and before photos normally do not create warnings.','Vergelijk specificaties, uitgewerkte ontwerpen en projectbeelden. Inspiratie en voorfoto’s leveren normaal geen waarschuwingen op.'],
@@ -94,7 +95,7 @@ export function consistencyUi({state,esc,button,openModal,closeModal,api,refresh
     if(action==='check-question'&&f?.question_id){closeModal();discuss(f.question_id);}
     if(action==='check-evidence'&&f&&!f.stale){
       const e=f.evidence[Number(el.dataset.evidence)];if(!e)return;
-      let src='';if(e.has_image){try{const response=await fetch('api.php?'+new URLSearchParams({action:'check_image',iteration,source_key:e.source_key}),{credentials:'same-origin',headers:resourceHeaders()});if(response.ok){src=URL.createObjectURL(await response.blob());setTimeout(()=>URL.revokeObjectURL(src),60000);}}catch{}}
+      let src='';if(e.has_image){try{const response=await platformFetch(new URLSearchParams({action:'check_image',iteration,source_key:e.source_key}),{credentials:'same-origin',headers:resourceHeaders()});if(response.ok){src=URL.createObjectURL(await response.blob());setTimeout(()=>URL.revokeObjectURL(src),60000);}}catch{}}
       const box=e.bbox,overlay=box?`<span class="check-region" style="left:${box[0]*100}%;top:${box[1]*100}%;width:${(box[2]-box[0])*100}%;height:${(box[3]-box[1])*100}%"></span>`:'';
       openModal(t('evidence'),`<p><strong>${esc(e.name)}</strong>${e.page?' · '+t('page')+' '+e.page:''}</p><p>${esc(t(e.role))} · ${esc(e.object)} · ${esc(e.value)}</p>${e.quote?`<blockquote>${esc(e.quote)}</blockquote>`:''}${src?`<div class="check-image"><img src="${esc(src)}" alt="${esc(e.object)}">${overlay}</div>`:e.has_image?`<p class="notice">${t('imageUnavailable')}</p>`:''}${button(t('original'),'download','small ghost',`data-id="${esc(e.version_id)}"`)}`,true);
     }

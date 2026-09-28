@@ -1,43 +1,48 @@
 <?php
 declare(strict_types=1);
-require_once __DIR__.'/../app/ingest.php';
-require_once __DIR__.'/../app/ai.php';
-header('Cache-Control: no-store');
-header('X-Content-Type-Options: nosniff');
-header('Referrer-Policy: no-referrer');
-header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
+require_once __DIR__.'/ingest.php';
+require_once __DIR__.'/ai.php';
+
+final class ApiResult {
+    public function __construct(public mixed $payload,public int $status=200) {}
+}
+function api_result(mixed $payload,int $status=200): ApiResult {
+    if(!empty($GLOBALS['atomic_write'])){db()->exec('COMMIT');$GLOBALS['atomic_write']=false;}
+    return new ApiResult($payload,$status);
+}
+// Handlers return a result or fall through. Binary routes are direct HTTP only.
+function dispatch_api_action(string $action,array $query=[],?array $requestBody=null,string $method='GET'): ApiResult {
 try {
-    $action=$_GET['action']??'';
-    if(in_array($action,['project_testimonial_photo','website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($_GET['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($_GET['website_studio'],32);
+    if(in_array($action,['project_testimonial_photo','website_preview','website_template_preview','website_asset','website_source_image','website_export'],true)&&isset($query['website_studio']))$_SERVER['HTTP_X_STUDIO_ID']=text_field($query['website_studio'],32);
     // Every API is private unless explicitly part of the authentication flow.
     if(!in_array($action,['session','request_login','consume_login'],true))$apiUser=authenticated_user();
-    $read=['product_feedback_inbox','product_feedback_image','slide_media','check_image','attention','mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','activity_feed','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
-    if(!in_array($action,$read,true) && ($_SERVER['REQUEST_METHOD']??'GET')!=='POST')fail('Please use POST for this action.',405);
+    $read=['product_feedback_inbox','product_feedback_image','slide_media','check_image','attention','mention_people','project_testimonials','project_testimonial_photo','conversation','conversation_file','website','website_sources','website_source_image','website_asset','website_preview','website_template_preview','website_export','project_export','project_access','billing','billing_invoices','destinations','client_project','destination_cover','drive_status','drive_list','drive_callback','session','projects','project','deck','file','document_page','slide_image','studio_users','comments_feed','studio_logo','resolve_slide','profile','comment_preview','project_cover','studio_starting_pack','pack_file','project_starting_pack'];
+    if(!in_array($action,$read,true) && $method!=='POST')fail('Please use POST for this action.',405);
     // Serialize the iteration lock check with simple metadata writes.
     if(in_array($action,['category','theme','save_budget','retry_job','dismiss_job','restore_job','save_slide','add_system_slide','slide_layout','add_slide_group','remove_slide_group','reorder_slide_groups','studio_theme'],true)) { db()->exec('BEGIN IMMEDIATE'); $GLOBALS['atomic_write']=true; }
-    require __DIR__.'/../app/product_feedback_api.php';
-    require __DIR__.'/../app/slide_media_api.php';
-    if($action==='session')json_response(session_details(current_session()));
-    require __DIR__.'/../app/confirmations_api.php';
-    require __DIR__.'/../app/project_testimonials_api.php';
-    require __DIR__.'/../app/website_api.php';
-    require __DIR__.'/../app/billing_api.php';
-    require __DIR__.'/../app/project_export_api.php';
-    require __DIR__.'/../app/destinations_api.php';
-    require __DIR__.'/../app/studio_api.php';
-    require __DIR__.'/../app/starting_pack_api.php';
-    require __DIR__.'/../app/drive_api.php';
-    require __DIR__.'/../app/project_api.php';
-    require __DIR__.'/../app/open_questions_api.php';
-    require __DIR__.'/../app/consistency_api.php';
-    require __DIR__.'/../app/project_clients_api.php';
-    require __DIR__.'/../app/people_api.php';
-    require __DIR__.'/../app/project_directory_api.php';
+    $response=require __DIR__.'/product_feedback_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/slide_media_api.php';if($response instanceof ApiResult)return $response;
+    if($action==='session')return api_result(session_details(current_session()));
+    $response=require __DIR__.'/confirmations_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/project_testimonials_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/website_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/billing_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/project_export_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/destinations_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/studio_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/starting_pack_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/drive_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/project_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/open_questions_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/consistency_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/project_clients_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/people_api.php';if($response instanceof ApiResult)return $response;
+    $response=require __DIR__.'/project_directory_api.php';if($response instanceof ApiResult)return $response;
     if($action==='request_login') {
-        $b=input();$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
+        $b=($requestBody??input());$email=email_field($b['email']??'');$name=text_field($b['name']??explode('@',$email)[0],100);
         rate_limit('login-ip:'.($_SERVER['REMOTE_ADDR']??''),20,3600);rate_limit('login-email:'.$email,5,900);
         $allowed=array_filter(array_map('trim',explode(',',env('DESIGNER_EMAILS'))));
-        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email])&&!one('SELECT 1 FROM shares WHERE email=?',[$email])&&!one('SELECT 1 FROM conversation_grants WHERE email=?',[$email]))json_response(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
+        if($allowed && !in_array($email,$allowed,true)&&!one('SELECT 1 FROM studio_members m JOIN users u ON u.id=m.user_id WHERE u.email=?',[$email])&&!one('SELECT 1 FROM shares WHERE email=?',[$email])&&!one('SELECT 1 FROM conversation_grants WHERE email=?',[$email]))return api_result(['message'=>'If this address has access, a sign-in link will arrive shortly.']);
         $u=one('SELECT * FROM users WHERE email=?',[$email]);
         if(!$u) { $u=['id'=>id(),'email'=>$email,'name'=>$name?:'Designer','created_at'=>now()]; insert('users',$u);if(!one('SELECT 1 FROM project_client_members WHERE email=? UNION SELECT 1 FROM shares WHERE email=? UNION SELECT 1 FROM conversation_grants WHERE email=?',[$email,$email,$email]))create_studio($u['id'],$u['name']."’s studio"); }
         $t=token();insert('login_tokens',['token_hash'=>hash_token($t),'user_id'=>$u['id'],'expires_at'=>time()+900]);
@@ -47,10 +52,10 @@ try {
             $log=env('MAIL_LOG_PATH')?:ROOT.'/storage/mail.log';file_put_contents($log,now().' '.$email.' '.$url."\n",FILE_APPEND|LOCK_EX);@chmod($log,0600);
         }
         if(!$sent && env('APP_ENV','production')!=='local')fail('Sign-in email is unavailable. Please contact your studio administrator.',503);
-        json_response(['message'=>$sent?'Check your email for your sign-in link.':'Local development: the sign-in link is in storage/mail.log.']);
+        return api_result(['message'=>$sent?'Check your email for your sign-in link.':'Local development: the sign-in link is in storage/mail.log.']);
     }
     if($action==='consume_login') {
-        $b=input();$hash=hash_token(text_field($b['token']??'',128));
+        $b=($requestBody??input());$hash=hash_token(text_field($b['token']??'',128));
         $result=transaction(function()use($hash){
             $t=one('SELECT * FROM login_tokens WHERE token_hash=? AND expires_at>?',[$hash,time()]);if(!$t)fail('This sign-in link is expired or has already been used.',403);
             $grant=one('SELECT share_id FROM client_login_grants WHERE token_hash=?',[$hash]);
@@ -63,18 +68,18 @@ try {
             claim_client_profile(one('SELECT email FROM users WHERE id=?',[$t['user_id']])['email']);
             return [$session,$csrf,$redirect];
         });
-        setcookie('studiodeck_session',$result[0],['expires'=>time()+14*86400,'path'=>'/','secure'=>str_starts_with(base_url(),'https://'),'httponly'=>true,'samesite'=>'Lax']);json_response(['ok'=>true,'redirect'=>$result[2]]);
+        setcookie('studiodeck_session',$result[0],['expires'=>time()+14*86400,'path'=>'/','secure'=>str_starts_with(base_url(),'https://'),'httponly'=>true,'samesite'=>'Lax']);return api_result(['ok'=>true,'redirect'=>$result[2]]);
     }
-    if($action==='logout') { $u=authenticated_user(true);query('DELETE FROM sessions WHERE token_hash=?',[$u['token_hash']]);setcookie('studiodeck_session','',['expires'=>1,'path'=>'/','httponly'=>true,'samesite'=>'Lax','secure'=>str_starts_with(base_url(),'https://')]);json_response(['ok'=>true]); }
+    if($action==='logout') { $u=authenticated_user(true);query('DELETE FROM sessions WHERE token_hash=?',[$u['token_hash']]);setcookie('studiodeck_session','',['expires'=>1,'path'=>'/','httponly'=>true,'samesite'=>'Lax','secure'=>str_starts_with(base_url(),'https://')]);return api_result(['ok'=>true]); }
     if($action==='projects') {
-        $u=owner();$ps=rows('SELECT p.*,EXISTS(SELECT 1 FROM project_pins pin WHERE pin.project_id=p.id AND pin.user_id=?) AS pinned,EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?) AS can_edit,(SELECT COUNT(*) FROM jobs j WHERE j.project_id=p.id AND j.status IN ("queued","running")) AS processing FROM projects p WHERE '.project_access_sql().(empty($_GET['archived'])?' AND p.archived=0':'').' ORDER BY pinned DESC,p.created_at DESC,p.id',[$u['user_id'],$u['user_id'],$u['studio_id'],$u['user_id']]);
+        $u=owner();$ps=rows('SELECT p.*,EXISTS(SELECT 1 FROM project_pins pin WHERE pin.project_id=p.id AND pin.user_id=?) AS pinned,EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id=p.id AND pm.user_id=?) AS can_edit,(SELECT COUNT(*) FROM jobs j WHERE j.project_id=p.id AND j.status IN ("queued","running")) AS processing FROM projects p WHERE '.project_access_sql().(empty($query['archived'])?' AND p.archived=0':'').' ORDER BY pinned DESC,p.created_at DESC,p.id',[$u['user_id'],$u['user_id'],$u['studio_id'],$u['user_id']]);
         foreach($ps as &$p) { $p['billing']=billing_access($p['id']);$p['can_manage']=(bool)$p['can_edit'];$p['can_edit']=$p['can_edit']&&$p['billing']['can_edit']&&($p['billing']['source']!=='project_pass'||$p['billing']['designer_id']===$u['user_id']);$p['iteration']=one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);$p=array_merge($p,project_details($p['id']));$p['members']=project_people($p['id']);$cover=project_cover($p['iteration']['id']);$p['cover_key']=$cover?implode(':',[$p['iteration']['id'],$cover['id'],$cover['image_version_id']??'']):null;$p['file_count']=(int)one('SELECT COUNT(*) AS n FROM iteration_files WHERE iteration_id=?',[$p['iteration']['id']])['n']; }
         // Studio-wide existence includes archived and private projects; expose no private metadata.
         $studioEmpty=!one('SELECT 1 FROM projects WHERE studio_id=? LIMIT 1',[$u['studio_id']]);
-        json_response(['projects'=>$ps,'studio_empty'=>$studioEmpty,'billing'=>billing_summary($u['studio_id'])]);
+        return api_result(['projects'=>$ps,'studio_empty'=>$studioEmpty,'billing'=>billing_summary($u['studio_id'])]);
     }
     if($action==='create_project') {
-        $u=owner(true);$b=input();$name=text_field($b['name']??'',160);if(!$name)fail('Give your project a name.');$emails=[];
+        $u=owner(true);$b=($requestBody??input());$name=text_field($b['name']??'',160);if(!$name)fail('Give your project a name.');$emails=[];
         foreach(array_slice($b['emails']??[],0,20) as $email)$emails[]=email_field($email);
         $visibility=$b['visibility']??'team';if(!in_array($visibility,['team','public'],true))fail('Choose project visibility.');
         $p=transaction(function()use($u,$b,$name,$emails,$visibility){
@@ -86,16 +91,16 @@ try {
             foreach(array_unique($emails) as $email){insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>explode('@',$email)[0],'role'=>'Client','email'=>$email,'phone'=>'']);add_project_client($pid,$email);}
             insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>$u['name'],'role'=>'Interior designer','email'=>$u['email'],'phone'=>'']);
             if($coverage!=='none')apply_new_project_pack($pid,$iid,$u,$b);
-            audit($pid,$iid,$u['email'],'project_created','Created the project');return ['project_id'=>$pid,'iteration_id'=>$iid];
-        });json_response($p,201);
+            return ['project_id'=>$pid,'iteration_id'=>$iid];
+        });return api_result($p,201);
     }
     if($action==='project') {
-        $u=owner();$p=owned_project((string)($_GET['id']??''),$u,false);$iid=$_GET['iteration']??'';
-        $i=$iid?owned_iteration($iid,$u):one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);if($i['project_id']!==$p['id'])fail('Presentation not found.',404);json_response(deck_payload($i,true));
+        $u=owner();$p=owned_project((string)($query['id']??''),$u,false);$iid=$query['iteration']??'';
+        $i=$iid?owned_iteration($iid,$u):one('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);if($i['project_id']!==$p['id'])fail('Presentation not found.',404);return api_result(deck_payload($i,true));
     }
-    if($action==='deck') { [$i,$actor,$isOwner]=access_iteration((string)($_GET['iteration']??''));json_response(deck_payload($i,$isOwner)); }
+    if($action==='deck') { [$i,$actor,$isOwner]=access_iteration((string)($query['iteration']??''));return api_result(deck_payload($i,$isOwner)); }
     if($action==='lock_iteration') {
-        $u=owner(true);$b=input();$locked=$b['locked']??true;
+        $u=owner(true);$b=($requestBody??input());$locked=$b['locked']??true;
         if(!is_bool($locked))fail('Choose whether to lock this iteration.');
         transaction(function()use($u,$b,$locked){
             $i=owned_iteration(text_field($b['iteration']??''),$u,false,true);
@@ -103,11 +108,10 @@ try {
             if((bool)$i['locked']===$locked)return;
             if($locked&&one("SELECT 1 FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$i['id']]))fail('Wait for processing to finish before locking this iteration.',409);
             query('UPDATE iterations SET locked=? WHERE id=?',[(int)$locked,$i['id']]);
-            audit($i['project_id'],$i['id'],$u['email'],$locked?'iteration_locked':'iteration_unlocked',($locked?'Locked':'Unlocked').' iteration '.$i['number']);
-        });json_response(['ok'=>true]);
+        });return api_result(['ok'=>true]);
     }
     if($action==='new_iteration') {
-        $u=owner(true);$b=input();$base=owned_iteration(text_field($b['iteration']??''),$u,false,true);
+        $u=owner(true);$b=($requestBody??input());$base=owned_iteration(text_field($b['iteration']??''),$u,false,true);
         $new=transaction(function()use($u,$b,$base){
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$base['id']]))fail('Wait for file processing to finish before creating another iteration.',409);
             $n=(int)one('SELECT MAX(number) AS n FROM iterations WHERE project_id=?',[$base['project_id']])['n']+1;$iid=id();
@@ -132,8 +136,8 @@ try {
             copy_open_questions($base['id'],$iid);
             foreach(['check_source_roles','check_source_cache'] as $table)foreach(rows('SELECT * FROM '.$table.' WHERE iteration_id=?',[$base['id']]) as $row){$row['iteration_id']=$iid;insert($table,$row);}
             queue_consistency_checks($iid);
-            audit($base['project_id'],$iid,$u['email'],'iteration_created','Created iteration '.$n.' from iteration '.$base['number']);return ['id'=>$iid];
-        });json_response($new,201);
+            return ['id'=>$iid];
+        });return api_result($new,201);
     }
     if($action==='upload'||$action==='communication_upload') {
         if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This upload is too large. Please choose fewer files: up to 100 MB per file and 120 MB in one batch.',413);
@@ -156,33 +160,33 @@ try {
         }
         $uploadCategory=text_field($_POST['category']??'');if(!in_array($uploadCategory,['','legal'],true))fail('Unknown upload category.');
         if($communicationUpload&&($replace||count($prepared)!==1))fail('Attach one new file at a time.');
-        $result=save_project_uploads($prepared,$replace,$i,$u,$communicationUpload?'legal':$uploadCategory,null,$communicationUpload);json_response($result,201);
+        $result=save_project_uploads($prepared,$replace,$i,$u,$communicationUpload?'legal':$uploadCategory,null,$communicationUpload);return api_result($result,201);
     }
     if($action==='file') {
-        [$i,$actor,$isOwner]=access_iteration((string)($_GET['iteration']??''));$vid=(string)($_GET['id']??'');$allowed=allowed_versions($i['id']);if(!isset($allowed[$vid]))fail('File not found in this iteration.',404);
-        $f=one('SELECT * FROM file_versions WHERE id=?',[$vid]);$isPreview=isset($_GET['preview']);
+        [$i,$actor,$isOwner]=access_iteration((string)($query['iteration']??''));$vid=(string)($query['id']??'');$allowed=allowed_versions($i['id']);if(!isset($allowed[$vid]))fail('File not found in this iteration.',404);
+        $f=one('SELECT * FROM file_versions WHERE id=?',[$vid]);$isPreview=isset($query['preview']);
         if($isPreview && $f['preview']!==null){$data=$f['preview'];$mime='image/png';}else{$data=$f['data'];$mime=$f['mime'];}
         $name=preg_replace('/[^\x20-\x7e]|["\\\\]/','_',$f['name']);
         header('Content-Type: '.$mime);header('Content-Length: '.strlen($data));header('Content-Disposition: '.($isPreview?'inline':'attachment').'; filename="'.$name.'"; filename*=UTF-8\'\''.rawurlencode($f['name']));
-        if(!$isPreview)audit($i['project_id'],$i['id'],$actor,'file_downloaded',$f['name']);echo $data;exit;
+        echo $data;exit;
     }
     if($action==='document_page') {
-        [$i]=access_iteration((string)($_GET['iteration']??''));$vid=(string)($_GET['id']??'');
+        [$i]=access_iteration((string)($query['iteration']??''));$vid=(string)($query['id']??'');
         if(!isset(allowed_versions($i['id'])[$vid]))fail('File not found in this iteration.',404);
-        $number=(int)($_GET['page']??1);$p=one('SELECT * FROM document_pages WHERE version_id=? AND number=?',[$vid,$number]);
+        $number=(int)($query['page']??1);$p=one('SELECT * FROM document_pages WHERE version_id=? AND number=?',[$vid,$number]);
         if(!$p)fail('Page not found.',404);
-        if(isset($_GET['image'])||isset($_GET['preview'])) {
+        if(isset($query['image'])||isset($query['preview'])) {
             $data=$p['preview'];
-            if(isset($_GET['image']))$data=one('SELECT data FROM document_images WHERE version_id=? AND page_number=? AND number=?',[$vid,$number,(int)$_GET['image']])['data']??null;
+            if(isset($query['image']))$data=one('SELECT data FROM document_images WHERE version_id=? AND page_number=? AND number=?',[$vid,$number,(int)$query['image']])['data']??null;
             if($data===null)fail('Image not found.',404);
             header('Content-Type: image/jpeg');header('Content-Length: '.strlen($data));echo $data;exit;
         }
         $images=rows('SELECT number,metadata FROM document_images WHERE version_id=? AND page_number=? ORDER BY number',[$vid,$number]);
         foreach($images as &$image)$image=['number'=>$image['number'],...json_decode($image['metadata'],true)];unset($image);
-        json_response(['number'=>$number,'text'=>$p['text'],'has_preview'=>$p['preview']!==null,'metadata'=>json_decode($p['metadata'],true),'images'=>$images]);
+        return api_result(['number'=>$number,'text'=>$p['text'],'has_preview'=>$p['preview']!==null,'metadata'=>json_decode($p['metadata'],true),'images'=>$images]);
     }
     if($action==='reprocess') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$vid=text_field($b['version_id']??'');
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$vid=text_field($b['version_id']??'');
         $new=transaction(function()use($u,$i,$vid){
             owned_iteration($i['id'],$u,true);billing_reserve_usage($i['project_id'],'reprocess');
             $v=one('SELECT v.* FROM file_versions v JOIN iteration_files f ON f.version_id=v.id WHERE f.iteration_id=? AND v.id=?',[$i['id'],$vid]);
@@ -193,16 +197,16 @@ try {
             $v['id']=$new;$v['parent_id']=$vid;$v['number']=$number;$v['preview']=null;$v['extracted_text']='';$v['metadata']='{}';$v['created_at']=now();insert('file_versions',$v);
             query('UPDATE iteration_files SET version_id=? WHERE iteration_id=? AND asset_id=?',[$new,$i['id'],$v['asset_id']]);
             insert('jobs',['id'=>id(),'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$new,'type'=>'ingest','payload'=>'{}','status'=>'queued','error'=>'','created_at'=>now()]);
-            audit($i['project_id'],$i['id'],$u['email'],'extraction_requested',$v['name']);return $new;
-        });json_response(['id'=>$new],202);
+            return $new;
+        });return api_result(['id'=>$new],202);
     }
     if($action==='category') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','legal','presentation','other'],true))fail('Unknown category.');
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$cat=text_field($b['category']??'');if(!in_array($cat,['moodboard','renders','drawings','budget','legal','presentation','other'],true))fail('Unknown category.');
         if(one("SELECT 1 FROM jobs j JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? AND v.asset_id=? AND j.status IN ('queued','running')",[$i['id'],text_field($b['asset_id']??'')]))fail('Wait for this file to finish processing before changing its category.',409);
-        query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);audit($i['project_id'],$i['id'],$u['email'],'category_changed',$cat);queue_consistency_checks($i['id']);json_response(['ok'=>true]);
+        query('UPDATE iteration_files SET category=? WHERE iteration_id=? AND asset_id=?',[$cat,$i['id'],text_field($b['asset_id']??'')]);queue_consistency_checks($i['id']);return api_result(['ok'=>true]);
     }
     if($action==='studio_theme') {
-        $u=owner(true);studio_admin($u);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:input();if($multipart&&isset($b['theme'])){$b['theme']=json_decode($b['theme'],true);if(!is_array($b['theme']))fail('Choose a valid studio font style.');}$theme=clean_studio_theme(json_decode(one('SELECT theme FROM studios WHERE id=?',[$u['studio_id']])['theme'],true));
+        $u=owner(true);studio_admin($u);$multipart=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data');$b=$multipart?$_POST:($requestBody??input());if($multipart&&isset($b['theme'])){$b['theme']=json_decode($b['theme'],true);if(!is_array($b['theme']))fail('Choose a valid studio font style.');}$theme=clean_studio_theme(json_decode(one('SELECT theme FROM studios WHERE id=?',[$u['studio_id']])['theme'],true));
         if(isset($b['theme'])&&!is_array($b['theme']))fail('Choose a valid studio font style.');
         if(array_key_exists('font',$b['theme']??[])){
             if(!in_array($b['theme']['font'],['serif','sans'],true))fail('Choose a valid studio font style.');
@@ -214,16 +218,16 @@ try {
         $logo=$_FILES['logo']??null;
         if($logo&&$logo['error']!==UPLOAD_ERR_NO_FILE){$image=normalized_upload('logo');query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);insert('studio_logos',['studio_id'=>$u['studio_id'],'data'=>$image,'mime'=>'image/png']);}
         elseif(!empty($b['remove_logo']))query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);
-        query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);json_response(['studio_theme'=>$theme]);
+        query('UPDATE studios SET theme=? WHERE id=?',[json_encode($theme),$u['studio_id']]);return api_result(['studio_theme'=>$theme]);
     }
     if($action==='theme') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$theme=$b['theme']??[];
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$theme=$b['theme']??[];
         $style=text_field($theme['style']??'Modern',40);$font=in_array($theme['font']??'',['serif','sans'],true)?$theme['font']:'serif';$colors=array_values(array_filter(array_slice($theme['colors']??[],0,5),fn($c)=>is_string($c)&&preg_match('/^#[a-f0-9]{6}$/i',$c)));
-        query('UPDATE iterations SET theme=? WHERE id=?',[json_encode(['style'=>$style,'font'=>$font,'colors'=>$colors,'mode'=>($theme['mode']??'light')==='dark'?'dark':'light','background'=>is_string($theme['background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['background'])?$theme['background']:'#152235','light_background'=>is_string($theme['light_background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['light_background'])?$theme['light_background']:'','automatic'=>false]),$i['id']]);json_response(['ok'=>true]);
+        query('UPDATE iterations SET theme=? WHERE id=?',[json_encode(['style'=>$style,'font'=>$font,'colors'=>$colors,'mode'=>($theme['mode']??'light')==='dark'?'dark':'light','background'=>is_string($theme['background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['background'])?$theme['background']:'#152235','light_background'=>is_string($theme['light_background']??null)&&preg_match('/^#[a-f0-9]{6}$/i',$theme['light_background'])?$theme['light_background']:'','automatic'=>false]),$i['id']]);return api_result(['ok'=>true]);
     }
-    require __DIR__.'/../app/budget_api.php';
+    $response=require __DIR__.'/budget_api.php';if($response instanceof ApiResult)return $response;
     if($action==='save_budget') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',300);if(!$label)fail('Give the cost a name.');$bid=text_field($b['id']??'');
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',300);if(!$label)fail('Give the cost a name.');$bid=text_field($b['id']??'');
         if($bid&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$bid,$i['id']]))fail('Cost not found.',404);
         $parent=text_field($b['parent_id']??'');if($parent&&!one('SELECT id FROM budget_items WHERE id=? AND iteration_id=?',[$parent,$i['id']]))fail('Parent quote not found.');guard_confirmation_budget($bid);guard_confirmation_budget($parent);
         $cursor=$parent;$seen=[];while($cursor){if($cursor===$bid||isset($seen[$cursor]))fail('A quote cannot contain itself.');$seen[$cursor]=true;$cursor=one('SELECT parent_id FROM budget_items WHERE id=?',[$cursor])['parent_id']??'';}
@@ -233,15 +237,15 @@ try {
         if($data['min_amount_cents']!==null){$data['amount_cents']=null;if($data['kind']==='unknown')$data['kind']='estimate';}
         if($bid)query('UPDATE budget_items SET label=?,vendor=?,amount_cents=?,kind=?,parent_id=?,included=?,note=?,min_amount_cents=?,max_amount_cents=?,is_optional=? WHERE id=?',[...array_values($data),$bid]);else insert('budget_items',['id'=>id(),'iteration_id'=>$i['id'],'source_version_id'=>null,...$data]);
         if($bid){query("UPDATE budget_items SET relationship_locked=1,relationship_origin='manual',relationship_evidence='' WHERE id=?",[$bid]);query("UPDATE budget_link_suggestions SET status='dismissed' WHERE child_id=?",[$bid]);}
-        audit($i['project_id'],$i['id'],$u['email'],'budget_updated',$label);json_response(['ok'=>true]);
+        return api_result(['ok'=>true]);
     }
     if($action==='save_contact') {
-        $u=owner(true);$b=input();$p=owned_project(text_field($b['project_id']??''),$u);$name=text_field($b['name']??'',100);if(!$name)fail('Enter a name.');
+        $u=owner(true);$b=($requestBody??input());$p=owned_project(text_field($b['project_id']??''),$u);$name=text_field($b['name']??'',100);if(!$name)fail('Enter a name.');
         $email=email_field($b['email']??'');$role=text_field($b['role']??'Architect',80);$phone=text_field($b['phone']??'',40);
-        transaction(function()use($p,$name,$email,$role,$phone){insert('contacts',['id'=>id(),'project_id'=>$p['id'],'name'=>$name,'email'=>$email,'role'=>$role,'phone'=>$phone]);if($role==='Client')add_project_client($p['id'],$email,$name);});json_response(['ok'=>true]);
+        transaction(function()use($p,$name,$email,$role,$phone){insert('contacts',['id'=>id(),'project_id'=>$p['id'],'name'=>$name,'email'=>$email,'role'=>$role,'phone'=>$phone]);if($role==='Client')add_project_client($p['id'],$email,$name);});return api_result(['ok'=>true]);
     }
     if($action==='share') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,false,true);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,false,true);
         $selection=array_key_exists('client_emails',$b);$recipients=$selection?$b['client_emails']:($b['emails']??[]);
         if(!is_array($recipients)||!array_is_list($recipients)||count($recipients)>20)fail('Choose up to 20 clients.');
         $emails=array_values(array_unique(array_map('email_field',$recipients)));if(!$emails)fail('Select at least one client.');
@@ -256,51 +260,52 @@ try {
             }
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND status IN ('queued','running')",[$i['id']]))fail('Your files are still being processed. Please wait before sharing.',409);
             $links=[];foreach(array_unique($emails) as $email){$t=token();$sid=id();insert('shares',['id'=>$sid,'iteration_id'=>$i['id'],'token_hash'=>hash_token($t),'email'=>$email,'expires_at'=>time()+90*86400,'revoked'=>0,'created_at'=>now()]);$links[]=['id'=>$sid,'email'=>$email,'url'=>base_url().'/client/projects/'.$i['project_id'].'?iteration='.$i['id']];}
-            query("UPDATE iterations SET status='shared' WHERE id=?",[$i['id']]);audit($i['project_id'],$i['id'],$u['email'],'links_created','Created '.$i['number'].' client presentation links');return $links;
+            query("UPDATE iterations SET status='shared' WHERE id=?",[$i['id']]);return $links;
         });
-        foreach($links as &$link){$loginUrl=transaction(fn()=>client_login_url($link['id']));$link['sent']=send_branded_email($link['email'],$i['project_id'],'Your interior design presentation',$message,$loginUrl);if($link['sent'])audit($i['project_id'],$i['id'],$u['email'],'presentation_sent',$link['email']);}
-        json_response(['links'=>$links]);
+        foreach($links as &$link){$loginUrl=transaction(fn()=>client_login_url($link['id']));$link['sent']=send_branded_email($link['email'],$i['project_id'],'Your interior design presentation',$message,$loginUrl);}
+        return api_result(['links'=>$links]);
     }
     if($action==='revoke_share') {
-        $u=owner(true);$b=input();$s=one('SELECT * FROM shares WHERE id=?',[text_field($b['id']??'')]);if(!$s)fail('Link not found.',404);$i=owned_iteration($s['iteration_id'],$u,false,true);query('UPDATE shares SET revoked=1 WHERE id=?',[$s['id']]);audit($i['project_id'],$i['id'],$u['email'],'link_revoked',$s['email']);json_response(['ok'=>true]);
+        $u=owner(true);$b=($requestBody??input());$s=one('SELECT * FROM shares WHERE id=?',[text_field($b['id']??'')]);if(!$s)fail('Link not found.',404);$i=owned_iteration($s['iteration_id'],$u,false,true);query('UPDATE shares SET revoked=1 WHERE id=?',[$s['id']]);return api_result(['ok'=>true]);
     }
-    if($action==='comment_answered')json_response(set_comment_answered(input()));
-    if($action==='comment' || $action==='view_event') {
-        $b=input();[$i,$actor,$isOwner]=access_iteration(text_field($b['iteration']??''),true);rate_limit('engagement:'.$actor,80,3600);$slide=text_field($b['slide']??'intro',80);
-        if($action==='comment') {$comment=add_comment($i,$actor,$b);json_response(['ok'=>true,'id'=>$comment['id'],'parent_id'=>$comment['parent_id']]);}
-        else audit($i['project_id'],$i['id'],$actor,$isOwner?'preview_opened':'presentation_viewed',$slide);
-        json_response(['ok'=>true]);
+    if($action==='comment_answered')return api_result(set_comment_answered(($requestBody??input())));
+    if($action==='comment') {
+        $b=($requestBody??input());[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('engagement:'.$actor,80,3600);
+        $comment=add_comment($i,$actor,$b);return api_result(['ok'=>true,'id'=>$comment['id'],'parent_id'=>$comment['parent_id']]);
     }
     if($action==='budget_chat') {
-        $b=input();[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=budget_rows($i['id']);
+        $b=($requestBody??input());[$i,$actor]=access_iteration(text_field($b['iteration']??''),true);rate_limit('chat:'.$actor,30,3600);$question=text_field($b['question']??'',2000);if(!$question)fail('Ask a question first.');$items=budget_rows($i['id']);
         $slide=text_field($b['slide']??'budget',100);
-        $result=answer_with_activity($i,$actor,$slide,$question,fn()=>budget_answer($question,$items,legal_evidence($i['id'],$question),null,project_view_language($i['project_id'],$actor)));
-        access_iteration($i['id'],true);json_response($result);
+        require_once __DIR__.'/slides.php';
+        if(!in_array($slide,editor_slide_ids($i['id']),true))fail('This slide was not found in the presentation.',404);
+        transaction(fn()=>billing_reserve_usage($i['project_id'],'questions'));
+        $result=budget_answer($question,$items,legal_evidence($i['id'],$question),null,project_view_language($i['project_id'],$actor));
+        access_iteration($i['id'],true);return api_result($result);
     }
     if(in_array($action,['dismiss_job','restore_job'],true)) {
-        $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);
+        $u=owner(true);$b=($requestBody??input());$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);
         if(!$j)fail('Processing task not found.',404);
         owned_iteration($j['iteration_id'],$u,false,true);
         if($j['status']!=='failed')fail('Only failed processing tasks can be dismissed.');
         if($action==='restore_job')query('DELETE FROM job_dismissals WHERE job_id=?',[$j['id']]);
         else query('INSERT INTO job_dismissals(job_id,dismissed_at) VALUES(?,?) ON CONFLICT(job_id) DO NOTHING',[$j['id'],now()]);
-        json_response(['ok'=>true]);
+        return api_result(['ok'=>true]);
     }
     if($action==='retry_job') {
-        $u=owner(true);$b=input();$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);
+        $u=owner(true);$b=($requestBody??input());$j=one('SELECT * FROM jobs WHERE id=?',[text_field($b['id']??'')]);if(!$j)fail('Processing task not found.',404);owned_iteration($j['iteration_id'],$u,true);
         if($j['status']!=='failed')fail('This task is not waiting for a retry.');
         if($j['type']==='slide_video')fail('To avoid a duplicate paid video request, generate a new preview from Add motion after reviewing this task.');
         if(in_array($j['type'],['image_edit','slide_image_edit'],true))fail('To avoid a duplicate paid image request, start a new image variation after reviewing the failed task.');
-        query("UPDATE jobs SET status='queued',error='',started_at=NULL,payload='{}' WHERE id=?",[$j['id']]);query('DELETE FROM job_dismissals WHERE job_id=?',[$j['id']]);json_response(['ok'=>true]);
+        query("UPDATE jobs SET status='queued',error='',started_at=NULL,payload='{}' WHERE id=?",[$j['id']]);query('DELETE FROM job_dismissals WHERE job_id=?',[$j['id']]);return api_result(['ok'=>true]);
     }
     if($action==='slide_image') {
-        [$i]=access_iteration((string)($_GET['iteration']??''));$slide=current_slide($i['id'],(string)($_GET['slide_id']??''));
+        [$i]=access_iteration((string)($query['iteration']??''));$slide=current_slide($i['id'],(string)($query['slide_id']??''));
         if(!$slide)fail('Slide not found.',404);
-        $variant=text_field($_GET['image_version_id']??'');
-        $image=$variant&&!isset($_GET['original'])?slide_variant_image($slide,$variant):slide_image_source($slide,isset($_GET['original']));header('Content-Type: '.$image['mime']);header('Content-Length: '.strlen($image['data']));echo $image['data'];exit;
+        $variant=text_field($query['image_version_id']??'');
+        $image=$variant&&!isset($query['original'])?slide_variant_image($slide,$variant):slide_image_source($slide,isset($query['original']));header('Content-Type: '.$image['mime']);header('Content-Length: '.strlen($image['data']));echo $image['data'];exit;
     }
     if($action==='select_slide_image') {
-        $u=owner(true);$b=input();
+        $u=owner(true);$b=($requestBody??input());
         transaction(function()use($u,$b){
             $i=owned_iteration(text_field($b['iteration']??''),$u,true);
             $slide=current_slide($i['id'],text_field($b['slide_id']??''));if(!$slide)fail('Slide not found.',404);
@@ -309,25 +314,24 @@ try {
             foreach(rows("SELECT payload FROM jobs WHERE iteration_id=? AND type='slide_image_edit' AND status IN ('queued','running')",[$i['id']]) as $job)if((json_decode($job['payload'],true)['slide_id']??'')===$slide['id'])fail('Wait for this image enhancement to finish before choosing a version.',409);
             copy_slide_image_history($slide,$slide);
             query('UPDATE presentation_slides SET image_version_id=? WHERE iteration_id=? AND id=?',[$vid,$i['id'],$slide['id']]);
-            audit($i['project_id'],$i['id'],$u['email'],'slide_image_selected',$slide['title']);
             queue_consistency_checks($i['id']);
-        });json_response(['ok'=>true]);
+        });return api_result(['ok'=>true]);
     }
     if($action==='reorder_slide_groups') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$groups=slide_groups($i['id']);$order=$b['order']??null;
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$groups=slide_groups($i['id']);$order=$b['order']??null;
         if(!is_array($order)||!array_is_list($order)||count($order)!==count($groups)||count(array_filter($order,'is_string'))!==count($order))fail('Include every group exactly once.');
         $keys=array_keys($groups);$sorted=$order;sort($keys);sort($sorted);if($keys!==$sorted)fail('Include every group exactly once.');
         foreach($order as $position=>$gid)query('INSERT INTO slide_groups(iteration_id,id,label,position) VALUES(?,?,?,?) ON CONFLICT(iteration_id,id) DO UPDATE SET position=excluded.position',[$i['id'],$gid,$groups[$gid],$position]);
-        audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Reordered presentation groups');json_response(['ok'=>true]);
+        return api_result(['ok'=>true]);
     }
     if($action==='add_slide_group') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',60);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$label=text_field($b['label']??'',60);
         if(!$label)fail('Give the group a name.');$groups=slide_groups($i['id']);if(count($groups)>=35)fail('Use up to 35 slide groups.');
         foreach($groups as $existing)if(strtolower($existing)===strtolower($label))fail('A group with this name already exists.');
-        $gid=id();insert('slide_groups',['iteration_id'=>$i['id'],'id'=>$gid,'label'=>$label,'position'=>count($groups)]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Added slide group: '.$label);json_response(['id'=>$gid],201);
+        $gid=id();insert('slide_groups',['iteration_id'=>$i['id'],'id'=>$gid,'label'=>$label,'position'=>count($groups)]);return api_result(['id'=>$gid],201);
     }
     if($action==='remove_slide_group') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$groups=slide_groups($i['id']);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$groups=slide_groups($i['id']);
         $gid=text_field($b['group']??'',40);$destination=text_field($b['destination']??'',40);
         if(!isset($groups[$gid]))fail('Group not found.',404);
         if(count($groups)<2)fail('Keep at least one slide group.');
@@ -340,11 +344,10 @@ try {
         }else query('DELETE FROM slide_sections WHERE iteration_id=? AND section=?',[$i['id'],$gid]);
         // Retain a tombstone so built-in groups stay removed, including in later iterations.
         query('INSERT INTO slide_groups(iteration_id,id,label,position,deleted) VALUES(?,?,?,?,1) ON CONFLICT(iteration_id,id) DO UPDATE SET deleted=1',[$i['id'],$gid,$groups[$gid],array_search($gid,array_keys($groups),true)]);
-        audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Removed slide group: '.$groups[$gid].($destination!==''?'; moved slides to '.$groups[$destination]:''));
-        json_response(['ok'=>true]);
+        return api_result(['ok'=>true]);
     }
     if($action==='slide_layout') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);
         $ids=editor_slide_ids($i['id']);$op=$b['operation']??'';
         if($op==='reorder') {
             $deleted=array_column(rows('SELECT slide_id FROM slide_layout WHERE iteration_id=? AND deleted=1',[$i['id']]),'slide_id');
@@ -354,15 +357,15 @@ try {
             foreach($order as $n=>$sid)query('INSERT INTO slide_layout(iteration_id,slide_id,position) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET position=excluded.position',[$i['id'],$sid,$n]);
         }else {
             $sid=text_field($b['slide_id']??'');if(!in_array($sid,$ids,true))fail('Slide not found.',404);
-            if($op==='section'){$section=text_field($b['section']??'',40);if(!isset(slide_groups($i['id'])[$section]))fail('Choose a slide section.');query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Slide section updated');json_response(['ok'=>true]);}
+            if($op==='section'){$section=text_field($b['section']??'',40);if(!isset(slide_groups($i['id'])[$section]))fail('Choose a slide section.');query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);return api_result(['ok'=>true]);}
             if(!in_array($op,['show','hide','delete','restore'],true))fail('Unknown slide action.');
             $column=in_array($op,['show','hide'],true)?'hidden':'deleted';$value=in_array($op,['hide','delete'],true)?1:0;
             query('INSERT INTO slide_layout(iteration_id,slide_id,'.$column.') VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET '.$column.'=excluded.'.$column,[$i['id'],$sid,$value]);
         }
-        audit($i['project_id'],$i['id'],$u['email'],'slides_updated','Presentation slides: '.$op);json_response(['ok'=>true]);
+        return api_result(['ok'=>true]);
     }
     if($action==='add_system_slide') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);
         $type=text_field($b['type']??'');if(!in_array($type,SYSTEM_SLIDE_TYPES,true))fail('Choose a valid system slide.');
         $groups=slide_groups($i['id']);$section=text_field($b['section']??'',40);
         if($section!==''&&!isset($groups[$section]))fail('Choose a valid group.');
@@ -371,15 +374,15 @@ try {
         $sid='system-'.id();insert('system_slides',['iteration_id'=>$i['id'],'id'=>$sid,'type'=>$type]);
         insert('slide_layout',['iteration_id'=>$i['id'],'slide_id'=>$sid,'position'=>$position]);
         insert('slide_sections',['iteration_id'=>$i['id'],'slide_id'=>$sid,'section'=>$section]);
-        audit($i['project_id'],$i['id'],$u['email'],'slide_created','Added system slide: '.$type);json_response(['id'=>$sid],201);
+        return api_result(['id'=>$sid],201);
     }
     if($action==='save_slide') {
         if((int)($_SERVER['CONTENT_LENGTH']??0)>128*1024*1024)fail('This photo is too large. Choose an image up to 100 MB.',413);
-        $u=owner(true);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);
-        $result=save_designed_slide($i,$b,$u);queue_consistency_checks($i['id']);json_response($result);
+        $u=owner(true);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);
+        $result=save_designed_slide($i,$b,$u);queue_consistency_checks($i['id']);return api_result($result);
     }
     if($action==='slide_image_edit') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);$sid=text_field($b['slide_id']??'');$mode=text_field($b['mode']??'edit',30);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);$sid=text_field($b['slide_id']??'');$mode=text_field($b['mode']??'edit',30);
         if(!in_array($mode,['photorealistic','edit'],true))fail('Unknown image edit.');
         $prompt=text_field($b['prompt']??'',2000);if(!$prompt)fail('Describe the change.');
         rate_limit('image:'.$u['user_id'],12,3600);
@@ -392,10 +395,10 @@ try {
             $source=slide_image_source($slide,true);if(!str_starts_with($source['mime'],'image/'))fail('This slide does not have an editable image.');
             require_project_enhancement($i['project_id']);
             $jid=id();insert('jobs',['id'=>$jid,'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$slide['source_version_id'],'type'=>'slide_image_edit','payload'=>json_encode(['slide_id'=>$sid,'mode'=>$mode,'prompt'=>$prompt,'expected_image_version_id'=>$slide['image_version_id']]),'status'=>'queued','error'=>'','created_at'=>now()]);return $jid;
-        });json_response(['id'=>$jid,'enhancements'=>project_enhancement_allowance($i['project_id'])],202);
+        });return api_result(['id'=>$jid,'enhancements'=>project_enhancement_allowance($i['project_id'])],202);
     }
     if($action==='image_edit') {
-        $u=owner(true);$b=input();$i=owned_iteration(text_field($b['iteration']??''),$u,true);if(!capabilities()['ai'])fail('Image editing is not connected yet. Add the AI service key in your server configuration.',503);rate_limit('image:'.$u['user_id'],12,3600);
+        $u=owner(true);$b=($requestBody??input());$i=owned_iteration(text_field($b['iteration']??''),$u,true);if(!capabilities()['ai'])fail('Image editing is not connected yet. Add the AI service key in your server configuration.',503);rate_limit('image:'.$u['user_id'],12,3600);
         $v=one('SELECT v.id,v.mime FROM iteration_files f JOIN file_versions v ON v.id=f.version_id WHERE f.iteration_id=? AND v.id=?',[$i['id'],text_field($b['version_id']??'')]);if(!$v||!str_starts_with($v['mime'],'image/'))fail('Choose an image from this iteration.');
         $prompt=text_field($b['prompt']??'',2000);if(!$prompt)fail('Describe the change.');$jid=id();transaction(function()use($jid,$i,$v,$prompt,$u){
             owned_iteration($i['id'],$u,true);
@@ -403,7 +406,7 @@ try {
             if(one("SELECT id FROM jobs WHERE iteration_id=? AND version_id=? AND type='image_edit' AND status IN ('queued','running')",[$i['id'],$v['id']]))fail('This image already has an enhancement in progress.',409);
             require_project_enhancement($i['project_id']);
             insert('jobs',['id'=>$jid,'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$v['id'],'type'=>'image_edit','payload'=>json_encode(['prompt'=>$prompt]),'status'=>'queued','error'=>'','created_at'=>now()]);
-        });json_response(['id'=>$jid,'enhancements'=>project_enhancement_allowance($i['project_id'])],202);
+        });return api_result(['id'=>$jid,'enhancements'=>project_enhancement_allowance($i['project_id'])],202);
     }
     fail('Action not found.',404);
 } catch(Throwable $e) {
@@ -416,5 +419,6 @@ try {
         $details['debug']=['action'=>$action??'','exception'=>get_class($e),'message'=>$e->getMessage(),'file'=>basename($e->getFile()),'line'=>$e->getLine()];
         if($e instanceof StripeRequestFailed)$details['debug']['provider']=$e->diagnostic;
     }
-    json_response(['error'=>$code===500?'Something went wrong. Please try again.':$e->getMessage()]+($e instanceof ProjectAccessRequired?['project_access'=>$e->projectId]:[])+$details,$code);
+    return api_result(['error'=>$code===500?'Something went wrong. Please try again.':$e->getMessage()]+($e instanceof ProjectAccessRequired?['project_access'=>$e->projectId]:[])+$details,$code);
+}
 }

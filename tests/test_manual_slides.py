@@ -1,4 +1,4 @@
-"""Question/answer activity persistence and access checks. No AI or real email."""
+"""Manual slide editing and access checks. No AI or real email."""
 from pathlib import Path
 import http.cookiejar,urllib.request,urllib.error,json,os,tempfile,subprocess,time,sqlite3
 ROOT=Path(__file__).resolve().parents[1];PHP=os.environ.get('PHP_BIN','php')

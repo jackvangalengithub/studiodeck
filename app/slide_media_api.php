@@ -1,9 +1,9 @@
 <?php
 declare(strict_types=1);
 if($action==='slide_media'){
-    [$i,,$isOwner]=access_iteration(text_field($_GET['iteration']??''));
-    $slide=current_slide($i['id'],text_field($_GET['slide_id']??''));if(!$slide)fail('Slide not found.',404);
-    $meta=json_decode($slide['metadata'],true)?:[];$mid=text_field($_GET['media_id']??'');$allowed=[];
+    [$i,,$isOwner]=access_iteration(text_field($query['iteration']??''));
+    $slide=current_slide($i['id'],text_field($query['slide_id']??''));if(!$slide)fail('Slide not found.',404);
+    $meta=json_decode($slide['metadata'],true)?:[];$mid=text_field($query['media_id']??'');$allowed=[];
     if($slide['type']==='video'&&($meta['video']['provider']??'')==='upload')$allowed[]=$meta['video']['media_id'];
     foreach($isOwner?['motion','motion_candidate']:['motion'] as $key)if(($meta[$key]['source_key']??null)===motion_source_key($slide))$allowed[]=$meta[$key]['media_id']??'';
     if(!$mid||!in_array($mid,$allowed,true))fail('Video not found in this presentation.',404);
@@ -18,7 +18,7 @@ if($action==='slide_media'){
     header('Content-Length: '.($end-$start+1));echo substr($media['data'],$start,$end-$start+1);exit;
 }
 if(in_array($action,['save_slide_motion','generate_slide_motion'],true)){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     $result=transaction(function()use($action,$u,$b){
         $i=owned_iteration(text_field($b['iteration']??''),$u,true);$slide=motion_slide($i,text_field($b['slide_id']??''));
         if($action==='generate_slide_motion')return ['id'=>queue_slide_video($i,$slide,$b)];
@@ -35,6 +35,6 @@ if(in_array($action,['save_slide_motion','generate_slide_motion'],true)){
             $meta['motion']=['mode'=>'simple','movement'=>$movement,'duration'=>$duration,'source_key'=>motion_source_key($slide)];
         }else fail('Choose a valid movement.');
         query('UPDATE presentation_slides SET metadata=? WHERE iteration_id=? AND id=?',[json_encode($meta),$i['id'],$slide['id']]);
-        audit($i['project_id'],$i['id'],$u['email'],'slide_motion_updated',$slide['title']);return ['ok'=>true];
-    });json_response($result);
+        return ['ok'=>true];
+    });return api_result($result);
 }

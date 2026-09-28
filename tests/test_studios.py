@@ -143,7 +143,6 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         member.call('comment',{'iteration':iid,'slide':'budget','body':'Please check the allowance.'})
         comments=admin.call('comments_feed')['items']
         check([c['slide'] for c in comments[:2]]==['budget','intro'] and comments[0]['project_id']==pid and comments[0]['iteration_id']==iid,'Comments are newest first with exact project, iteration, and slide links')
-        check(any(e['project_id']==pid for e in member.call('activity_feed')['items']),'Activity feed spans accessible project events')
         own=member.call('create_project',{'name':'Private member project','emails':[]},expected=201)
         admin.call('project',query='&id='+own['project_id'],expected=404)
         member.call('comment',{'iteration':own['iteration_id'],'slide':'intro','body':'Private feedback'})
@@ -153,7 +152,6 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         check(all(c['project_id']!=own['project_id'] for c in admin.call('comments_feed')['items']),'Comments exclude public projects when even an admin is not on their team')
         check(admin.call('comments_feed',query='&project_id='+own['project_id'])['items']==[],'A project filter cannot bypass comment feed team membership')
         check(admin.call('comments_feed')['unread_count']==2 and admin.call('session')['unread_count']==2,'Feed and menu unread totals exclude non-team project comments')
-        check(any(e['project_id']==own['project_id'] for e in admin.call('activity_feed')['items']),'Activity continues to include accessible public projects')
         member.call('project_members',{'project_id':own['project_id'],'user_ids':[mid,aid]})
         check(any(c['project_id']==own['project_id'] for c in admin.call('comments_feed')['items']) and admin.call('session')['unread_count']==3,'Joining a project adds its comments and unread count')
         member.call('project_members',{'project_id':own['project_id'],'user_ids':[mid]})
@@ -165,7 +163,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-studios-') as temp:
         # Membership regression fixture: grant this additional studio legacy migration access.
         with sqlite3.connect(tmp/'test.sqlite') as db: db.execute('UPDATE studio_billing SET legacy_exempt=1,onboarded_at=1 WHERE studio_id=?',(other,))
         check(admin.call('projects')['projects']==[],'Selected studio scopes the project list')
-        check(admin.call('comments_feed')['items']==[] and admin.call('activity_feed')['items']==[],'Feeds are isolated to the selected studio')
+        check(admin.call('comments_feed')['items']==[],'Feeds are isolated to the selected studio')
         admin.call('project',query='&id='+pid,expected=404)
         admin.studio_context=studio
         check(admin.call('project',query='&id='+pid)['project']['id']==pid,'An open tab keeps its explicit studio context when another tab switches studios')

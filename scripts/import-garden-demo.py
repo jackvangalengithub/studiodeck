@@ -132,7 +132,7 @@ try:
         } if 'relationship_locked' in budget_columns else {}))
     for name,role,email in [('Mira & Sebastiaan de Wilde','Client','dewilde@example.test'),('Rosa van Veen','Landscape designer · fictional','rosa@example.test'),('Daan Bos','Planting designer · fictional','daan@example.test'),('Mara Vermeer','Project coordinator · fictional','mara@example.test'),('Terra Forma','Landscape contractor · fictional','terra.forma@example.test'),('Wild Form Nursery','Plant supplier · fictional','wild.form@example.test')]:
         ins('contacts',id=uid('contact:'+email),project_id=pid,name=name,role=role,email=email,phone='')
-    ins('events',id=uid('event:created'),project_id=pid,iteration_id=iid,actor='StudioDeck demo import',type='project_created',detail='Created Stillwater Garden: original concept imagery, complete landscape presentation and fictional supplier pack. No client messages sent.',created_at=stamp)
+
     assert not db.execute('PRAGMA foreign_key_check').fetchall(),'Foreign key validation failed'
     db.commit()
 except Exception:

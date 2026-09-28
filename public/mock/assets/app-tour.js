@@ -15,7 +15,7 @@ export function createAppTourData(language='en') {
     slides:[{id:'tour-photo-slide',source_version_id:'tour-photo',type:'photo',title:t('concept'),situation:'concept',metadata:{}},{id:'tour-mood-slide',source_version_id:'tour-mood',type:'moodboard',title:t('shape'),situation:'reference',metadata:{}}],
     slide_content:[{slide_id:'intro',title:t('concept'),description:t('conceptSub')}],slide_layout:[],slide_sections:[],slide_groups:null,
     budget:[{id:'tour-base',label:t('base'),amount_cents:2450000,kind:'estimate',parent_id:null,included:0},{id:'tour-option',label:language==='nl'?'Leeshoek':'Reading nook',amount_cents:180000,kind:'estimate',is_optional:1,selected:false,parent_id:null,included:0}],
-    comments:[],events:[],jobs:[],shares:[],changes:[],contacts:[],clients:[],members:[],profile:user.profile,capabilities:{demo:true,ai:false,mail:false},total_cents:2450000};
+    comments:[],jobs:[],shares:[],changes:[],contacts:[],clients:[],members:[],profile:user.profile,capabilities:{demo:true,ai:false,mail:false},total_cents:2450000};
   const stats={saves:0,choices:0,comments:0};
   const copy=()=>structuredClone({...data,total_cents:budgetTotal(data.budget)});
   async function request(action,body={}) {
@@ -40,7 +40,7 @@ export function createAppTourData(language='en') {
       const comment={id:'tour-comment-'+(++stats.comments),iteration_id:iteration.id,slide:body.slide||'general',body:text,author:user.name,profile:user.profile,created_at:new Date().toISOString(),answered:false,parent_id:null,comment_order:stats.comments};
       data.comments.push(comment);return {ok:true,id:comment.id};
     }
-    if(['view_event','read_comments'].includes(action))return {ok:true};
+    if(action==='read_comments')return {ok:true};
     if(action==='studio_starting_pack')return {items:[]};
     if(action==='drive_status')return {configured:false,connected:false};
     throw Error(t('tourSample'));

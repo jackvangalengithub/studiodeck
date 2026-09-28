@@ -1,3 +1,4 @@
+import {platformFetch} from './platform/files.js';
 import {tr} from './i18n.js';
 import {startYoutube} from './video.js';
 import {motionPresets} from './motion-presets.js';
@@ -21,7 +22,7 @@ export function configureMedia(scope,headers){if(scope!==cacheScope){clearMediaC
 export async function mediaUrl(iteration,slide,id){
  const key=[cacheScope,iteration,slide,id].join(':');if(cache.has(key)){const item=cache.get(key);cache.delete(key);cache.set(key,item);return item.promise;}
  const item={abort:new AbortController(),url:''};cache.set(key,item);
- item.promise=(async()=>{try{const r=await fetch('api.php?'+new URLSearchParams({action:'slide_media',iteration,slide_id:slide,media_id:id}),{credentials:'same-origin',headers:headersForMedia(),signal:item.abort.signal});if(!r.ok)throw Error(tr('media_unavailable'));const blob=await r.blob();if(item.abort.signal.aborted)throw Error(tr('media_unavailable'));item.url=URL.createObjectURL(blob);return item.url;}catch(e){if(cache.get(key)===item)cache.delete(key);throw e;}})();
+ item.promise=(async()=>{try{const r=await platformFetch(new URLSearchParams({action:'slide_media',iteration,slide_id:slide,media_id:id}),{credentials:'same-origin',headers:headersForMedia(),signal:item.abort.signal});if(!r.ok)throw Error(tr('media_unavailable'));const blob=await r.blob();if(item.abort.signal.aborted)throw Error(tr('media_unavailable'));item.url=URL.createObjectURL(blob);return item.url;}catch(e){if(cache.get(key)===item)cache.delete(key);throw e;}})();
  for(const [oldKey,old] of cache){if(cache.size<=3)break;if(document.querySelector(`video[src="${old.url}"]`))continue;old.abort.abort();if(old.url)URL.revokeObjectURL(old.url);cache.delete(oldKey);}
  return item.promise;
 }

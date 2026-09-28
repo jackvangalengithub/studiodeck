@@ -131,7 +131,7 @@ try:
         ins('budget_items',id=uid('budget:'+r['key']),iteration_id=iid,parent_id=uid('budget:'+r['parent']) if r['parent'] else None,source_version_id=versions[src],label=r['label'],vendor=r['vendor'],amount_cents=cents(r['amount']),min_amount_cents=cents(r['min_amount']),max_amount_cents=cents(r['max_amount']),kind=r['kind'],included=int(r['included']),is_optional=int(r['optional']),note=r['note']+' Fictional demo; amounts include assumed VAT.')
     for name,role,email in [('Eva & Julian Vermeer','Client','vermeer@example.test'),('Noor van Duin','Interior designer · fictional','noor@example.test'),('Milan Vos','Project architect · fictional','milan@example.test'),('Lotte Meijer','Procurement coordinator · fictional','lotte@example.test'),('Forma Build','Main contractor · fictional','forma.build@example.test'),('Grain Atelier','Joinery supplier · fictional','grain.atelier@example.test')]:
         ins('contacts',id=uid('contact:'+email),project_id=pid,name=name,role=role,email=email,phone='')
-    ins('events',id=uid('event:created'),project_id=pid,iteration_id=iid,actor='StudioDeck demo import',type='project_created',detail='Created Villa Auren: original concept imagery, complete interior presentation and fictional supplier pack. No client messages sent.',created_at=stamp)
+
     assert not db.execute('PRAGMA foreign_key_check').fetchall(),'Foreign key validation failed'
     db.commit()
 except Exception:

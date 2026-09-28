@@ -45,7 +45,7 @@ READ_ACTIONS = {
     'project_access', 'billing', 'billing_invoices', 'project_export',
     'drive_status', 'drive_list', 'drive_callback', 'session', 'projects',
     'project', 'deck', 'file', 'document_page', 'slide_image', 'studio_users',
-    'activity_feed', 'comments_feed', 'studio_logo', 'resolve_slide', 'profile',
+    'comments_feed', 'studio_logo', 'resolve_slide', 'profile',
     'comment_preview', 'project_cover', 'studio_starting_pack', 'pack_file',
     'project_starting_pack',
     'destinations', 'client_project', 'destination_cover',
@@ -72,7 +72,7 @@ WRITE_ACTIONS = {
     'archive_pack_item', 'apply_project_pack', 'drive_connect',
     'drive_disconnect', 'drive_import', 'project_settings', 'pin_project',
     'prepare_delete_project', 'delete_project', 'save_profile', 'upload_avatar',
-    'remove_avatar', 'read_comments', 'comment', 'view_event', 'budget_chat',
+    'remove_avatar', 'read_comments', 'comment', 'budget_chat',
     'budget_choice', 'upload_project_logo', 'remove_project_logo',
     'create_project', 'new_iteration', 'upload', 'reprocess', 'category',
     'studio_theme', 'theme', 'match_subquotes', 'review_subquote',
@@ -286,8 +286,6 @@ class SecurityFixture(unittest.TestCase):
                        amount_cents=10000, is_optional=1)
                 insert('comments', id='comment-' + project, iteration_id=iteration, slide='intro',
                        author=user + '@example.test', body='SECRET-' + project, created_at='2026-01-01')
-                insert('events', id='event-' + project, project_id=project, iteration_id=iteration,
-                       actor=user + '@example.test', type='project_created', detail='SECRET-' + project, created_at='2026-01-01')
                 insert('jobs', id='job-' + project, project_id=project, iteration_id=iteration,
                        version_id='file-' + project, type='ingest', status='failed', created_at='2026-01-01')
             insert('project_client_members', project_id='shared', email='client@example.test', name='Client', created_at='2026-01-01')
@@ -344,7 +342,7 @@ class SecurityFixture(unittest.TestCase):
 
 class SecurityTests(SecurityFixture):
     def test_action_inventory_is_explicit(self):
-        source = '\n'.join(p.read_text() for p in [self.source / 'public/api.php', *sorted((self.source / 'app').glob('*_api.php'))])
+        source = '\n'.join(p.read_text() for p in [self.source / 'app/api_dispatch.php', *sorted((self.source / 'app').glob('*_api.php'))])
         discovered = set(re.findall(r"\$action\s*===\s*'([^']+)'", source))
         for group in re.findall(r"in_array\(\$action,\[([^\]]+)\]", source):
             discovered.update(re.findall(r"'([^']+)'", group))
@@ -372,7 +370,7 @@ class SecurityTests(SecurityFixture):
 
     def test_app_routes_and_assets_require_a_session(self):
         paths = ['/', '/index.html', '/choose', '/client/projects/shared', '/studio-a/projects', '/studio-a/projects/own',
-                 '/studio-a/slide/slide-own', '/studio-a/users', '/studio-a/activity',
+                 '/studio-a/slide/slide-own', '/studio-a/users',
                  '/studio-a/comments', '/studio-a/settings', '/studio-a/profile']
         paths += ['/' + str(p.relative_to(self.source / 'public')) for p in sorted((self.source / 'public/assets').rglob('*')) if p.is_file()]
         for session in (None, 'forged', 'expired'):
@@ -397,7 +395,7 @@ class SecurityTests(SecurityFixture):
     def test_studio_project_lists_and_feeds_are_scoped(self):
         expected = {'own', 'shared', 'public'}
         self.assertEqual({p['id'] for p in self.ok(self.editor.api('projects'))['projects']}, expected)
-        for action in ('activity_feed', 'comments_feed'):
+        for action in ('comments_feed',):
             with self.subTest(action=action):
                 items = self.ok(self.editor.api(action))['items']
                 self.assertEqual({i['project_id'] for i in items}, {'own', 'shared'} if action == 'comments_feed' else expected)
@@ -427,7 +425,7 @@ class SecurityTests(SecurityFixture):
                 self.denied(self.editor.api(action, query=query))
 
     def test_studio_headers_and_iteration_ids_cannot_change_scope(self):
-        for action in ('projects', 'studio_users', 'activity_feed'):
+        for action in ('projects', 'studio_users'):
             with self.subTest(action=action):
                 self.denied(self.editor.api(action, headers={'X-Studio-ID': 'studio-b'}))
         for project in ('private', 'public', 'foreign'):
@@ -507,7 +505,7 @@ class SecurityTests(SecurityFixture):
             for action, query in self.read_cases(project):
                 with self.subTest(project=project, action=action, query=query):
                     self.denied(self.client.api(action, query=query))
-        for action in ('projects', 'studio_users', 'activity_feed', 'comments_feed', 'studio_starting_pack'):
+        for action in ('projects', 'studio_users', 'comments_feed', 'studio_starting_pack'):
             with self.subTest(action=action):
                 self.denied(self.client.api(action))
 
@@ -526,7 +524,7 @@ class SecurityTests(SecurityFixture):
                                 'image_version_id': 'variant-' + project}))
 
     def test_client_cannot_call_studio_write_endpoints(self):
-        excluded = PUBLIC_ACTIONS | {'communication_slide_link', 'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'view_event', 'budget_chat', 'budget_choice',
+        excluded = PUBLIC_ACTIONS | {'communication_slide_link', 'communication_post', 'communication_share', 'communication_work_decide', 'communication_thread_update', 'confirmation_decide', 'communication_upload', 'logout', 'comment', 'budget_chat', 'budget_choice',
                                      'save_profile', 'upload_avatar', 'remove_avatar', 'read_comments', 'comment_answered', 'reply_open_question', 'add_client_question'}
         # Successful forbidden operations must not alter the identity of later
         # cases (e.g. create_studio could otherwise grant admin to this client).
@@ -573,7 +571,7 @@ class SecurityTests(SecurityFixture):
         self.assertEqual(self.ok(self.client.api('destinations'))['projects'], [])
 
     def test_client_can_comment_ask_questions_and_approve_own_budget(self):
-        for action in ('comment', 'budget_choice', 'budget_chat', 'view_event'):
+        for action in ('comment', 'budget_choice', 'budget_chat'):
             with self.subTest(action=action):
                 self.ok(self.client.api(action, self.write_body('shared')))
         self.assertEqual(self.sql('SELECT author FROM comments WHERE body=?', ('Client must not change this',)),
@@ -583,7 +581,7 @@ class SecurityTests(SecurityFixture):
         self.assertEqual(self.sql('SELECT COUNT(*) FROM budget_choices WHERE budget_item_id<>?', ('budget-shared',)), [(0,)])
 
     def test_client_engagement_requires_csrf_and_cannot_target_other_projects(self):
-        for action in ('comment', 'budget_choice', 'budget_chat', 'view_event'):
+        for action in ('comment', 'budget_choice', 'budget_chat'):
             with self.subTest(action=action, case='missing_csrf'):
                 self.denied(self.client.api(action, self.write_body('shared'), headers={'X-CSRF-Token': ''}))
             for project in ('own', 'private', 'public', 'foreign'):
@@ -749,7 +747,7 @@ class SecurityTests(SecurityFixture):
                 self.denied(self.client.api('deck', headers={'Authorization': 'Client ' + payload}))
             with self.subTest(payload=payload, action='client_project'):
                 self.denied(self.client.api('client_project', query={'project_id': payload}))
-            for action in ('activity_feed', 'comments_feed'):
+            for action in ('comments_feed',):
                 with self.subTest(payload=payload, action=action):
                     self.assertEqual(self.ok(self.editor.api(action, query={'project_id': payload}))['items'], [])
                     items = self.ok(self.editor.api(action, query={'offset': payload}))['items']

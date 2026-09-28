@@ -84,7 +84,6 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-budget-') as temp:
         owner.call('lock_iteration',{'iteration':iid})
         owner.call('save_budget',{'iteration':iid,'id':fixed,'label':'Changed quote','amount':'999'},expected=409)
         check(next(x for x in deck()['budget'] if x['id']==ranged)['min_amount_cents']==100000,'Interactive preferences preserve immutable source range endpoints')
-        check(any(e['type']=='budget_choice_updated' and e['actor']=='client@example.test' for e in deck()['events']),'Designers can see who changed budget choices in activity')
         next_iid=owner.call('new_iteration',{'iteration':iid,'title':'Next budget'},expected=201)['id']
         next_deck=owner.call('project',query='&id='+pid+'&iteration='+next_iid)
         check(next_deck['total_cents']==235000,'New iterations carry saved choices forward')

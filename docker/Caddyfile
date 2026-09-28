@@ -1,0 +1,76 @@
+{
+    auto_https off
+    admin off
+}
+
+:8080 {
+    root * /srv
+    header {
+        Cache-Control "no-store"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "no-referrer"
+    }
+
+    route {
+        @private path_regexp private (^|/)\.[^/]+|\.php(?:/|$)
+        respond @private "The legacy StudioDeck PHP API has been retired." 410
+
+        handle /platform-unavailable/* {
+            header Content-Type application/json
+            respond `{"error":"This feature needs platform integration."}` 501
+        }
+
+        @platform path /api/1.0/* /whoami /auth/config /authenticate /authenticate/* /webauthn/* /sso/* /google/* /microsoft/* /apple/* /oauth/* /login /logout /administrations /administrations/* /approval/* /wizard/* /avatars/*
+        reverse_proxy @platform {$PLATFORM_UPSTREAM:http://host.docker.internal:8101} {
+            header_up Host {http.request.hostport}
+        }
+        @userfiles path_regexp userfiles ^/[A-Za-z0-9_-]+/userfiles(?:/|$)
+        reverse_proxy @userfiles {$PLATFORM_UPSTREAM:http://host.docker.internal:8101} {
+            header_up Host {http.request.hostport}
+        }
+        handle_path /platform-assets/* {
+            rewrite * /assets{path}
+            reverse_proxy {$PLATFORM_UPSTREAM:http://host.docker.internal:8101} {
+                header_up Host {http.request.hostport}
+            }
+        }
+        handle /assets/* {
+            @local file
+            handle @local {
+                file_server
+            }
+            # Framework authentication pages use /assets too; local frontend files win.
+            handle {
+                reverse_proxy {$PLATFORM_UPSTREAM:http://host.docker.internal:8101} {
+                    header_up Host {http.request.hostport}
+                }
+            }
+        }
+        handle /auth/error-page.* {
+            file_server
+        }
+        @mock path /mock /mock/*
+        handle @mock {
+            header X-Robots-Tag "noindex, nofollow"
+            header X-Frame-Options "DENY"
+            header Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+            @mockRoot path /mock /mock/
+            rewrite @mockRoot /mock/index.html
+            file_server
+        }
+        redir /starttrial /administrations 302
+        @tenantRoot path_regexp tenantRoot ^/([0-9]+)/?$
+        redir @tenantRoot /{re.tenantRoot.1}/projects 302
+        @conversation path_regexp conversation ^/conversations/[A-Za-z0-9_-]+/?$
+        handle @conversation {
+            rewrite * /conversation.html
+            file_server
+        }
+        @app path_regexp app ^/(?:index\.html|choose|(?:[A-Za-z0-9_-]+/(?:projects(?:/[A-Za-z0-9_-]+)?|slide/[A-Za-z0-9_-]+|users|comments|attention|settings|billing|website|profile))|client/projects/[A-Za-z0-9_-]+)?/?$
+        handle @app {
+            rewrite * /index.html
+            file_server
+        }
+        respond "Not found." 404
+    }
+}

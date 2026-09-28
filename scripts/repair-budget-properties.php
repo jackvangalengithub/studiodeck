@@ -10,7 +10,6 @@ $changes=transaction(function()use($pid,$options){
         $changes[]=['id'=>$item['id'],'label'=>$item['label'],...$p];
         if(isset($options['apply']))query('UPDATE budget_items SET min_amount_cents=?,max_amount_cents=?,is_optional=? WHERE id=?',[...array_values($p),$item['id']]);
     }
-    if(isset($options['apply'])&&$changes)audit($pid,'','system','budget_properties_recovered',count($changes).' budget rows recovered from their explicit source extraction notes.');
     return $changes;
 });
 echo json_encode(['applied'=>isset($options['apply']),'changes'=>$changes],JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE)."\n";

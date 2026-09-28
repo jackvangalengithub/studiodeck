@@ -1,4 +1,4 @@
-// Use an isolated test server with log-only email, as for test_question_activity.cjs.
+// Use an isolated test server with log-only email, as for test_budget_controls.cjs.
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const fs=require('fs'),assert=require('assert/strict');
 const base=process.env.STUDIODECK_TEST_URL,mailLog=process.env.STUDIODECK_TEST_MAIL_LOG;

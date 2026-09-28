@@ -43,13 +43,11 @@ function billing_activate_project(array $u,array $input): array {
             if($other['archived']||billing_access($archive)['source']!=='subscription')fail('That project no longer occupies a subscription slot. Review your options again.',409);
             if($source!=='subscription'||(!$p['archived']&&billing_access($pid)['source']==='subscription'))fail('This action does not need another subscription slot.',409);
             query('UPDATE projects SET archived=1 WHERE id=?',[$archive]);
-            $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$archive]);audit($archive,$i['id'],$u['email'],'project_settings_updated','Archived to free a subscription slot');
         }
         if($source!==billing_access($pid)['source'])billing_set_project_coverage($u,$pid,$source);
         // Idempotent retries must not count the already-active target twice.
         if($p['archived']){
             billing_restore($p);query('UPDATE projects SET archived=0 WHERE id=?',[$pid]);
-            $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$pid]);audit($pid,$i['id'],$u['email'],'project_settings_updated','Reactivated project');
         }else billing_require_project($pid,$u['user_id']);
         return billing_project_decision($u,$pid);
     });

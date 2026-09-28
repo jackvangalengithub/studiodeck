@@ -1,3 +1,4 @@
+import {platformFetch} from './platform/files.js';
 import {tr} from './i18n.js';
 export function startingPack({api,state,esc,button,openModal,closeModal,refresh,toast}){
  let items=[],manage=false,selection=null;
@@ -19,7 +20,7 @@ export function startingPack({api,state,esc,button,openModal,closeModal,refresh,
   return available.length?`<div class="pack-slide-picker"><p>${tr("studio_add_an_editable_copy_of_a_slide_this_project_does_not_have_yet")}</p><form data-form="pack-add-slide"><label>${tr("studio_studio_slide")}<select name="version_id" required>${available.map(i=>`<option value="${esc(i.version_id)}">${esc(i.preview_title)} · ${label(i)}</option>`).join('')}</select></label><p class="form-hint">${tr("studio_welcome_and_contact_templates_fill_the_default_opening_or_contact_text")}</p>${footer(tr("studio_add_template_slide"))}</form></div>`:'';
  }
  async function action(a,el){
-  if(a==='pack-download'){const response=await fetch('api.php?'+new URLSearchParams({action:'pack_file',version:el.dataset.version}),{headers:{'X-Studio-ID':state.studio.id}});if(!response.ok)throw Error(tr("studio_this_template_file_is_unavailable"));const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=el.dataset.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  if(a==='pack-download'){const response=await platformFetch(new URLSearchParams({action:'pack_file',version:el.dataset.version}),{headers:{'X-Studio-ID':state.studio.id}});if(!response.ok)throw Error(tr("studio_this_template_file_is_unavailable"));const url=URL.createObjectURL(await response.blob()),link=document.createElement('a');link.href=url;link.download=el.dataset.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
   if(a==='pack-library')await library();
   if(a==='pack-new-slide')edit();
   if(a==='pack-new-document')edit('','document');

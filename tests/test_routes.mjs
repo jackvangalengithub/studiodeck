@@ -6,7 +6,7 @@ assert.equal(workspaceUrl({studioId:'200',view:'slide',slide:'visual-x',projectI
 assert.equal(parse('/300/slide/visual-x?project=p123&iteration=i2').studioId,'300');
 assert.equal(parse('/200/projects?search=Living+room&archived=1').search,'Living room');
 assert.equal(parse('/200/projects?archived=1').archived,true);
-for(const [view,path] of [['studio-users','users'],['all-comments','comments'],['all-activity','activity'],['settings','settings']])assert.equal(parse(workspaceUrl({studioId:'200',view})).view,view);
+for(const [view,path] of [['studio-users','users'],['all-comments','comments'],['settings','settings']])assert.equal(parse(workspaceUrl({studioId:'200',view})).view,view);
 assert.equal(parse('/'),null);assert.equal(parse('/assets/app.js'),null);
 assert.equal(parse('/200/projects/p123?tab=invalid').tab,'overview');
 assert.equal(parse('/client/projects/p123'),null);
@@ -26,3 +26,6 @@ assert.equal(workspaceUrl({studioId:'200',view:'all-comments',communicationFilte
 
 assert.equal(parse('/200/comments').filter,'open');
 assert.equal(parse(workspaceUrl({studioId:'200',view:'all-comments',communicationFilter:'all'})).filter,'all');
+
+assert.equal(parse('/200/projects/project-1?tab=activity').tab,'overview');
+assert.equal(parse('/200/activity'),null);

@@ -64,7 +64,6 @@ do {
                 replace_source_budget($i['id'],$v['id'],$cat==='budget'?$items:[]);
                 $oldTheme=json_decode($i['theme'],true)?:[];
                 if(!in_array($cat,['budget','drawings','legal'],true)&&$theme['colors']&&(!$oldTheme||(!empty($oldTheme['automatic'])&&($theme['source_priority']>=($oldTheme['source_priority']??0)))))query('UPDATE iterations SET theme=? WHERE id=?',[json_encode($theme),$i['id']]);
-                audit($job['project_id'],$i['id'],'Studiodeck','file_processed',$v['name']);
             });
             if($checkSubquotes){processing_progress('matching_subquotes');check_uploaded_subquotes($job['iteration_id'],$v['id']);}
             processing_progress('complete',['warning_count'=>count($e['warnings'])]);
@@ -89,7 +88,7 @@ do {
                 if(!empty($i['locked'])||$f['version_id']!==$v['id'])throw new RuntimeException('The source changed while editing. The current presentation was preserved.');
                 $vid=id();$n=(int)one('SELECT MAX(number) AS n FROM file_versions WHERE asset_id=?',[$v['asset_id']])['n']+1;
                 insert('file_versions',['id'=>$vid,'asset_id'=>$v['asset_id'],'parent_id'=>$v['id'],'number'=>$n,'name'=>pathinfo($v['name'],PATHINFO_FILENAME).'-variation.png','mime'=>'image/png','size'=>strlen($raw),'sha256'=>hash('sha256',$raw),'data'=>$raw,'preview'=>png_preview($raw),'extracted_text'=>'','metadata'=>json_encode(['generated'=>true,'prompt'=>$payload['prompt'],'review_required'=>true]),'created_at'=>now()]);
-                query('UPDATE iteration_files SET version_id=? WHERE iteration_id=? AND asset_id=?',[$vid,$i['id'],$v['asset_id']]);audit($job['project_id'],$i['id'],'Studiodeck','image_version_created',$payload['prompt']);
+                query('UPDATE iteration_files SET version_id=? WHERE iteration_id=? AND asset_id=?',[$vid,$i['id'],$v['asset_id']]);
                 query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
             });
         }

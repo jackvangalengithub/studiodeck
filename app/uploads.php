@@ -21,7 +21,7 @@ function save_project_uploads(array $prepared,string $replace,array $i,array $u,
             if($old)query('UPDATE iteration_files SET version_id=?,category=? WHERE iteration_id=? AND asset_id=?',[$vid,$category,$i['id'],$asset]);
             else insert('iteration_files',['iteration_id'=>$i['id'],'asset_id'=>$asset,'version_id'=>$vid,'category'=>$category]);
             insert('jobs',['id'=>id(),'project_id'=>$i['project_id'],'iteration_id'=>$i['id'],'version_id'=>$vid,'type'=>'ingest','created_at'=>now()]);
-            audit($i['project_id'],$i['id'],$u['email'],$old?'file_replaced':'file_uploaded',$f['name']);$ids[]=$vid;
+            $ids[]=$vid;
         }
         return ['ids'=>$ids,'message'=>'Files received. Your presentation is being assembled.'];
     });

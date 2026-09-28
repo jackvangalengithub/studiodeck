@@ -100,7 +100,7 @@ class OpenQuestionTests(SecurityFixture):
         self.ok(self.editor.api('communication_post', dict(iteration='iteration-shared', checklist_id=qid, body='Locked', recipient='client@example.test')), 409)
         self.assertEqual(self.sql('SELECT COUNT(*) FROM comment_confirmations')[0][0], 0)
 
-    def test_private_review_replies_activity_and_access(self):
+    def test_private_review_replies_and_access(self):
         self.assertEqual(self.deck()['slide_groups']['questions'], 'Checklist')
         qid = self.save()
         self.assertEqual(self.deck(self.client)['open_questions'], [])
@@ -115,8 +115,6 @@ class OpenQuestionTests(SecurityFixture):
         self.ok(self.client.api('reply_open_question', {'iteration': 'iteration-shared', 'id': qid, 'body': 'Please include removal too.'}))
         question = self.deck()['open_questions'][0]
         self.assertEqual(question['replies'][0]['author'], 'client@example.test')
-        events = self.ok(self.editor.api('project', query={'id': 'shared'}))['events']
-        self.assertTrue(any(e['type'] == 'open_question_reply' and 'removal' in e['detail'] for e in events))
         for actor in (self.client, Client(self.base, 'outsider'), self.anon):
             self.denied(actor.api('save_open_question', {'iteration': 'iteration-shared', 'id': qid}))
             self.denied(actor.api('generate_open_questions', {'iteration': 'iteration-shared'}))

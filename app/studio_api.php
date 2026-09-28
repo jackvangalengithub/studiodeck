@@ -1,17 +1,17 @@
 <?php
 // Included by the API router after method validation.
-if($action==='complete_studio_setup'){$u=owner(true);complete_studio_setup($u,input());json_response(session_details(current_session()));}
-if($action==='studio_users'){$u=owner();json_response(['users'=>studio_members($u['studio_id']??''),'billing'=>billing_summary($u['studio_id'])]);}
+if($action==='complete_studio_setup'){$u=owner(true);complete_studio_setup($u,($requestBody??input()));return api_result(session_details(current_session()));}
+if($action==='studio_users'){$u=owner();return api_result(['users'=>studio_members($u['studio_id']??''),'billing'=>billing_summary($u['studio_id'])]);}
 if($action==='create_studio'){
-    $u=owner(true);$b=input();$name=text_field($b['name']??'',100);if(!$name)fail('Give the studio a name.');
-    transaction(function()use($u,$name){$sid=create_studio($u['user_id'],$name);query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$sid,$u['token_hash']]);});json_response(session_details(current_session()),201);
+    $u=owner(true);$b=($requestBody??input());$name=text_field($b['name']??'',100);if(!$name)fail('Give the studio a name.');
+    transaction(function()use($u,$name){$sid=create_studio($u['user_id'],$name);query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$sid,$u['token_hash']]);});return api_result(session_details(current_session()),201);
 }
 if($action==='switch_studio'){
-    $u=owner(true);$sid=text_field(input()['studio_id']??'');if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$sid,$u['user_id']]))fail('Studio not found.',404);
-    query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$sid,$u['token_hash']]);json_response(session_details(current_session()));
+    $u=owner(true);$sid=text_field(($requestBody??input())['studio_id']??'');if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$sid,$u['user_id']]))fail('Studio not found.',404);
+    query('UPDATE sessions SET studio_id=? WHERE token_hash=?',[$sid,$u['token_hash']]);return api_result(session_details(current_session()));
 }
 if($action==='save_studio_user'||$action==='remove_studio_user'){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     transaction(function()use($u,$b,$action){
         studio_admin($u);$uid=text_field($b['id']??'');$existing=$uid?one('SELECT * FROM studio_members WHERE studio_id=? AND user_id=?',[$u['studio_id'],$uid]):null;
         if($uid&&!$existing)fail('User not found in this studio.',404);
@@ -36,10 +36,10 @@ if($action==='save_studio_user'||$action==='remove_studio_user'){
             if(one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$u['studio_id'],$uid]))fail('This user is already a studio member.',409);
             insert('studio_members',['studio_id'=>$u['studio_id'],'user_id'=>$uid,'display_name'=>$name,'phone'=>$phone,'role'=>$role]);
         }
-    });json_response(['users'=>studio_members($u['studio_id']),'billing'=>billing_summary($u['studio_id'])]);
+    });return api_result(['users'=>studio_members($u['studio_id']),'billing'=>billing_summary($u['studio_id'])]);
 }
 if($action==='project_members'){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     transaction(function()use($u,$b){$p=owned_project(text_field($b['project_id']??''),$u,false);if(!project_member($p['id'],$u['user_id']))fail('Only project team members can edit this project.',403);$ids=array_values(array_unique($b['user_ids']??[]));if(!$ids)fail('Keep at least one project team member.');
         foreach($ids as $uid)if(!is_string($uid)||!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$p['studio_id'],$uid]))fail('Choose members of this studio.');
         $currentIds=array_column(rows('SELECT user_id FROM project_members WHERE project_id=?',[$p['id']]),'user_id');
@@ -50,11 +50,11 @@ if($action==='project_members'){
         foreach($roles as $uid=>$role)if(!in_array($uid,$ids,true)||!is_string($role))fail('Roles must belong to selected studio members.');
         query('DELETE FROM project_members WHERE project_id=?',[$p['id']]);foreach($ids as $uid)insert('project_members',['project_id'=>$p['id'],'user_id'=>$uid]);
         foreach($roles as $uid=>$role)query('INSERT INTO project_team_contacts(project_id,user_id,role) VALUES(?,?,?) ON CONFLICT(project_id,user_id) DO UPDATE SET role=excluded.role',[$p['id'],$uid,text_field($role,80)]);
-    });json_response(['ok'=>true]);
+    });return api_result(['ok'=>true]);
 }
 
 if($action==='studio_logo'){
-    $u=owner();$sid=text_field($_GET['studio_id']??$u['studio_id']??'');if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$sid,$u['user_id']]))fail('Studio not found.',404);
+    $u=owner();$sid=text_field($query['studio_id']??$u['studio_id']??'');if(!one('SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=?',[$sid,$u['user_id']]))fail('Studio not found.',404);
     $logo=one('SELECT data,mime FROM studio_logos WHERE studio_id=?',[$sid]);if(!$logo)fail('Logo not found.',404);header('Content-Type: '.$logo['mime']);header('Content-Length: '.strlen($logo['data']));echo $logo['data'];exit;
 }
 if($action==='upload_studio_logo'){
@@ -63,6 +63,6 @@ if($action==='upload_studio_logo'){
     if(!$info||!in_array($info['mime'],['image/png','image/jpeg','image/webp'],true)||$info[0]*$info[1]>12000000)fail('Choose a PNG, JPEG, or WebP logo up to 12 megapixels.');
     $image=@imagecreatefromstring(file_get_contents($f['tmp_name']));if(!$image)fail('This logo could not be read.');
     $scale=min(1,640/max($info[0],$info[1]));$w=max(1,(int)round($info[0]*$scale));$h=max(1,(int)round($info[1]*$scale));$out=imagecreatetruecolor($w,$h);imagealphablending($out,false);imagesavealpha($out,true);imagecopyresampled($out,$image,0,0,0,0,$w,$h,$info[0],$info[1]);ob_start();imagepng($out);$data=ob_get_clean();imagedestroy($image);imagedestroy($out);
-    transaction(function()use($u,$data){query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);insert('studio_logos',['studio_id'=>$u['studio_id'],'data'=>$data,'mime'=>'image/png']);});json_response(['ok'=>true]);
+    transaction(function()use($u,$data){query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);insert('studio_logos',['studio_id'=>$u['studio_id'],'data'=>$data,'mime'=>'image/png']);});return api_result(['ok'=>true]);
 }
-if($action==='remove_studio_logo'){$u=owner(true);studio_admin($u);query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);json_response(['ok'=>true]);}
+if($action==='remove_studio_logo'){$u=owner(true);studio_admin($u);query('DELETE FROM studio_logos WHERE studio_id=?',[$u['studio_id']]);return api_result(['ok'=>true]);}

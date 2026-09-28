@@ -86,7 +86,7 @@ function reconcile_subquotes(string $iid,?callable $request=null): array {
                 query("UPDATE budget_items SET parent_id=?,included=?,relationship_origin='auto',relationship_evidence=? WHERE id=?",[$link['parent_id'],$link['included'],$link['evidence'],$link['child_id']]);
                 query("DELETE FROM budget_link_suggestions WHERE child_id=? AND status='pending'",[$link['child_id']]);
                 foreach($items as &$item)if($item['id']===$link['child_id'])$item['parent_id']=$link['parent_id'];unset($item);
-                audit($i['project_id'],$iid,'Studiodeck','subquote_linked',$link['evidence']);$linked++;
+                $linked++;
             }else{
                 query("INSERT INTO budget_link_suggestions(id,iteration_id,child_id,parent_id,included,evidence,confidence,created_at) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(iteration_id,child_id,parent_id) DO UPDATE SET included=excluded.included,evidence=excluded.evidence,confidence=excluded.confidence",[id(),$iid,$link['child_id'],$link['parent_id'],$link['included'],$link['evidence'],$link['confidence'],now()]);$suggested++;
             }

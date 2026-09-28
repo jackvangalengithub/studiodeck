@@ -1,11 +1,11 @@
 <?php
-if($action==='studio_starting_pack'){$u=owner();json_response(['items'=>studio_pack($u['studio_id']),'can_manage'=>(bool)one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']])]);}
+if($action==='studio_starting_pack'){$u=owner();return api_result(['items'=>studio_pack($u['studio_id']),'can_manage'=>(bool)one("SELECT 1 FROM studio_members WHERE studio_id=? AND user_id=? AND role='admin'",[$u['studio_id'],$u['user_id']])]);}
 if($action==='pack_file'){
-    $u=owner();$v=pack_version(text_field($_GET['version']??''),$u['studio_id']);if(!$v['data'])fail('This template has no attached file.',404);
+    $u=owner();$v=pack_version(text_field($query['version']??''),$u['studio_id']);if(!$v['data'])fail('This template has no attached file.',404);
     header('Content-Type: '.$v['mime']);header('Content-Length: '.strlen($v['data']));header("Content-Disposition: attachment; filename*=UTF-8''".rawurlencode($v['name']));echo $v['data'];exit;
 }
 if($action==='save_pack_item'){
-    $u=owner(true);pack_admin($u);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:input();
+    $u=owner(true);pack_admin($u);$b=str_starts_with($_SERVER['CONTENT_TYPE']??'','multipart/form-data')?$_POST:($requestBody??input());
     $uploaded=null;$file=$_FILES['file']??null;
     if($file&&$file['error']!==UPLOAD_ERR_NO_FILE){
         if($file['error']!==UPLOAD_ERR_OK||!is_uploaded_file($file['tmp_name']))fail('The template file did not finish uploading.');
@@ -31,27 +31,26 @@ if($action==='save_pack_item'){
         else query('UPDATE studio_pack_items SET default_enabled=?,position=?,archived=0 WHERE id=?',[$default,$position,$itemId]);
         billing_trial_storage($u['studio_id'],strlen($attachment['data']??''));
         $vid=id();insert('studio_pack_versions',['id'=>$vid,'item_id'=>$itemId,'revision'=>($previous['revision']??0)+1,'title'=>$title,'body'=>$body,...$attachment,'created_at'=>now()]);return ['id'=>$itemId,'version_id'=>$vid];
-    });json_response($result);
+    });return api_result($result);
 }
 if($action==='archive_pack_item'){
-    $u=owner(true);$b=input();transaction(function()use($u,$b){pack_admin($u);$item=one('SELECT id FROM studio_pack_items WHERE id=? AND studio_id=?',[text_field($b['id']??''),$u['studio_id']]);if(!$item)fail('Starting-pack item not found.',404);query('UPDATE studio_pack_items SET archived=1 WHERE id=?',[$item['id']]);});json_response(['ok'=>true]);
+    $u=owner(true);$b=($requestBody??input());transaction(function()use($u,$b){pack_admin($u);$item=one('SELECT id FROM studio_pack_items WHERE id=? AND studio_id=?',[text_field($b['id']??''),$u['studio_id']]);if(!$item)fail('Starting-pack item not found.',404);query('UPDATE studio_pack_items SET archived=1 WHERE id=?',[$item['id']]);});return api_result(['ok'=>true]);
 }
 if($action==='project_starting_pack'){
-    $u=owner();$i=owned_iteration(text_field($_GET['iteration']??''),$u);$p=owned_project($i['project_id'],$u,false);json_response(project_pack($i,$p,$u));
+    $u=owner();$i=owned_iteration(text_field($query['iteration']??''),$u);$p=owned_project($i['project_id'],$u,false);return api_result(project_pack($i,$p,$u));
 }
 if($action==='add_project_pack_slide'){
-    $u=owner(true);$b=input();transaction(function()use($u,$b){
+    $u=owner(true);$b=($requestBody??input());transaction(function()use($u,$b){
         $i=owned_iteration(text_field($b['iteration']??''),$u,true);$p=owned_project($i['project_id'],$u);
         $pack=project_pack($i,$p,$u);
         if(($b['snapshot']??'')!==$pack['snapshot'])fail('The project or studio templates changed. Open Add slide again to see the available slides.',409);
         $vid=text_field($b['version_id']??'');
         if(!in_array($vid,array_column($pack['available_slides'],'version_id'),true))fail('This studio slide is already included or is no longer available.',409);
         apply_pack_version($i,$p,pack_version($vid,$p['studio_id']),$u);
-        audit($p['id'],$i['id'],$u['email'],'starting_pack_slide_added','Added a missing studio template slide');
-    });json_response(['ok'=>true]);
+    });return api_result(['ok'=>true]);
 }
 if($action==='apply_project_pack'){
-    $u=owner(true);$b=input();transaction(function()use($u,$b){
+    $u=owner(true);$b=($requestBody??input());transaction(function()use($u,$b){
         $i=owned_iteration(text_field($b['iteration']??''),$u,true);$p=owned_project($i['project_id'],$u);
         $review=project_pack($i,$p,$u);if(($b['snapshot']??'')!==$review['snapshot'])fail('The project or studio pack changed. Review the latest content before applying updates.',409);
         $changes=$b['changes']??null;if(!is_array($changes)||count($changes)>40)fail('Choose valid starting-pack changes.');$seen=[];
@@ -62,6 +61,5 @@ if($action==='apply_project_pack'){
             elseif(($change['operation']??'')==='apply'){$v=pack_version(text_field($change['version_id']??''),$p['studio_id']);if($v['item_id']!==$change['item_id'])fail('Choose the correct version of this item.');apply_pack_version($i,$p,$v,$u);}
             else fail('Choose add, update or remove.');
         }
-        audit($p['id'],$i['id'],$u['email'],'starting_pack_updated','Reviewed and applied '.count($changes).' starting-pack changes');
-    });json_response(['ok'=>true]);
+    });return api_result(['ok'=>true]);
 }

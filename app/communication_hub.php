@@ -90,7 +90,6 @@ function share_communication(array $b): array {
         if(($b['share_history']??false)!==true)fail('Sharing includes all earlier messages and attachments.');
         query("UPDATE communication_audiences SET audience='shared' WHERE root_id=?",[$root['id']]);
         query('UPDATE open_questions SET published=1 WHERE iteration_id=? AND id=(SELECT question_id FROM communication_topics WHERE root_id=?)',[$i['id'],$root['id']]);
-        audit($i['project_id'],$i['id'],$u['email'],'conversation_shared',$root['body']);
         return ['ok'=>true];
     });
 }
@@ -108,7 +107,6 @@ function decide_communication_work(array $b): array {
         if(!is_bool($b['resolved']??null))fail('Choose complete or reopen.');
         query('UPDATE open_questions SET resolved=?,edited=1 WHERE iteration_id=? AND id=?',[(int)$b['resolved'],$i['id'],$c['question_id']]);
         query('UPDATE comments SET answered=? WHERE id=?',[(int)$b['resolved'],$c['id']]);
-        audit($i['project_id'],$i['id'],$actor,$b['resolved']?'communication_work_completed':'communication_work_reopened',$c['body']);
         return ['ok'=>true];
     });
 }
@@ -178,7 +176,6 @@ function update_communication_thread(array $b): array {
                 query('UPDATE conversation_grants SET revoked=1 WHERE root_id=?',[$c['id']]);
             }else query('UPDATE open_questions SET published=1 WHERE iteration_id=? AND id=(SELECT question_id FROM communication_topics WHERE root_id=?)',[$i['id'],$c['id']]);
         }
-        audit($i['project_id'],$i['id'],$actor,'communication_thread_updated',$type.' · '.($title??$c['body']));
         return ['ok'=>true];
     });
 }
@@ -234,7 +231,7 @@ function link_communication_slide(array $b): array {
         if($slide==='general')fail('Choose an original slide.');
         validate_communication_slide($i,$slide,$designer);
         query('UPDATE comments SET slide=? WHERE id=? OR parent_id=?',[$slide,$c['id'],$c['id']]);
-        audit($i['project_id'],$i['id'],$actor,'communication_origin_linked',$slide.' · '.$c['body']);
+
         return ['ok'=>true];
     });
 }

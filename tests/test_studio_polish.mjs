@@ -55,7 +55,7 @@ async function pageFor(t,{width=1440,height=900,client=false,readonly=false,job=
         if(url.origin!==base){await route.abort();return;}
         if(url.pathname!=='/api.php'){await route.continue();return;}
         const action=url.searchParams.get('action');
-        const replies={session,project:data,deck:data,projects:{projects:[]},view_event:{ok:true},mark_comments_read:{ok:true}};
+        const replies={session,project:data,deck:data,projects:{projects:[]},mark_comments_read:{ok:true}};
         if(!(action in replies)){errors.push(`Unexpected API request: ${action}`);await route.fulfill({status:500,json:{error:'Unexpected fixture request'}});return;}
         await route.fulfill({json:replies[action]});
     });

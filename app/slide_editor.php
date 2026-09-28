@@ -27,7 +27,7 @@ function save_designed_slide(array $i,array $b,array $u): array {
     if($systemType=system_slide_type($i['id'],$sid)){
         query('INSERT INTO slide_content(iteration_id,slide_id,title,description) VALUES(?,?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET title=excluded.title,description=excluded.description',[$i['id'],$systemType,$title,$description]);
         if($section)query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],$sid,$section]);
-        audit($i['project_id'],$i['id'],$u['email'],'slide_updated',$title);return ['id'=>$sid];
+        return ['id'=>$sid];
     }
     if($sid&&!$slide)fail('Slide not found.',404);
     $type=$b['type']??'';$situation=$b['situation']??'unknown';
@@ -81,6 +81,5 @@ function save_designed_slide(array $i,array $b,array $u): array {
     else insert('presentation_slides',['id'=>$sid,'iteration_id'=>$i['id'],...$fields,'position'=>(int)(one('SELECT MAX(position) AS n FROM presentation_slides WHERE iteration_id=?',[$i['id']])['n']??0)+1]);
     if(!empty($source['id'])&&$source['source_version_id'])copy_slide_image_history($source,['id'=>$sid,'iteration_id'=>$i['id'],...$fields]);
     if($section)query('INSERT INTO slide_sections(iteration_id,slide_id,section) VALUES(?,?,?) ON CONFLICT(iteration_id,slide_id) DO UPDATE SET section=excluded.section',[$i['id'],'visual-'.$sid,$section]);
-    audit($i['project_id'],$i['id'],$u['email'],$slide?'slide_updated':'slide_created',$title);
     return ['id'=>'visual-'.$sid];
 }

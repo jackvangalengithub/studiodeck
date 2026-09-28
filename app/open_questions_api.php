@@ -2,12 +2,12 @@
 declare(strict_types=1);
 
 if($action==='generate_open_questions'){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     transaction(function()use($u,$b){$i=owned_iteration(text_field($b['iteration']??''),$u,true);queue_open_questions($i['id']);});
-    json_response(['ok'=>true],202);
+    return api_result(['ok'=>true],202);
 }
 if($action==='save_open_question'){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     $qid=transaction(function()use($u,$b){
         $i=owned_iteration(text_field($b['iteration']??''),$u,true);$qid=text_field($b['id']??'');
         $q=$qid?one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]):null;
@@ -47,11 +47,11 @@ if($action==='save_open_question'){
         $saved=one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]);
         if($saved['accepted']||$saved['published'])ensure_checklist_thread($saved,$u['email']);
         if(in_array($op,['resolve','reopen'],true))query('UPDATE comments SET answered=? WHERE id IN (SELECT root_id FROM communication_topics WHERE question_id=?) AND iteration_id=?',[$op==='resolve'?1:0,$qid,$i['id']]);
-        audit($i['project_id'],$i['id'],$u['email'],'open_question_updated',($op==='save'?$question:ucfirst($op).': '.$q['question']));return $qid;
-    });json_response(['id'=>$qid]);
+        return $qid;
+    });return api_result(['id'=>$qid]);
 }
 if($action==='reply_open_question'){
-    $b=input();
+    $b=($requestBody??input());
     transaction(function()use($b){
         [$i,$actor,$designer]=access_iteration(text_field($b['iteration']??''),true);
         $q=one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],text_field($b['id']??'')]);
@@ -61,17 +61,15 @@ if($action==='reply_open_question'){
         communication_guard(one('SELECT * FROM comments WHERE id=?',[$root]),$designer);
         $c=['id'=>id(),'iteration_id'=>$i['id'],'parent_id'=>$root,'slide'=>one('SELECT slide FROM comments WHERE id=?',[$root])['slide'],'author'=>$actor,'body'=>$body,'created_at'=>now()];
         insert('comments',$c);save_comment_mentions($i,$c,$b);queue_comment_notifications($i,$c);
-        audit($i['project_id'],$i['id'],$actor,'open_question_reply',$q['question'].': '.$body);
-    });json_response(['ok'=>true]);
+    });return api_result(['ok'=>true]);
 }
 if($action==='add_client_question'){
-    $b=input();
+    $b=($requestBody??input());
     $result=transaction(function()use($b){
         [$i,$actor]=access_iteration(text_field($b['iteration']??''),true);
         $question=text_field($b['question']??'',240);if(!$question)fail('Write a question first.');
         $qid=id();insert('open_questions',['id'=>$qid,'iteration_id'=>$i['id'],'question'=>$question,'origin'=>'conversation','published'=>1,'accepted'=>1,'edited'=>1,'created_at'=>now()]);
         ensure_checklist_thread(one('SELECT * FROM open_questions WHERE iteration_id=? AND id=?',[$i['id'],$qid]),$actor);
-        audit($i['project_id'],$i['id'],$actor,'open_question_added',$question);
         return ['ok'=>true,'id'=>$qid];
-    });json_response($result);
+    });return api_result($result);
 }

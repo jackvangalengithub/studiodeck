@@ -1,3 +1,4 @@
+import {platformFetch} from './platform/files.js';
 import {feedbackText as t,feedbackCategories,feedbackAreas,feedbackStatuses,feedbackPrompts} from './product-feedback-copy.js';
 
 export function productFeedbackUi({state,api,esc,icon,openModal,closeModal,resourceHeaders,demo=false}){
@@ -105,7 +106,7 @@ export function productFeedbackUi({state,api,esc,icon,openModal,closeModal,resou
   modal.querySelector('[data-pf="image"]')?.addEventListener('click',async event=>{
    const button=event.currentTarget;button.disabled=true;
    try{
-    const response=await fetch('api.php?'+new URLSearchParams({action:'product_feedback_image',id:item.id}),{credentials:'same-origin',headers:resourceHeaders()});if(!response.ok)throw Error();
+    const response=await platformFetch(new URLSearchParams({action:'product_feedback_image',id:item.id}),{credentials:'same-origin',headers:resourceHeaders()});if(!response.ok)throw Error();
     const blob=await response.blob();if(!modal.isConnected)return;
     const url=URL.createObjectURL(blob),image=new Image();image.alt=t('screenshotAlt');image.className='pf-full-screenshot';image.onload=image.onerror=()=>URL.revokeObjectURL(url);image.src=url;
     modal.querySelector('[data-pf-image]').replaceChildren(image);

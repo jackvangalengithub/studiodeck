@@ -228,7 +228,6 @@ function run_consistency_checks(string $iid,?callable $request=null): void {
             else query("UPDATE consistency_findings SET fingerprint='' WHERE id=?",[$old['id']]);
         }
         query('INSERT INTO consistency_runs(iteration_id,fingerprint,warnings,source_count,checked_at) VALUES(?,?,?,?,?) ON CONFLICT(iteration_id) DO UPDATE SET fingerprint=excluded.fingerprint,warnings=excluded.warnings,source_count=excluded.source_count,checked_at=excluded.checked_at',[$iid,$context['fingerprint'],json_encode(array_values(array_unique($warnings)),JSON_INVALID_UTF8_SUBSTITUTE),$analyzed,now()]);
-        audit($i['project_id'],$iid,'Studiodeck','consistency_checked',count($findings).' consistency findings ready to review');
     });
 }
 function consistency_payload(string $iid): array {

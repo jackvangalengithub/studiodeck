@@ -35,7 +35,7 @@ try{
   if(url.origin!==base){await route.abort();return;}
   if(url.pathname!=='/api.php'){await route.continue();return;}
   const action=url.searchParams.get('action');let body={};if(request.method()==='POST'&&request.headers()['content-type']?.includes('json'))body=request.postDataJSON();
-  const replies={project_access:{reason:'ready'},project_starting_pack:{snapshot:'test',available_slides:[]},session,project:deck,deck,projects:{projects:[]},profile:{profile:deck.profile},client_project:{share_id:'share',project_id:deck.project.id},read_comments:{ok:true},view_event:{ok:true}};
+  const replies={project_access:{reason:'ready'},project_starting_pack:{snapshot:'test',available_slides:[]},session,project:deck,deck,projects:{projects:[]},profile:{profile:deck.profile},client_project:{share_id:'share',project_id:deck.project.id},read_comments:{ok:true}};
   if(action==='save_profile'){Object.assign(deck.profile,body);saved.push([action,body]);replies[action]={profile:deck.profile};}
   if(action==='studio_theme'){studio.language=body.language;deck.project.studio_language=body.language;saved.push([action,body]);replies[action]={studio_theme:{}};}
   if(action==='save_slide'){

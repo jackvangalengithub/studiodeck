@@ -1,7 +1,7 @@
 <?php
 if($action==='project_export'){
     require_once __DIR__.'/slides.php';
-    $u=owner();$p=owned_project(text_field($_GET['project_id']??''),$u,false);
+    $u=owner();$p=owned_project(text_field($query['project_id']??''),$u,false);
     if(!class_exists('ZipArchive'))fail('Project export is unavailable.',503);
     $path=tempnam(sys_get_temp_dir(),'studiodeck-export-');$zip=new ZipArchive();
     try{

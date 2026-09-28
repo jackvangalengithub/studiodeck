@@ -31,7 +31,6 @@ exports.startOnboardingFixture=async function({offline=false}={}){
       d.iteration.status=fixture.shared?'shared':'draft';d.iterations=d.iterations.map(i=>({...i,status:d.iteration.status}));return d;
     }
     if(action==='drive_status')return {configured:false,connected:false};
-    if(action==='view_event')return {ok:true};
     throw Error('Unexpected fixture API action: '+action);
   }
   const types={'.js':'text/javascript','.css':'text/css','.webp':'image/webp','.svg':'image/svg+xml','.webm':'video/webm','.vtt':'text/vtt','.png':'image/png','.jpg':'image/jpeg','.pdf':'application/pdf','.csv':'text/csv'};

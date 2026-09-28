@@ -68,7 +68,7 @@ async function setup(t,{width=1440,mode='scroll',client=false,configure=()=>{},s
    const r=deck.communication.confirmations.find(r=>r.comment_id===data.id);r.status=data.decision;
    const c=deck.communication.comments.find(c=>c.id===data.id);c.confirmation.status=data.decision;response={ok:true};
   }
-  else if(action==='read_comments'||action==='view_event')response={ok:true};
+  else if(action==='read_comments')response={ok:true};
   else{errors.push('Unexpected API action: '+action);return route.fulfill({status:500,json:{error:'Unexpected request'}});}
   return route.fulfill({json:response});
  });

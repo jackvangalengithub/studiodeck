@@ -114,7 +114,6 @@ function post_communication(array $b): array {
         if(!$parentId)insert('communication_topics',['root_id'=>$c['id'],'type'=>$type,'assignee'=>$assignee,'assignee_name'=>$assigned['name']??'','due_date'=>$due,'question_id'=>$qid,'related_root_id'=>$relatedId?:null]);
         if($checklistId)query('UPDATE open_questions SET confirmation_id=?,edited=1 WHERE iteration_id=? AND id=?',[$c['id'],$i['id'],$checklistId]);
         save_comment_mentions($i,$c,$b,(bool)$scoped);
-        audit($i['project_id'],$i['id'],$actor,$person?'confirmation_requested':'change_requested',$body);
         queue_comment_notifications($i,$c);
         return ['id'=>$c['id']];
     });
@@ -139,7 +138,6 @@ function decide_confirmation(array $b): array {
         }
         if(one('SELECT 1 FROM communication_topics WHERE root_id=?',[$r['comment_id']]))query('UPDATE comments SET answered=1 WHERE id=?',[$r['comment_id']]);
         query('UPDATE comment_confirmations SET status=?,decided_by=?,decided_at=? WHERE comment_id=?',[$decision,$actor,now(),$r['comment_id']]);
-        audit($i['project_id'],$i['id'],$actor,'confirmation_'.$decision,$r['body'].($r['amount_cents']!==null?' · Budget change '.number_format($r['amount_cents']/100,2,'.','').' EUR (including VAT)':''));
         return ['ok'=>true];
     });
 }

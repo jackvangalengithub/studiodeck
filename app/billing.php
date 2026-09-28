@@ -160,7 +160,6 @@ function billing_new_project(array $u,string $intent='',string $archive=''): str
         if(!project_member($archive,$u['user_id']))fail('You cannot archive this project.',403);
         if($intent==='pass'||!billing_subscription_active($b)||$other['archived']||billing_access($archive)['source']!=='subscription')fail('That project no longer frees a subscription slot. Review your options again.',409);
         query('UPDATE projects SET archived=1 WHERE id=?',[$archive]);
-        $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$archive]);audit($archive,$i['id'],$u['email'],'project_settings_updated','Archived to create a subscription project');
     }
     if(one("SELECT 1 FROM billing_orders WHERE studio_id=? AND kind='subscription' AND status='pending'",[$sid])){
         if($passes&&!$archive)return 'project_pass';
@@ -204,7 +203,6 @@ function billing_set_project_coverage(array $u,string $pid,string $source): void
         if(!$c['designer_id']||!one('SELECT 1 FROM project_members WHERE project_id=? AND user_id=?',[$pid,$c['designer_id']])||(int)one('SELECT COUNT(*) n FROM project_members WHERE project_id=?',[$pid])['n']!==1)fail('Keep only the pass’s named designer on this project before changing coverage.',409);
     }else fail('Choose pass or subscription coverage.');
     query('UPDATE project_coverage SET source=?,restricted_at=NULL,retention_notified_at=NULL WHERE project_id=?',[$source,$pid]);
-    $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$pid]);audit($pid,$i['id'],$u['email'],'billing_coverage_changed','Coverage changed to '.$source);
 }
 function billing_reserve_usage(string $pid,string $kind,int $amount=1): void {
     $a=billing_access($pid);billing_require_project($pid);if($a['source']!=='trial')return;

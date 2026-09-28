@@ -74,7 +74,7 @@ export function onboardingUi({state,esc,icon,button,openModal,closeModal,render,
     const p=prefs(),d=state.data;
     if(!d||d.can_edit===false||p.projectId!==d.project.id||p.dismissed)return '';
     const shared=d.iterations?.some(i=>i.status==='shared')||d.iteration.status==='shared';
-    const done=[d.files.length>0,!!p.reviewed||shared,shared];
+    const done=[(d.overview?.file_count??d.files?.length??0)>0,!!p.reviewed||shared,shared];
     return `<section class="onboarding-checklist" aria-labelledby="onboarding-checklist-title"><div class="onboarding-checklist-head"><div><h2 id="onboarding-checklist-title">${t(done.every(Boolean)?'complete':'checklist')}</h2><p>${t('progress',{number:done.filter(Boolean).length})} · ${t('checklistNote')}</p></div><button class="icon-button" data-action="onboarding-dismiss" aria-label="${t('dismiss')}">${icon('close')}</button></div><ol>${['addFiles','review','send'].map((item,i)=>`<li class="${done[i]?'is-done':''}"><span aria-label="${t(done[i]?'completed':'pending')}">${done[i]?icon('check'):i+1}</span>${button(t(item),'onboarding-check-'+i,'ghost',i===2&&!p.reviewed&&!shared?'disabled':'')}</li>`).join('')}</ol></section>`;
   }
   async function action(name){
@@ -85,8 +85,8 @@ export function onboardingUi({state,esc,icon,button,openModal,closeModal,render,
       case 'onboarding-create':remember({learned:true});closeModal();await startProject();break;
       case 'onboarding-dismiss':remember({dismissed:true});render();break;
       case 'onboarding-check-0':upload();break;
-      case 'onboarding-check-1':preview();break;
-      case 'onboarding-check-2':share();break;
+      case 'onboarding-check-1':await preview();break;
+      case 'onboarding-check-2':await share();break;
     }
   }
   return {welcome,checklist,created,reviewed,action,helpLabel:()=>t('help')};

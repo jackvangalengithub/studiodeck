@@ -8,13 +8,14 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
     client: {name:'Emma de Vries',role:'Client',budget:true},
     trade: {name:'Thomas Bakker',role:'Bakker Joinery',budget:false}
   };
-  const seed = () => ({role:'studio',messages:[],uploads:[],events:[],legacy:[],topics:[],completed:{},requests:[
+  const seed = () => ({role:'studio',messages:[],uploads:[],legacy:[],topics:[],completed:{},requests:[
     {id:'paint',thread:'paint',text:'Please confirm the more durable, washable paint for the hallway. It will cost €1,000 extra.',from:'studio',to:'client',amount:100000,status:'pending',created:'2026-09-19T09:30:00Z',project:'van-galen',iteration:'it-2',attachment:null},
     {id:'installation',thread:'kitchen',text:'Can you confirm that removing the old cabinets is included in the installation?',from:'client',to:'studio',amount:null,status:'pending',created:'2026-09-19T09:45:00Z',project:'van-galen',iteration:'it-2',attachment:null},
     {id:'colour',thread:'paint',text:'Please confirm RAL 9010 with a matt finish for the hallway walls.',from:'studio',to:'client',amount:null,status:'confirmed',created:'2026-09-18T13:00:00Z',confirmedAt:'2026-09-18T14:32:00Z',project:'van-galen',iteration:'it-2',attachment:null}
   ]});
   let demo=seed();
   try {const stored=JSON.parse(sessionStorage.getItem(storageKey));if(stored&&Array.isArray(stored.requests)&&Array.isArray(stored.uploads))demo={...demo,...stored};} catch {}
+  delete demo.events;
   if(!people[demo.role])demo.role='studio';
   let thread=demo.ui?.thread||'kitchen',view=demo.ui?.view||'all',pendingOnly=demo.ui?.pendingOnly||false,who=demo.ui?.who||'everyone',drafts={},replyTo=null,requestDraft=null,highlight=null;
   const $=selector=>document.querySelector(selector);
@@ -36,16 +37,13 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   function enrich(result,action){
     if(['project','deck'].includes(action)){
       result.slides??=[];result.slide_content??=[];result.open_questions??=[];
-      const events=demo.events.filter(e=>e.project===result.project.id);
-      result.events=[...events,...(result.events||[])];result.events_pagination={page:0,total:result.events.length};
       result.members=[{id:'sophie',name:people.studio.name,email:'sophie@example.test',role:'Project designer',profile:{name:people.studio.name}}];
       for(const comment of result.comments||[]){const id=result.project.id+':'+comment.id;const existing=demo.legacy.find(c=>c.key===id);const copy={...comment,key:id,project:result.project.id,iteration:comment.iteration_id||result.iteration.id};if(existing)Object.assign(existing,copy);else demo.legacy.push(copy);}
       save();
     }
     return result;
   }
-  function record(detail,type='confirmation_updated'){demo.events.unshift({id:'mock-'+uid(),project:currentProject(),actor:people[demo.role].name,type,detail,created_at:new Date().toISOString()});save();}
-  const tabs=['overview','slides','files','budget','people','comments','activity','projects'];
+  const tabs=['overview','slides','files','budget','people','comments','projects'];
   function readTab(){const hash=location.hash.slice(1);return ['approvals','documents','communication'].includes(hash)?'comments':tabs.includes(hash)?hash:'comments';}
   function syncUrl(replace=false){const path='/mock#'+(state.present?'presentation':state.tab);if(location.pathname+location.hash!==path)history[replace?'replaceState':'pushState'](null,'',path);}
   function restoreRoute(){state.present=false;state.client=false;state.tab=readTab();render();}
@@ -144,12 +142,12 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
   async function confirmRequest(id){
     const r=projectRequests().find(r=>r.id===id);if(!r||r.status!=='pending'||r.to!==demo.role||!allowedThread(r.thread))return;
     if(r.amount!==null&&!people[demo.role].budget)return;
-    r.status='confirmed';r.confirmedAt=new Date().toISOString();record(`Confirmed: ${r.text}${r.amount!==null?' Budget change '+signed(r.amount)+' (including VAT) added.':''}`);beforeRequest('project',{});highlight=r.id;await refresh(true);toast(r.amount!==null?`Confirmed. ${signed(r.amount)} added to the budget.`:'Confirmation recorded.');
+    r.status='confirmed';r.confirmedAt=new Date().toISOString();save();beforeRequest('project',{});highlight=r.id;await refresh(true);toast(r.amount!==null?`Confirmed. ${signed(r.amount)} added to the budget.`:'Confirmation recorded.');
   }
   document.addEventListener('click',async e=>{
     const target=e.target.closest('[data-action]');if(!target)return;let action=target.dataset.action;
     if(['cost','edit-cost'].includes(action)&&target.dataset.id?.startsWith('confirmation-')){e.preventDefault();e.stopImmediatePropagation();openRequest(target.dataset.id.slice(13));return;}
-    if(['all-comments','all-activity'].includes(action)&&state.data){e.preventDefault();e.stopImmediatePropagation();go(action==='all-comments'?'comments':'activity');return;}
+    if(action==='all-comments'&&state.data){e.preventDefault();e.stopImmediatePropagation();go('comments');return;}
     if(!action.startsWith('mock-'))return;e.preventDefault();e.stopImmediatePropagation();action=action.slice(5);
     try{
       if(action==='new-topic')newTopic();
@@ -168,7 +166,7 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
       if(action==='reply-to'){const r=projectRequests().find(r=>r.id===target.dataset.id);if(r){thread=r.thread;view='all';replyTo=r.id;highlight=null;go('comments');$('#mock-reply')?.focus();}}
       if(action==='cancel-reply'){replyTo=null;render();}
       if(action==='withdraw'){const r=projectRequests().find(r=>r.id===target.dataset.id);if(r&&r.from===demo.role&&r.status==='pending'){openModal('Withdraw this request?',`<p>${esc(r.text)}</p><p class="form-hint">It will remain in the conversation as withdrawn. The budget will not change.</p><div class="modal-footer">${button('Keep request','close-modal','ghost')}${btn('Withdraw request','confirm-withdraw','primary',`data-id="${esc(r.id)}"`)}</div>`);}}
-      if(action==='confirm-withdraw'){const r=projectRequests().find(r=>r.id===target.dataset.id);if(r&&r.status==='pending'&&r.from===demo.role){r.status='withdrawn';r.withdrawnAt=new Date().toISOString();record('Withdrew confirmation request: '+r.text);closeModal();render();}}
+      if(action==='confirm-withdraw'){const r=projectRequests().find(r=>r.id===target.dataset.id);if(r&&r.status==='pending'&&r.from===demo.role){r.status='withdrawn';r.withdrawnAt=new Date().toISOString();save();closeModal();render();}}
       if(action==='file')previewAttachment(target.dataset.owner);
       if(action==='source'){const topic=topicFor(target.dataset.thread),def=findSource(topic.source);if(def)startPresentation(slideDefs().findIndex(s=>s.id===def.id));}
       if(action==='budget-link'){highlight=null;go('budget');const row=document.querySelector(`[data-budget-row="confirmation-${CSS.escape(target.dataset.id)}"]`);row?.scrollIntoView({block:'center'});}
@@ -206,7 +204,7 @@ export function createMockFeatures({state,render,openModal,closeModal,toast,butt
         if(hasCost&&amount===null){$('#mock-request-error').hidden=false;$('#mock-request-error').textContent='Enter an amount such as 1000, -250, or -250.50.';$('#mock-cost').focus();return;}
         if(!text||!people[to]||to===demo.role||hasCost&&!people[to].budget)return;
         const r={id:uid(),thread:requestDraft.thread,text,from:demo.role,to,amount,status:'pending',created:new Date().toISOString(),project:currentProject(),iteration:state.data.iteration.id,attachment:requestDraft.attachment};
-        demo.requests.push(r);record(`Asked ${people[to].name} to confirm: ${text}`,'confirmation_requested');drafts[thread]='';thread=r.thread;highlight=r.id;view='all';requestDraft=null;closeModal();render();toast('Confirmation requested.');
+        demo.requests.push(r);save();drafts[thread]='';thread=r.thread;highlight=r.id;view='all';requestDraft=null;closeModal();render();toast('Confirmation requested.');
       }
     }catch(error){toast(error.message||'Could not save this demo message.');}
   },true);

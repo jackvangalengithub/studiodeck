@@ -12,6 +12,6 @@ $iterations='SELECT id FROM iterations WHERE project_id=?';$versions='SELECT v.i
         query("UPDATE slide_image_versions SET parent_id=NULL WHERE source_version_id IN ($versions)",[$pid]);query("DELETE FROM slide_image_versions WHERE source_version_id IN ($versions)",[$pid]);
         query("DELETE FROM document_pages WHERE version_id IN ($versions)",[$pid]);
         query("UPDATE file_versions SET parent_id=NULL WHERE id IN ($versions)",[$pid]);query("DELETE FROM file_versions WHERE id IN ($versions)",[$pid]);
-        foreach(['assets','contacts','events','project_members','project_pins','project_logos','project_details','iterations'] as $table)query("DELETE FROM $table WHERE project_id=?",[$pid]);
+        foreach(['assets','contacts','project_members','project_pins','project_logos','project_details','iterations'] as $table)query("DELETE FROM $table WHERE project_id=?",[$pid]);
         query('DELETE FROM projects WHERE id=?',[$pid]);
 }

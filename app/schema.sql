@@ -17,8 +17,6 @@ CREATE TABLE IF NOT EXISTS shares (id TEXT PRIMARY KEY, iteration_id TEXT NOT NU
 CREATE INDEX IF NOT EXISTS idx_shares_iteration ON shares(iteration_id);
 CREATE TABLE IF NOT EXISTS comments (id TEXT PRIMARY KEY, annotation TEXT, parent_id TEXT REFERENCES comments(id) ON DELETE CASCADE, answered INTEGER NOT NULL DEFAULT 0 CHECK(answered IN (0,1)), iteration_id TEXT NOT NULL REFERENCES iterations(id), slide TEXT NOT NULL, author TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_comments_iteration ON comments(iteration_id);
-CREATE TABLE IF NOT EXISTS events (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT, actor TEXT NOT NULL, type TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL);
-CREATE INDEX IF NOT EXISTS idx_events_project_time ON events(project_id,created_at);
 CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id), iteration_id TEXT NOT NULL REFERENCES iterations(id), version_id TEXT REFERENCES file_versions(id), type TEXT NOT NULL, payload TEXT NOT NULL DEFAULT '{}', status TEXT NOT NULL DEFAULT 'queued', error TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL, started_at TEXT);
 CREATE TABLE IF NOT EXISTS job_dismissals (job_id TEXT PRIMARY KEY REFERENCES jobs(id) ON DELETE CASCADE, dismissed_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status,created_at);
@@ -50,7 +48,6 @@ CREATE TABLE IF NOT EXISTS project_delete_confirmations (token_hash TEXT PRIMARY
 CREATE TABLE IF NOT EXISTS budget_choices (budget_item_id TEXT PRIMARY KEY REFERENCES budget_items(id) ON DELETE CASCADE, selected INTEGER NOT NULL DEFAULT 0, range_percent INTEGER NOT NULL DEFAULT 0 CHECK(range_percent BETWEEN 0 AND 100), updated_by TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS budget_link_suggestions (id TEXT PRIMARY KEY,iteration_id TEXT NOT NULL REFERENCES iterations(id),child_id TEXT NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE,parent_id TEXT NOT NULL REFERENCES budget_items(id) ON DELETE CASCADE,included INTEGER CHECK(included IN (0,1)),evidence TEXT NOT NULL,confidence TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','dismissed')),created_at TEXT NOT NULL,UNIQUE(iteration_id,child_id,parent_id));
 CREATE TABLE IF NOT EXISTS budget_match_checks (iteration_id TEXT PRIMARY KEY REFERENCES iterations(id) ON DELETE CASCADE,result TEXT NOT NULL,warning TEXT NOT NULL DEFAULT '',checked_at TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS event_questions (event_id TEXT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE, slide TEXT NOT NULL, slide_title TEXT NOT NULL, question TEXT NOT NULL, answer TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'pending', answer_meta TEXT NOT NULL DEFAULT '{}', answered_at TEXT);
 CREATE TABLE IF NOT EXISTS slide_content (iteration_id TEXT NOT NULL REFERENCES iterations(id),slide_id TEXT NOT NULL,title TEXT NOT NULL,description TEXT NOT NULL DEFAULT '',PRIMARY KEY(iteration_id,slide_id));
 
 CREATE TABLE IF NOT EXISTS project_enhancement_plans (project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,plan_type TEXT NOT NULL CHECK(plan_type IN ('project_pass','monthly')));

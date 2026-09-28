@@ -145,7 +145,6 @@ function process_slide_video(array $job,?callable $request=null,?callable $downl
                 $meta['motion_candidate']=['media_id'=>$media,'source_key'=>$payload['source_key'],'prompt'=>$payload['prompt']??legacy_slide_motion_prompt($payload['movement']??'zoom-out'),'duration'=>8];
                 query('UPDATE presentation_slides SET metadata=? WHERE iteration_id=? AND id=?',[json_encode($meta),$i['id'],$slide['id']]);
                 query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
-                audit($i['project_id'],$i['id'],'Studiodeck','slide_motion_ready',$slide['title']);
             });return;
         }
     }

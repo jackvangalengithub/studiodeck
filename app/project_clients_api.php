@@ -1,6 +1,6 @@
 <?php
 if(in_array($action,['save_project_client','remove_project_client'],true)) {
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     transaction(function()use($u,$b,$action){
         $p=owned_project(text_field($b['project_id']??''),$u);$email=email_field($b['email']??'');
         if($action==='save_project_client') {
@@ -14,8 +14,6 @@ if(in_array($action,['save_project_client','remove_project_client'],true)) {
             query('UPDATE shares SET revoked=1 WHERE email=? AND iteration_id IN (SELECT id FROM iterations WHERE project_id=?)',[$email,$p['id']]);
             query("UPDATE email_outbox SET status='cancelled' WHERE status='queued' AND share_id IN (SELECT s.id FROM shares s JOIN iterations i ON i.id=s.iteration_id WHERE i.project_id=? AND s.email=?)",[$p['id'],$email]);
         }
-        $i=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$p['id']]);
-        audit($p['id'],$i['id'],$u['email'],'project_clients_updated',($action==='save_project_client'?'Saved client: ':'Removed client: ').$email);
     });
-    json_response(['clients'=>project_clients(text_field($b['project_id']))]);
+    return api_result(['clients'=>project_clients(text_field($b['project_id']))]);
 }

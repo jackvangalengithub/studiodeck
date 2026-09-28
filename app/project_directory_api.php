@@ -1,6 +1,6 @@
 <?php
 if(in_array($action,['save_project_person','remove_project_person'],true)){
-    $u=owner(true);$b=input();
+    $u=owner(true);$b=($requestBody??input());
     transaction(function()use($u,$b,$action){
         $p=owned_project(text_field($b['project_id']??''),$u);$pid=$p['id'];
         $group=$b['group']??'';$key=text_field($b['key']??'',254);$remove=$action==='remove_project_person';
@@ -50,8 +50,6 @@ if(in_array($action,['save_project_person','remove_project_person'],true)){
                 else insert('contacts',['id'=>id(),'project_id'=>$pid,'name'=>$name,'email'=>$email,'phone'=>$phone,'role'=>$role]);
             }
         }
-        $iteration=one('SELECT id FROM iterations WHERE project_id=? ORDER BY number DESC LIMIT 1',[$pid]);
-        audit($pid,$iteration['id'],$u['email'],'project_people_updated',($remove?'Removed ':'Saved ').($remove?$existing['name']:$name).' · '.$group);
     });
-    json_response(['ok'=>true]);
+    return api_result(['ok'=>true]);
 }

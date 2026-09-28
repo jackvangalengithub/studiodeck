@@ -53,7 +53,6 @@ function add_comment(array $i,string $actor,array $input): array {
         $comment['annotation']=comment_annotation($i,$slide,$input['annotation']??null);
         insert('comments',$comment);
         save_comment_mentions($i,$comment,$input);
-        audit($i['project_id'],$i['id'],$actor,'change_requested',$slide.': '.($parent?'Reply: ':'').$body);
         queue_comment_notifications($i,$comment);
         return $comment;
     });
@@ -110,7 +109,6 @@ function set_comment_answered(array $input): array {
         $answered=$input['answered']?1:0;
         if((int)$comment['answered']!==$answered){
             query('UPDATE comments SET answered=? WHERE id=?',[$answered,$comment['id']]);
-            audit($iteration['project_id'],$iteration['id'],$actor,'comment_status_changed',($answered?'Marked answered: ':'Reopened comment: ').$comment['body']);
         }
         return ['id'=>$comment['id'],'answered'=>(bool)$answered];
     });

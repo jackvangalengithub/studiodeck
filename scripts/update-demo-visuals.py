@@ -100,7 +100,7 @@ try:
             for n,s in enumerate(manifest['slides'],1):
                 db.execute('UPDATE presentation_slides SET source_version_id=?,page_number=? WHERE iteration_id=? AND id=? AND source_version_id=? AND page_number>0 AND image_version_id IS NULL',(vid,n,iid,uid(slug,'slide:'+s['key']),current))
         if added or pages:
-            ins('events',id=hashlib.sha256((slug+stamp).encode()).hexdigest()[:32],project_id=pid,iteration_id=iid,actor='StudioDeck demo update',type='slides_updated',detail='Added classic 3D design studies'+(' and crayon-style garden sketches' if slug=='stillwater-garden' else '')+'. Updated designed PDF; existing content and budget choices retained.',created_at=stamp)
+
         reports.append(dict(project=manifest['name'],added_slides=added,pdf_updated=bool(pages)))
     assert not db.execute('PRAGMA foreign_key_check').fetchall()
     db.commit()

@@ -149,7 +149,7 @@ function save_slide_image_result(array $job,array $rawSlide,array $payload,strin
         remember_slide_image($current,$vid);
         query('UPDATE presentation_slides SET image_version_id=? WHERE iteration_id=? AND id=?',[$vid,$i['id'],$current['id']]);
         query("UPDATE jobs SET status='done' WHERE id=?",[$job['id']]);
-        audit($i['project_id'],$i['id'],'Studiodeck','slide_image_created',$current['title']);return $vid;
+        return $vid;
     });
 }
 function ensure_iteration_slides(string $iid): void {

@@ -9,7 +9,6 @@ require_once __DIR__.'/project_access.php';
 require_once __DIR__.'/project_clients.php';
 require_once __DIR__.'/budget.php';
 require_once __DIR__.'/subquotes.php';
-require_once __DIR__.'/activity.php';
 require_once __DIR__.'/open_questions.php';
 require_once __DIR__.'/consistency.php';
 require_once __DIR__.'/product_feedback.php';
@@ -54,6 +53,13 @@ function db(): PDO {
     $db->exec('PRAGMA busy_timeout = 5000');
     $db->exec('PRAGMA journal_mode = WAL');
     $db->exec(file_get_contents(__DIR__ . '/schema.sql'));
+    // Retire the activity history, including stored question/answer copies.
+    // Freed SQLite pages can be reused by the remaining project data.
+    if($db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('events','event_questions') LIMIT 1")->fetchColumn()){
+        $db->beginTransaction();
+        try{$db->exec('DROP TABLE IF EXISTS event_questions; DROP TABLE IF EXISTS events');$db->commit();}
+        catch(Throwable $e){$db->rollBack();throw $e;}
+    }
     $db->exec(file_get_contents(__DIR__.'/consistency_schema.sql'));
     if(!in_array('locked',array_column($db->query('PRAGMA table_info(iterations)')->fetchAll(),'name'),true))$db->exec('ALTER TABLE iterations ADD COLUMN locked INTEGER NOT NULL DEFAULT 0');
     migrate_comment_threads($db);
@@ -98,9 +104,6 @@ function input(): array { $raw=file_get_contents('php://input'); $data=json_deco
 function text_field(mixed $v,int $max=500): string { if(!is_string($v)) fail('A text field was expected.'); $v=trim($v); if(strlen($v)>$max) fail('This text is too long.'); return $v; }
 function email_field(mixed $v): string { $v=strtolower(text_field($v,254)); if(!filter_var($v,FILTER_VALIDATE_EMAIL)) fail('Please enter a valid email address.'); return $v; }
 function base_url(): string { return rtrim(env('APP_URL','http://localhost:8080'),'/'); }
-function audit(string $project,string $iteration,string $actor,string $type,string $detail): void {
-    insert('events',['id'=>id(),'project_id'=>$project,'iteration_id'=>$iteration,'actor'=>$actor,'type'=>$type,'detail'=>$detail,'created_at'=>now()]);
-}
 function rate_limit(string $key,int $limit,int $seconds): void {
     transaction(function() use($key,$limit,$seconds) {
         $key=hash_token($key); $r=one('SELECT * FROM rate_limits WHERE key_hash=?',[$key]);
@@ -168,7 +171,7 @@ function allowed_versions(string $iid): array {
     foreach(rows('SELECT a.version_id FROM comment_attachments a JOIN comments c ON c.id=a.comment_id WHERE c.iteration_id=?',[$iid]) as $r)$allowed[$r['version_id']]=true;
     return $allowed;
 }
-function capabilities(): array { return ['app_version'=>substr(env('APP_VERSION','unversioned'),0,120),'video_ai'=>env('GEMINI_API_KEY')!=='','ai'=>env('OPENAI_API_KEY')!=='','mail'=>env('MAIL_TRANSPORT','log')==='mail','demo'=>false]; }
+function capabilities(): array { return ['app_version'=>substr(env('APP_VERSION','unversioned'),0,120),'video_ai'=>env('GEMINI_API_KEY')!=='','ai'=>env('OPENAI_API_KEY')!=='','mail'=>env('MAIL_TRANSPORT','log')==='mail','demo'=>false,'batch_reads'=>true,'batch_json'=>true]; }
 function send_email(string $to,string $subject,string $body,?string $html=null): bool {
     if(env('MAIL_TRANSPORT','log')!=='mail') {
         if($html){$path=(env('MAIL_LOG_PATH')?:ROOT.'/storage/mail.log').'.messages.jsonl';file_put_contents($path,json_encode(['at'=>now(),'to'=>$to,'subject'=>$subject,'text'=>$body,'html'=>$html],JSON_INVALID_UTF8_SUBSTITUTE)."\n",FILE_APPEND|LOCK_EX);@chmod($path,0600);}return false;
@@ -223,14 +226,9 @@ function deck_payload(array $i, bool $isOwner): array {
         $result['enhancements']=project_enhancement_allowance($p['id']);
         $u=current_session();$project=one('SELECT studio_id,visibility,archived FROM projects WHERE id=?',[$p['id']]);$result['project']=array_merge($result['project'],$project);$result['billing']=billing_access($p['id']);$result['can_edit']=$u&&project_member($p['id'],$u['user_id'])&&$result['billing']['can_edit']&&($result['billing']['source']!=='project_pass'||$result['billing']['designer_id']===$u['user_id']);$result['members']=rows("SELECT u.id,COALESCE(NULLIF(sm.display_name,''),u.name) AS name,u.email FROM project_members m JOIN users u ON u.id=m.user_id JOIN projects p ON p.id=m.project_id JOIN studio_members sm ON sm.user_id=u.id AND sm.studio_id=p.studio_id WHERE m.project_id=? ORDER BY name",[$p['id']]);
         $result['iterations']=rows('SELECT * FROM iterations WHERE project_id=? ORDER BY number DESC',[$p['id']]);
-        $options=[];foreach(['search','type','actor','project','from','to','sort'] as $key)$options[$key]=$_GET['events_'.$key]??'';
-        if($options['sort']==='')$options['sort']='newest';
-        $activity=activity_page_data('p.id=?',[$p['id']],$options,max(0,(int)($_GET['events_page']??0))*20,20);
-        $result['events']=$activity['items'];$result['events_facets']=$activity['facets'];
-        $result['events_pagination']=['page'=>(int)($activity['offset']/20),'per_page'=>20,'total'=>$activity['total']];
         $result['motion_allowance']=motion_allowance($p['id']);
-        $result['jobs']=rows('SELECT j.id,j.version_id,j.type,j.status,j.error,j.payload,v.name,jd.dismissed_at FROM jobs j LEFT JOIN job_dismissals jd ON jd.job_id=j.id LEFT JOIN file_versions v ON v.id=j.version_id WHERE j.iteration_id=? ORDER BY j.created_at',[$i['id']]);
-        foreach($result['jobs'] as &$job) { $payload=json_decode($job['payload'],true)?:[];if($job['type']==='open_questions')$job['name']='Checklist';if($job['type']==='consistency')$job['name']='Consistency checks';$job['progress']=$payload['progress']??null;if(in_array($job['type'],['slide_image_edit','slide_video'],true))$job['slide_id']=$payload['slide_id']??null;unset($job['payload']); }unset($job);
+        require_once __DIR__.'/project_resources.php';
+        $result=array_merge($result,project_jobs_resource($i));
         $result['shares']=rows('SELECT id,email,expires_at,revoked,created_at FROM shares WHERE iteration_id=?',[$i['id']]);
     }
     [$key,$email,$name]=profile_identity();$result['profile']=profile_for($key,$name);$result['team']=project_people($p['id']);$result['slide_groups']=slide_groups($i['id']);$result['slide_content']=rows('SELECT slide_id,title,description FROM slide_content WHERE iteration_id=?',[$i['id']]);$result['slide_sections']=rows('SELECT slide_id,section FROM slide_sections WHERE iteration_id=?',[$i['id']]);$result['project']=array_merge($result['project'],project_details($p['id']));$cover=project_cover($i['id']);$result['cover_slide_id']=$cover?$cover['id']:null;$result['comments']=decorate_comments($result['comments'],$key);$result['branding']=presentation_branding($p['id']);

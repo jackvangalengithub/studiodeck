@@ -1,4 +1,4 @@
-"""Explicit iteration locks, editable sharing and activity pagination.
+"""Explicit iteration locks and editable sharing.
 Run: PHP_BIN=php python3 tests/test_workflows.py
 Uses a temporary database and log-only email. No real messages or AI calls.
 """
@@ -55,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-lock-') as temp:
         owner.login('designer@example.test',log)
         made=owner.call('create_project',{'name':'Editable client presentation'},expected=201)
         pid,iid=made['project_id'],made['iteration_id']
-        def deck(page=0):return owner.call('project',query=f'&id={pid}&iteration={iid}&events_page={page}')
+        def deck():return owner.call('project',query=f'&id={pid}&iteration={iid}')
         check(deck()['iteration']['locked']==0,'Existing database receives an unlocked iteration column')
         owner.call('save_budget',{'iteration':iid,'label':'Lighting','amount':'100','is_optional':True})
         budget=deck()['budget'][0]['id']
@@ -100,20 +100,12 @@ with tempfile.TemporaryDirectory(prefix='studiodeck-lock-') as temp:
         owner.call('theme',{'iteration':iid,'theme':style})
         observer.call('save_slide',{'iteration':iid,'slide_id':'intro','title':'Editable again'})
         client.call('budget_choice',{'iteration':iid,'id':budget,'selected':False})
-        check(deck()['iteration']['locked']==0 and any(e['type']=='iteration_unlocked' for e in deck()['events']),'Admin unlock restores team and client edits and records activity')
+        check(deck()['iteration']['locked']==0,'Admin unlock restores team and client edits')
         owner.call('lock_iteration',{'iteration':iid,'locked':True})
         new=owner.call('new_iteration',{'iteration':iid,'title':'Next concept'},expected=201)['id']
         owner.call('theme',{'iteration':new,'theme':{'style':'Next concept'}})
         check(client.call('deck')['project']['theme']['font']=='sans','A new editable iteration keeps the locked client presentation unchanged')
-        # More than the previous 80-entry cutoff, all with tied timestamps.
-        with sqlite3.connect(tmp/'test.sqlite') as db:
-            db.execute('DELETE FROM events WHERE project_id=?',(pid,))
-            db.executemany('INSERT INTO events (id,project_id,iteration_id,actor,type,detail,created_at) VALUES (?,?,?,?,?,?,?)',[(f'event-{n}',pid,iid,'Tester','test',str(n),'2026-09-18T12:00:00Z') for n in range(105)])
-        pages=[deck(n) for n in range(6)]
-        check([len(p['events']) for p in pages]==[20,20,20,20,20,5],'Activity uses 20 entries per page including history beyond the former cutoff')
-        check([e['id'] for p in pages for e in p['events']]==[f'event-{n}' for n in reversed(range(105))],'Activity ordering is stable without missing or duplicate entries')
-        check(deck(-1)['events_pagination']['page']==0 and deck(999)['events_pagination']['page']==5,'Activity page bounds are clamped')
-        check('events_pagination' not in client.call('deck'),'Client payload keeps studio activity private')
-        print('All iteration lock and activity checks passed.')
+        check('events' not in deck(),'Project payload no longer includes activity history')
+        print('All iteration lock checks passed.')
     finally:
         server.terminate();server.wait();output.close()

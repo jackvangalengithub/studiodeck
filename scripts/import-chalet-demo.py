@@ -132,7 +132,7 @@ try:
         } if 'relationship_locked' in budget_columns else {}))
     for name,role,email in [('Anna & Lukas Leitner','Client','leitner@example.test'),('Mara Huber','Architect · fictional','mara.huber@example.test'),('Felix Gruber','Interior designer · fictional','felix.gruber@example.test'),('Lena Berger','Project coordinator · fictional','lena.berger@example.test'),('Alpen Bauatelier','Conversion contractor · fictional','alpen.bauatelier@example.test'),('Panorama Werk','Glazing specialist · fictional','panorama.werk@example.test')]:
         ins('contacts',id=uid('contact:'+email),project_id=pid,name=name,role=role,email=email,phone='')
-    ins('events',id=uid('event:created'),project_id=pid,iteration_id=iid,actor='StudioDeck demo import',type='project_created',detail='Created Haus Morgenlicht: original concept imagery, complete chalet conversion presentation and fictional supplier pack. No client messages sent.',created_at=stamp)
+
     assert not db.execute('PRAGMA foreign_key_check').fetchall(),'Foreign key validation failed'
     db.commit()
 except Exception:

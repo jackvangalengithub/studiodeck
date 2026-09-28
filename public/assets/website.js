@@ -1,3 +1,4 @@
+import {platformUrl} from './platform/files.js';
 import {studioBusiness,studioTypes} from './studio-business.js';
 import {getLanguage} from './i18n.js';
 export function websiteUi({state,api,esc,button,openModal,closeModal,render,toast,resourceHeaders}) {
@@ -7,7 +8,7 @@ export function websiteUi({state,api,esc,button,openModal,closeModal,render,toas
  const btn=(label,act,kind='',extra='')=>button(label,'website-'+act,kind,extra);
  const field=(label,name,value,max=160,area=false)=>`<label>${label}${area?`<textarea rows="4" name="${name}" maxlength="${max}">${esc(value)}</textarea>`:`<input name="${name}" value="${esc(value)}" maxlength="${max}">`}</label>`;
  const footer=label=>`<div class="modal-footer">${button('Cancel','close-modal','ghost')}<button class="button primary" type="submit">${label}</button></div>`;
- const endpoint=(action,params={})=>'/api.php?'+new URLSearchParams({action,website_studio:state.studio.id,...params});
+ const endpoint=(action,params={})=>platformUrl({action,website_studio:state.studio.id,...params});
  const asset=id=>endpoint('website_asset',{id});
  async function load(){destroyCode();codeStates={};const sid=state.studio.id;const result=await api('website');if(state.studio.id!==sid)return;data=result;studio=sid;selectedPage='home';sourceScope='page';editScope='page';businessFilter=studioBusiness(state.studio?.business_type).id;styleFilter='all';dirty=false;tab='chat';chatDraft='';if(new URLSearchParams(location.search).get('website_checkout')==='success'){message='Confirming your payment…';data=await api('website_refresh_billing');message=data.billing.active?'Website activated. You can now publish.':'Payment is processing. Use Check payment to refresh.';}}
  function accept(result){if(result.studio_id!==state.studio.id)return;data=result;if(!enabledPages().some(p=>p.id===selectedPage))selectedPage='home';dirty=false;render();}
