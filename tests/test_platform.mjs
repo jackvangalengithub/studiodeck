@@ -149,3 +149,34 @@ test('image variants retain source identity and downloads keep original bytes',a
  assert.equal(c.fileUrl('original',true,'small'),'/200/userfiles/original/download');
  assert.throws(()=>c.fileUrl('original',false,'huge'),/Unknown image size/);
 });
+
+test('communication previews resolve crops, variations and pinned originals in one batch',async()=>{
+ const comments=[
+  {id:'current',slide:'visual-slide'},
+  {id:'original-pin',slide:'visual-slide',annotation:{source_version_id:'source',page_number:2,image_number:3,image_version_id:null}},
+  {id:'edited-pin',slide:'visual-slide',annotation:{source_version_id:'source',image_version_id:'earlier-edit'}},
+  {id:'page',slide:'source-source-2'},
+  {id:'text',slide:'visual-text'},
+  {id:'removed',slide:'visual-gone'},
+ ].map(c=>({...c,iteration_id:'i1',author:'jack@example.com',body:'Comment',created_at:'2026-01-01',parent_id:null}));
+ const {c,batches}=fakeClient({...fixture,comments,
+  iteration_files:[{id:'link',iteration_id:'i1',asset_id:'asset',version_id:'source',category:'drawings'}],
+  file_versions:[{id:'source',asset_id:'asset',mime:'application/pdf',data_file_id:'pdf'}],
+  presentation_slides:[{id:'row',slide_key:'slide',iteration_id:'i1',type:'render',title:'Drawing',source_version_id:'source',page_number:2,image_number:3,image_version_id:'edited'},{id:'text-row',slide_key:'text',iteration_id:'i1',type:'text',title:'Text & <literal>'}],
+  document_pages:[{id:'page',version_id:'source',number:2,preview_file_id:'page-file'}],
+  document_images:[{id:'crop',version_id:'source',page_number:2,number:3,data_file_id:'crop-file'}],
+  slide_image_versions:[{id:'edited',source_version_id:'source',data_file_id:'edited-file'},{id:'earlier-edit',source_version_id:'source',data_file_id:'earlier-file'}],
+ });
+ await c.bootstrap('200');
+ for(const load of [()=>c.project('p1','i1',['communication']),()=>c.request('comments_feed',{})]){
+  batches.length=0;const data=await load(),byId=Object.fromEntries(data.comments.map(c=>[c.id,c]));
+  assert.equal(batches.length,1);assert.ok(batches[0].length<=64,'platform view query limit');
+  assert.equal(byId.current.preview_url,'/200/userfiles/edited-file?size=small');
+  assert.equal(byId['original-pin'].preview_url,'/200/userfiles/crop-file?size=small');
+  assert.equal(byId['edited-pin'].preview_url,'/200/userfiles/earlier-file?size=small');
+  assert.equal(byId.page.preview_url,'/200/userfiles/page-file?size=small');
+  assert.equal(byId.text.preview_url,'');assert.equal(byId.text.slide_title,'Text & <literal>');
+  assert.equal(byId.removed.preview_url,'');assert.equal(byId.current.project_id,'p1');
+  assert.equal(data.communication.iteration_slides.i1.find(s=>s.id==='visual-slide').title,'Drawing');
+ }
+});

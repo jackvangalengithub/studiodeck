@@ -30,6 +30,17 @@ export class MediaIndex {
     }
   }
   url(p){const id=this.fileId(p);return id?this.fileUrl(id,p.size):'';}
+  commentUrl(comment){
+    const pin=comment.annotation;
+    if(pin?.source_version_id||pin?.image_version_id){
+      if(pin.image_version_id)return this.url({action:'slide_image',image_version_id:pin.image_version_id,size:'small'});
+      if(Number(pin.page_number)>0)return this.url({action:'document_page',id:pin.source_version_id,page:pin.page_number,image:pin.image_number,size:'small'});
+      return this.url({action:'file',id:pin.source_version_id,preview:1,size:'small'});
+    }
+    const source=String(comment.slide||'').match(/^source-(.+)-(\d+)$/);
+    if(source)return this.url(Number(source[2])?{action:'document_page',id:source[1],page:source[2],size:'small'}:{action:'file',id:source[1],preview:1,size:'small'});
+    return this.url({action:'slide_image',iteration:comment.iteration_id,slide_id:comment.slide,size:'small'});
+  }
   cover(iteration,slides,links,selected){
     const candidates=slides.filter(s=>s.iteration_id===iteration&&['render','photo','moodboard','fullphoto','drawing','floorplan','other'].includes(s.type)&&!links.some(l=>l.iteration_id===iteration&&l.version_id===s.source_version_id&&l.category==='legal'));
     const rank=s=>s.type==='render'?0:s.type==='photo'?1:2;

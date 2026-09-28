@@ -3,7 +3,7 @@
 .idea
 storage/*
 !storage/.gitkeep
-tests
+tests/tmp
 node_modules
 dist
 *.sqlite*

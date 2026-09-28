@@ -1,3 +1,4 @@
+import {safeUrl} from '../assets/dom.js';
 'use strict';
 import {mountErrorPage} from './error-page.js';
 const translations=JSON.parse(document.querySelector('#login-translations').textContent);
@@ -14,8 +15,8 @@ const legacy=location.hash.startsWith('#/view/');
 // Credentials never remain in browser history after the page is opened.
 const entryPath=location.pathname==='/starttrial'?'/starttrial':'/login';
 history.replaceState(null,'',entryPath);
-document.querySelector('.brand').href=entryPath;
-document.querySelector('#request').href=entryPath;
+document.querySelector('.brand').href = safeUrl(entryPath, 'href', document.querySelector('.brand').download !== undefined && document.querySelector('.brand').hasAttribute?.("download"));
+document.querySelector('#request').href = safeUrl(entryPath, 'href', document.querySelector('#request').download !== undefined && document.querySelector('#request').hasAttribute?.("download"));
 const form=document.querySelector('#login'),status=document.querySelector('#status'),submit=document.querySelector('#submit');
 if(loginToken){document.querySelector('#email-label').hidden=true;document.querySelector('#email').required=false;}
 let statusMessage=legacy?translations.en.login_legacy:'';
@@ -33,7 +34,7 @@ async function signIn(){
   const action=loginToken?'consume_login':'request_login';
   const response=await fetch('/api.php?action='+action,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(loginToken?{token:loginToken}:{email:document.querySelector('#email').value})});
   const result=await response.json();if(!response.ok)throw Object.assign(Error(result.error||'Sign-in could not be completed.'),{status:response.status});
-  if(loginToken){loginToken='';sessionStorage.removeItem('studiodeck.returnTo');location.replace(safePath(result.redirect&&result.redirect!=='/choose'?result.redirect:destination));}
+  if(loginToken){loginToken='';sessionStorage.removeItem('studiodeck.returnTo');location.replace(safeUrl(safePath(result.redirect&&result.redirect!=='/choose'?result.redirect:destination), 'href'));}
   else{sessionStorage.setItem('studiodeck.returnTo',destination);statusMessage=result.message;status.textContent=localize(statusMessage);}
  }catch(error){
   if(loginToken){

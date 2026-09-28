@@ -1,1 +1,18 @@
-{"name":"studiodeck-preview","private":true,"type":"module","scripts":{"dev":"node scripts/preview.mjs"}}
+{
+  "name": "studiodeck-preview",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/preview.mjs",
+    "check:dom": "node scripts/check-dom-safety.mjs",
+    "test": "npm run check:dom && node --test tests/test_dom_safety.mjs tests/test_dom_render.mjs tests/test_csv_preview.mjs tests/test_presentation_scroll.mjs",
+    "test:browser:dom": "node --test tests/test_dom_browser.mjs tests/test_batch_browser.mjs tests/test_rendering_browser.mjs",
+    "predev": "npm run check:dom"
+  },
+  "devDependencies": {
+    "acorn": "^8.18.0",
+    "acorn-walk": "^8.3.5",
+    "linkedom": "^0.18.13",
+    "parse5": "^8.0.1"
+  }
+}

@@ -9,7 +9,7 @@ let browser;
 before(async()=>{browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH});});
 after(async()=>browser?.close());
 async function fixture(t,{withImages=false}={}){
- const page=await browser.newPage(),errors=[],requests=[],batches=[];page.setDefaultTimeout(7000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')console.log(m.text());});t.after(async()=>{await page.close();assert.deepEqual(errors,[]);});
+ const page=await browser.newPage(),errors=[],requests=[],batches=[];page.setDefaultTimeout(7000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')console.log(m.text());});t.after(async()=>{if(await page.locator('.status-page').count())console.log('STATUS',await page.locator('.status-page').innerText());await page.close();assert.deepEqual(errors,[]);});
  const controls={batchGate:null,imageGate:null,failNext:false},wireBatches=[];
  const studioId='85c6b0cc-eb61-3adb-3b2c-8e0db4f63d25';
  const tables={users:[{id:'u1',name:'Jack',email:'jack@example.com'}],studios:[{id:'s0',name:'Other Studio'},{id:studioId,name:'Test Studio',theme:{},language:'en',setup_completed_at:'2026-01-01'}],projects:[{id:'p0',studio_id:'s0',name:'Other project',archived:false},{id:'p1',studio_id:studioId,name:'Garden project',archived:false,theme:{},visibility:'team',created_at:'2026-01-01'}],iterations:[{id:'i1',project_id:'p1',number:1,title:'First concept',status:'draft',locked:false,theme:{}}],project_members:[{id:'m1',project_id:'p1',user_id:'u1'}]};
@@ -67,7 +67,7 @@ test('overview covers load from the list batch without per-project metadata requ
  assert.equal(new URL(await cover.getAttribute('src'),baseURL).searchParams.get('size'),'small');
  assert.equal(await cover.evaluate(im=>im.complete&&im.naturalWidth>0),false,'cover download does not block the project list');
  controls.imageGate=null;releaseImages();
- await page.waitForFunction(()=>{const im=document.querySelector('[data-project-cover="p1"]');return im?.complete&&im.naturalWidth>0;});
+ await page.locator('[data-project-cover="p1"]').evaluate(im=>im.decode());
  const complete=wireBatches.flat(2).filter(c=>c.relative_url==='200/projects:readView');assert.equal(complete.length,1);
  assert.equal(requests.filter(p=>p==='/200/userfiles/file0').length,1);
  assert.equal(wireBatches.length,2,'one bootstrap and one list batch');
@@ -95,7 +95,7 @@ test('presentation tab switches after one batch while images are still loading',
  assert.equal(await preview.evaluate(im=>im.complete&&im.naturalWidth>0),false,'active tab does not wait for image bytes');
  const bounds=await preview.locator('..').boundingBox();
  controls.imageGate=null;releaseImages();
- await page.waitForFunction(()=>{const im=document.querySelector('.slide-editor img[src$="/crop-file?size=small"]');return im?.complete&&im.naturalWidth>0;});
+ await page.locator('.slide-editor img[src$="/crop-file?size=small"]').evaluate(im=>im.decode());
  const after=await preview.locator('..').boundingBox();
  assert.equal(after.width,bounds.width);assert.equal(after.height,bounds.height,'image arrival does not resize its container');
  assert.equal(requests.filter(path=>path==='/200/userfiles/crop-file').length,1,'no duplicate preload and image-element downloads');
@@ -224,4 +224,21 @@ test('extracted filenames remain plain text in shared modal titles',async t=>{
  assert.equal(await title.textContent(),filename.replace(/\.[^.]+$/,'')+'-page-001.jpg');
  assert.equal(await title.locator('svg,img,script').count(),0,'filename must not create HTML nodes');
  assert.equal(await page.evaluate(()=>window.__filenameXss),undefined,'filename must not run code');
+});
+
+for(const route of ['/200/comments?filter=all','/200/projects/p1?tab=comments'])test(`communication slide thumbnails use their batch metadata: ${route}`,async t=>{
+ const {page,tables,wireBatches,requests}=await fixture(t,{withImages:true});
+ tables.comments=[0,4,5].map((n,i)=>({id:'comment'+n,iteration_id:'i1',slide:'visual-slide'+n,parent_id:null,author:'jack@example.com',body:'Discuss picture '+n,answered:false,created_at:`2026-01-0${i+1}T12:00:00Z`}));
+ tables.communication_threads=tables.comments.map(c=>({id:'thread'+c.id,comment_id:c.id,title:c.body}));
+ tables.communication_audiences=tables.comments.map(c=>({id:'audience'+c.id,root_id:c.id,audience:'studio'}));
+ await page.goto(baseURL+route);
+ const preview=page.locator('[data-comment-preview="comment5"]');await preview.waitFor();
+ assert.equal(await preview.getAttribute('src'),'/200/userfiles/variant-file?size=small');await preview.evaluate(im=>im.decode());
+ if(route.includes('/comments?')){
+  assert.equal(await page.locator('[data-comment-preview="comment0"]').getAttribute('src'),'/200/userfiles/file0?size=small');
+  assert.equal(await page.locator('[data-comment-preview="comment4"]').getAttribute('src'),'/200/userfiles/crop-file?size=small');
+ }else assert.equal(await page.locator('.comm-context').getAttribute('data-slide'),'visual-slide5');
+ const count=wireBatches.length;await page.waitForTimeout(150);assert.equal(wireBatches.length,count);
+ assert.equal(wireBatches.length,2,'bootstrap plus one communication view batch');
+ assert.ok(requests.every(p=>!p.includes('comment_preview')&&!p.includes('platform-unavailable')&&p!=='/api.php'));
 });

@@ -1,3 +1,4 @@
+import {systemSlides} from '../slides.js';
 import {schema} from './schema.js';
 import {MediaIndex} from './media.js';
 import {studioMappings as configuredStudioMappings} from './config.js';
@@ -153,10 +154,33 @@ export class PlatformClient {
   communicationSpecs(add,iteration){
     add('comments','comments',eq('iteration_id',iteration));add('threads','communication_threads',oneOf('comment_id','{{comments.entities[].id}}'));add('audiences','communication_audiences',oneOf('root_id','{{comments.entities[].id}}'));add('topics','communication_topics',oneOf('root_id','{{comments.entities[].id}}'));
     add('attachments','comment_attachments',oneOf('comment_id','{{comments.entities[].id}}'));add('mentions','comment_mentions',oneOf('comment_id','{{comments.entities[].id}}'));add('reads','comment_reads',and(oneOf('comment_id','{{comments.entities[].id}}'),eq('person_key','user:'+this.identity.email.toLowerCase())));add('confirmations','comment_confirmations',oneOf('comment_id','{{comments.entities[].id}}'));add('questions','open_questions',eq('iteration_id',iteration));add('findings','consistency_findings',eq('iteration_id',iteration));add('runs','consistency_runs',eq('iteration_id',iteration));
+    // Resolve every preview in this same view request. Keep history metadata for
+    // annotations pinned to an earlier source/image version.
+    const scope=iteration?eq('iteration_id',iteration):oneOf('iteration_id','{{comments.entities[].iteration_id}}');
+    add('previewLinks','iteration_files',scope,['iteration_id','asset_id','version_id']);
+    add('previewSlides','presentation_slides',scope,['iteration_id','slide_key','title','type','source_version_id','page_number','image_number','image_version_id']);
+    add('previewVersions','file_versions',['OR',oneOf('id','{{previewSlides.entities[].source_version_id}}'),oneOf('id','{{previewLinks.entities[].version_id}}'),oneOf('asset_id','{{previewLinks.entities[].asset_id}}')],['mime','data_file_id','preview_file_id']);
+    add('previewPages','document_pages',oneOf('version_id','{{previewVersions.entities[].id}}'),['version_id','number','preview_file_id']);
+    add('previewImages','document_images',oneOf('version_id','{{previewVersions.entities[].id}}'),['version_id','page_number','number','data_file_id']);
+    add('previewImageVersions','slide_image_versions',['OR',oneOf('id','{{previewSlides.entities[].image_version_id}}'),oneOf('source_version_id','{{previewVersions.entities[].id}}')],['source_version_id','data_file_id']);
+    add('previewLayout','slide_layout',scope,['iteration_id','slide_id','hidden','deleted']);
+    add('previewContent','slide_content',scope,['iteration_id','slide_id','title']);
+    add('previewSystem','system_slides',scope,['iteration_id','slide_key','type']);
+
   }
   assembleCommunication(d,iteration,project){
-    const comments=d.comments.map(c=>{const root=c.parent_id||c.id,topic=d.topics.find(t=>t.root_id===root),thread=d.threads.find(t=>t.comment_id===root);return {...c,name:c.author,unread:c.unread??(c.author!==this.identity.email&&!d.reads.some(r=>r.comment_id===c.id)),confirmation:d.confirmations.find(r=>r.comment_id===c.id),annotation:object(c.annotation),mentions:d.mentions.filter(m=>m.comment_id===c.id),audience:d.audiences.find(a=>a.root_id===root)?.audience||'studio',thread_details:topic?{...topic,title:thread?.title}:null,attachments:d.attachments.filter(a=>a.comment_id===c.id)};});
-    const communication={...d._feed,enabled:true,actor:this.identity.email,comments,items:d.questions,confirmations:d.confirmations,attachments:d.attachments,iterations:d.iterations||[iteration],people:[],recipients:[],threads:d.threads,iteration_files:{},iteration_slides:{},public_iteration_slides:{},project_id:project.id};
+    const iterations=d.iterations||[iteration],builtins=systemSlides();
+    const iterationSlides=Object.fromEntries(iterations.map(i=>{
+      const slides=[...builtins,...(d.previewSystem||[]).filter(s=>s.iteration_id===i.id).map(s=>({...builtins.find(b=>b.type===s.type),id:s.slide_key||s.id})),...(d.previewSlides||[]).filter(s=>s.iteration_id===i.id).map(s=>({id:'visual-'+(s.slide_key||s.id),title:s.title,type:s.type}))];
+      return [i.id,slides.filter(s=>!(d.previewLayout||[]).some(l=>l.iteration_id===i.id&&l.slide_id===s.id&&Number(l.deleted))).map(s=>({...s,title:(d.previewContent||[]).find(c=>c.iteration_id===i.id&&c.slide_id===(s.systemType||s.id))?.title||s.title}))];
+    }));
+    const publicSlides=Object.fromEntries(Object.entries(iterationSlides).map(([iid,slides])=>[iid,slides.filter(s=>!(d.previewLayout||[]).some(l=>l.iteration_id===iid&&l.slide_id===s.id&&Number(l.hidden)))]));
+    const comments=d.comments.map(c=>{
+      const root=c.parent_id||c.id,topic=d.topics.find(t=>t.root_id===root),thread=d.threads.find(t=>t.comment_id===root),sourceIteration=iterations.find(i=>i.id===c.iteration_id),sourceProject=(d.projects||[project]).find(p=>p.id===sourceIteration?.project_id)||project;
+      const source=iterationSlides[c.iteration_id]?.find(s=>s.id===c.slide),annotation=object(c.annotation);
+      return {...c,project_id:c.project_id||sourceIteration?.project_id||project.id,project_name:c.project_name||sourceProject?.name,iteration_number:c.iteration_number||sourceIteration?.number,slide_title:c.slide_title||source?.title,preview_url:this.media.commentUrl({...c,annotation}),name:c.author,unread:c.unread??(c.author!==this.identity.email&&!d.reads.some(r=>r.comment_id===c.id)),confirmation:d.confirmations.find(r=>r.comment_id===c.id),annotation,mentions:d.mentions.filter(m=>m.comment_id===c.id),audience:d.audiences.find(a=>a.root_id===root)?.audience||'studio',thread_details:topic?{...topic,title:thread?.title}:null,attachments:d.attachments.filter(a=>a.comment_id===c.id)};
+    });
+    const communication={...d._feed,enabled:true,actor:this.identity.email,comments,items:d.questions,confirmations:d.confirmations,attachments:d.attachments,iterations,people:[],recipients:[],threads:d.threads,iteration_files:{},iteration_slides:iterationSlides,public_iteration_slides:publicSlides,project_id:project.id};
     return {comments,open_questions:d.questions,communication,checks:{findings:d.findings,runs:d.runs,sources:[]},confirmations:d.confirmations};
   }
 }

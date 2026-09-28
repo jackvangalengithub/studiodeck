@@ -1,3 +1,4 @@
+import {renderNode} from './helpers/render.mjs';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {parseCsv,csvPreview} from '../public/assets/csv-preview.js';
@@ -20,7 +21,9 @@ test('CSV handles empty files, missing cells and limits large previews',()=>{
  assert.equal(wide.rows[0].length,50);assert.equal(wide.truncated,true);
  assert.equal(parseCsv('x'.repeat(1000001)).truncated,true);
 });
-test('preview escapes every source cell and keeps formulas as text',()=>{
- const escaped=[],html=csvPreview('Name,Value\n<script>,=SUM(A1:A2)',value=>{escaped.push(value);return String(value).replaceAll('<','&lt;').replaceAll('>','&gt;');});
- assert.ok(escaped.includes('<script>'));assert.ok(html.includes('&lt;script&gt;'));assert.ok(!html.includes('<script>'));assert.ok(html.includes('=SUM(A1:A2)'));
+test('preview renders every source cell and formula as literal text',()=>{
+ const root=renderNode(csvPreview('Name,Value\n<script>,=SUM(A1:A2)'));
+ assert.equal(root.querySelector('script'),null);
+ assert.ok(root.textContent.includes('<script>'));
+ assert.ok(root.textContent.includes('=SUM(A1:A2)'));
 });

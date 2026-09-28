@@ -1,3 +1,4 @@
+import {renderMarkup} from './helpers/render.mjs';
 import assert from 'node:assert/strict';
 import {readWorkspaceRoute,workspaceUrl} from '../public/assets/routes.js';
 import {readClientRoute,clientProjectUrl} from '../public/assets/destinations.js';
@@ -12,7 +13,7 @@ assert.deepEqual(readClientRoute(new URL(clientUrl,'https://example.test')),{pro
 assert.equal(readClientRoute(new URL('/client/projects/project?view=unknown','https://example.test')).presentationMode,undefined);
 assert.ok(!workspaceUrl({...studio,presentationMode:'slides'}).includes('view='));
 assert.ok(!clientProjectUrl('project','iteration','visual-one','slides').includes('view='));
-const html=scrollPresentation({slides:[{id:'one',section:'first',type:'text',title:'A & B'},{id:'two',section:'second',type:'photo',title:'Second'}],groups:{first:'Story',empty:'Invisible',second:'<Designs>'},project:'<Home>',iteration:'iteration',branding:'',preview:'',actions:'',content:id=>`content:${id}`,footer:()=>''});
+const html=renderMarkup(scrollPresentation({slides:[{id:'one',section:'first',type:'text',title:'A & B'},{id:'two',section:'second',type:'photo',title:'Second'}],groups:{first:'Story',empty:'Invisible',second:'<Designs>'},project:'<Home>',iteration:'iteration',branding:'',preview:'',actions:'',content:id=>`content:${id}`,footer:()=>''}));
 assert.ok(!html.includes('Invisible'));
 assert.ok(html.includes('&lt;Designs&gt;'));
 assert.ok(html.includes('&lt;Home&gt;'));

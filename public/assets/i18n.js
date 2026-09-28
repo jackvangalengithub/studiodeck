@@ -1,3 +1,4 @@
+import {interpolate} from './render.js';
 import clientEn from './languages/en.js';
 import clientNl from './languages/nl.js';
 import studioEn from './languages/studio-en.js';
@@ -17,12 +18,12 @@ export function setLanguage(value) {
 export const getLanguage=()=>language;
 export const numberLocale=()=>language==='nl'?'nl-NL':'en-IE';
 export const dateLocale=()=>language==='nl'?'nl-NL':'en-GB';
-// Translate only application-owned copy. Interpolated content is escaped by the
-// rendering caller, exactly like other project/user content in the templates.
+// Translate application-owned copy. Interpolation retains structured views;
+// user strings stay literal text when the result is mounted.
 export function tr(key,values={}) {
   const catalog=language==='nl'?nl:en;
   const message=(Number(values.count)===1?catalog[key+'_one']:undefined)??catalog[key]??en[key]??key;
-  return message.replace(/\{(\w+)\}/g,(match,name)=>Object.hasOwn(values,name)?String(values[name]):match);
+  return interpolate(message,values);
 }
 
 // API errors are application copy; never run this on project content.

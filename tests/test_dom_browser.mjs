@@ -25,7 +25,7 @@ test('strings, nested children and attribute values are inert text',async()=>{
 
 test('raw HTML, event attributes, executable elements and unknown props are rejected',async()=>{
  const rejected=await page.evaluate(()=>{
-  const attempts=[()=>e('script',{},'alert(1)'),()=>e('iframe',{srcdoc:'bad'}),()=>e('custom-element'),()=>e('div',{innerHTML:'<img>'}),()=>e('div',{outerHTML:'<img>'}),()=>e('div',{textContent:'implicit'}),()=>e('div',{onclick:'alert(1)'}),()=>e('div',{onClick:()=>{}}),()=>e('div',{on:{click:'alert(1)'}}),()=>e('div',{style:'background:red'}),()=>e('div',{is:'custom'}),()=>e('div',{}, {html:'<img>'}),()=>e('img',{srcset:'anything'})];
+  const attempts=[()=>e('script',{},'alert(1)'),()=>e('iframe',{srcdoc:'bad'}),()=>e('custom-element'),()=>e('div',{innerHTML:'<img>'}),()=>e('div',{outerHTML:'<img>'}),()=>e('div',{textContent:'implicit'}),()=>e('div',{onclick:'alert(1)'}),()=>e('div',{onClick:()=>{}}),()=>e('div',{on:{click:'alert(1)'}}),()=>e('div',{style:'background:url(https://evil.test/)'}),()=>e('div',{is:'custom'}),()=>e('div',{}, {html:'<img>'}),()=>e('img',{srcset:'anything'})];
   return attempts.map(run=>{try{run();return false;}catch(error){return error instanceof TypeError;}});
  });assert.ok(rejected.every(Boolean));
 });

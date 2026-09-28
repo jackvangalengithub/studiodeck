@@ -1,3 +1,4 @@
+import {safeUrl} from './dom.js';
 import {tr} from './i18n.js';
 // Shared single-image picker for studio logos and profile avatars.
 export function imageUploadData(form){
@@ -14,7 +15,7 @@ export function installImageUploads(){
   status.textContent=tr("preparing_image_preview");
   try{
    const url=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file);});
-   const image=new Image();image.src=url;await image.decode();if(image.naturalWidth*image.naturalHeight>12000000)throw Error(tr("choose_an_image_up_to_12_megapixels"));
+   const image=new Image();image.src = safeUrl(url, 'src');await image.decode();if(image.naturalWidth*image.naturalHeight>12000000)throw Error(tr("choose_an_image_up_to_12_megapixels"));
    if(!form.isConnected||pick!==form._imagePick)return;
    const preview=zone.querySelector('[data-image-upload-preview]');image.alt=zone.dataset.imageUpload==='avatar'?tr("selected_avatar"):tr("selected_studio_logo");
    if(zone.dataset.imageUpload==='avatar'){const circle=document.createElement('span');circle.className='avatar person-avatar';circle.append(image);preview.replaceChildren(circle);}else{image.className='studio-logo';preview.replaceChildren(image);}

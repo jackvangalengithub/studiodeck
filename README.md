@@ -27,6 +27,7 @@ them does not configure platform email or payments. The marketing service serves
 
 ## Architecture and migration
 
+- [DOM rendering and XSS enforcement](docs/dom-rendering.md)
 - [Data loading, batching and checks](docs/data-loading.md)
 - [Identity alignment and remaining integration issues](docs/platform-porting-issues.md)
 - [Operation coverage](docs/platform-operation-coverage.md)
@@ -47,11 +48,14 @@ in `legacy/php-entrypoints/` and are not served. `/api.php` returns 410.
 ## Frontend checks
 
 ```sh
+npm ci
+npm test
 node --test tests/test_platform.mjs tests/test_api_batch.mjs tests/test_data_layer.mjs
 node scripts/platform-schema.mjs --check
 PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/path/to/chrome \
-  node --test tests/test_batch_browser.mjs
+  npm run test:browser:dom
 ```
 
+The Docker build runs the DOM source guard and security regressions before packaging.
 The browser suite uses controlled API responses against the served static frontend.
 Platform database integration checks live in `~/platform/apps/studiodeck/tests/`.

@@ -1,3 +1,4 @@
+import {safeUrl} from '../dom.js';
 import {eq,and,oneOf,now,uuid,contains} from './client.js';
 import {unavailable,PlatformError} from './transport.js';
 const pick=(value,keys)=>Object.fromEntries(keys.filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));
@@ -15,8 +16,8 @@ export function installOperations(c){
   c.operations={
     session:()=>c.bootstrap(),
     switch_studio:b=>c.bootstrap(b.studio_id,{refresh:true}),
-    logout:async()=>{c.session=null;c.tenant=null;c.files.clear();globalThis.location?.assign('/logout');return {ok:true};},
-    create_studio:async b=>{const form=document.createElement('form');form.method='POST';form.action='/administrations/create';const input=document.createElement('input');input.name='companyname';input.value=b.name;form.append(input);document.body.append(form);form.submit();return new Promise(()=>{});},
+    logout:async()=>{c.session=null;c.tenant=null;c.files.clear();globalThis.location?.assign(safeUrl('/logout', 'href'));return {ok:true};},
+    create_studio:async b=>{const form=document.createElement('form');form.method='POST';form.action = safeUrl('/administrations/create', 'action');const input=document.createElement('input');input.name='companyname';input.value=b.name;form.append(input);document.body.append(form);form.submit();return new Promise(()=>{});},
     destinations:async()=>{const session=await c.bootstrap();return {studios:session.studios,projects:[],conversations:[],platform_notice:'Shared destinations require client and guest tenant profiles.'};},
     profile:async()=>{const profile=(await q('person_profiles',eq('person_key',person())))[0]||{name:c.session?.user.name||c.identity.firstname};return {profile:{...profile,avatar:profile.avatar_file_id?c.fileUrl(profile.avatar_file_id):''}};},
     save_profile:async b=>{await upsert('person_profiles',eq('person_key',person()),{person_key:person(),...pick(b,['name','language','color']),...Object.fromEntries(['email_comments','email_mentions_only'].filter(k=>k in b).map(k=>[k,bool(b[k])]))});const result=await c.operations.profile();if(c.session){c.session.profile=result.profile;c.session.user.profile=result.profile;}return result;},
