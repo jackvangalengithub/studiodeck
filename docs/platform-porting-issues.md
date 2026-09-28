@@ -239,3 +239,24 @@ cover returns HTTP 200. A live browser run confirms four loaded covers, all 30
 presentation images decoded, no unresolved placeholders, and exactly one tab batch.
 Regression tests also cover selected variants/page crops,
 server-side pagination, scope/rights, delayed images, failed reads and rapid tab changes.
+
+## Filtering follow-up (2026-09-28)
+
+- Grid search, category/archive selection, member lookup and communication list
+  filtering now run server-side. Slide type filtering is deliberately local.
+- Communication status is a tenant PostgreSQL function exposed through the normal
+  filter DSL. Thread search, actor-specific attention and root pagination currently
+  run in the custom repo over rights-scoped rows; large inboxes would benefit from
+  SQL aggregation/pagination before loading thread dependencies. The existing
+  50,000-row view limit still applies and fails explicitly.
+- Imported `communication_topics.question_id` is a string and can refer to either
+  the question UUID or legacy `question_key`. Status calculation handles both,
+  scoped to the root's iteration; the underlying schema remains unchanged.
+- **Platform migration runner bug:** `AbstractMigration.php` catches SQL
+  errors and only prints them. A failed migration can be recorded as applied and
+  the command can exit successfully. The first status-function migration exposed
+  this through a UUID/varchar join mismatch. The corrected function was installed
+  with a subsequent migration and verified through real repository queries. The
+  shared runner was not changed; it should throw/rollback on statement failure.
+- Studio Users now reads domain `studio_members`; adding/removing platform login
+  access still needs the auth membership integration already tracked above.

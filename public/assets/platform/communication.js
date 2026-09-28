@@ -3,15 +3,16 @@ import {unavailable,PlatformError} from './transport.js';
 export function installCommunication(c){
   const record=async(table,id)=>{const r=(await c.query(table,eq('id',id)))[0];if(!r)throw new PlatformError('Record not found.',{status:404});return r;};
   async function feed(b={}){
-    let filter=b.iteration?eq('iteration_id',b.iteration):[];
-    if(b.project_id){const iterations=await c.query('iterations',eq('project_id',b.project_id),['id']);filter=oneOf('iteration_id',iterations.map(i=>i.id));}
     const specs=[];const add=(id,table,f,fields,extra)=>specs.push(c.querySpec(id,table,f,fields,extra));
-    c.communicationSpecs(add,b.iteration||null);specs[0].params.filter=filter;
-    for(const s of specs)if(['questions','findings','runs'].includes(s.id))s.params.filter=oneOf('iteration_id','{{comments.entities[].iteration_id}}');
-    const d=await c.graph(specs);return c.assembleCommunication(d,{id:b.iteration||null},{id:b.project_id||null});
+    add('projects','projects',and(eq('studio_id',c.studioRecord?.id??null),b.project_id?eq('id',b.project_id):[]),['name']);
+    add('iterations','iterations',and(oneOf('project_id','{{projects.entities[].id}}'),b.iteration?eq('id',b.iteration):[]),['project_id','number']);
+    c.communicationSpecs(add,b.iteration||null);
+    for(const s of specs)if(['comments','questions','findings','runs'].includes(s.id))s.params.filter=oneOf('iteration_id','{{iterations.entities[].id}}');
+    const d=await c.graph(specs,{completeScope:{studio_id:c.studioRecord?.id,feed:b}});
+    return c.assembleCommunication(d,{id:b.iteration||null},{id:b.project_id||null});
   }
   Object.assign(c.operations,{
-    comments_feed:async b=>{const d=await feed(b);return {...d.communication,comments:d.comments,items:d.open_questions,communication:d.communication};},
+    comments_feed:async b=>{const d=await feed(b);return {...d.communication,comments:d.comments,items:d.comments,communication:d.communication};},
     attention:async b=>{const d=await feed(b);return {...d.communication,comments:d.comments,items:d.open_questions};},
     mention_people:async b=>{if(b.conversation)throw unavailable('guest_mentions','Guest profiles and conversation scopes must be configured first.');let pid=b.project_id;if(!pid&&b.iteration)pid=(await record('iterations',b.iteration)).project_id;if(!pid)return [];const [contacts,clients,team]=await Promise.all(['contacts','project_client_members','project_team_contacts'].map(t=>c.query(t,eq('project_id',pid))));return [...contacts,...clients,...team].filter(p=>p.email).map(p=>({...p,available:true,invitable:false}));},
     conversation:async()=>{throw unavailable('conversation','Conversation guest access needs platform guest profiles and inherited, expiring row scopes.');},

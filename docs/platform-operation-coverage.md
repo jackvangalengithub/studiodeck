@@ -118,7 +118,7 @@ Some implemented composites have limitations called out in that report; this inv
 | `slide_layout` | Implemented with platform requests |
 | `studio_starting_pack` | Implemented with platform requests |
 | `studio_theme` | Implemented with platform requests |
-| `studio_users` | Unavailable; see issue report |
+| `studio_users` | Server-filtered StudioDeck member directory; auth membership changes remain unavailable |
 | `switch_studio` | Implemented with platform requests |
 | `theme` | Implemented with platform requests |
 | `unlink_subquote` | Implemented with platform requests |

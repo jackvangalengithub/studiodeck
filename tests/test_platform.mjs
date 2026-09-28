@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {matchesFilter} from './helpers/filter.mjs';
 import assert from 'node:assert/strict';
 import {PlatformClient} from '../public/assets/platform/client.js';
 import {sendPlatformBatch,createRowQueue} from '../public/assets/platform/transport.js';
@@ -9,7 +10,7 @@ function fakeClient(seed=fixture,options={}){
  const transport=async({calls,tenant})=>{
   assert.equal(tenant,'200');const complete=calls[0]?.resource==='projects:readView',outer=calls[0];if(complete)calls=outer.params.queries;batches.push(structuredClone(calls.map(({resolve,reject,...call})=>call)));const outputs={};
   const resolve=v=>{if(Array.isArray(v))return v.map(resolve);if(typeof v!=='string')return v;const m=v.match(/^\{\{(\w+)\.entities\[(\d*)\]\.(\w+)\}\}$/);return m?(m[2]===''?(outputs[m[1]]||[]).map(r=>r[m[3]]):outputs[m[1]]?.[+m[2]]?.[m[3]]):v;};
-  const matches=(row,f)=>{if(!f?.length)return true;if(f[0]==='AND')return f.slice(1).every(s=>matches(row,s));if(f[0]==='OR')return f.slice(1).some(s=>matches(row,s));const [field,op,value]=f;if(op==='IN')return value.includes(row[field]);if(op==='=')return row[field]===value;throw Error('Unsupported fixture operator '+op);};
+  const matches=matchesFilter;
   const results=calls.map(call=>{
    if(call.resource==='users:ensureIdentity'){
     assert.equal(call.method,'POST');assert.deepEqual(call.params,{});
@@ -103,4 +104,37 @@ test('multi-generation file history and all image variants arrive in the initial
  assert.equal(c.media.url({action:'slide_image',image_version_id:'previous-edit'}),'/200/userfiles/previous-file');
  assert.equal(c.media.url({action:'file',id:'v1'}),'/200/userfiles/file1');
  assert.equal(batches.length,1);
+});
+
+test('project search filters server rows and cover dependencies in one batch',async()=>{
+ const {c,batches}=fakeClient({...fixture,projects:[...fixture.projects,
+  {id:'p2',studio_id:'s1',name:'House',location:'Garden district',archived:false},
+  {id:'p3',studio_id:'s1',name:'Old garden',archived:true},
+  {id:'p4',studio_id:'s1',name:'100%_complete',archived:false},
+  {id:'p5',studio_id:'s1',name:'100percentXcomplete',archived:false}]});
+ await c.bootstrap('200');batches.length=0;
+ assert.deepEqual((await c.request('projects',{search:'gArDeN'})).projects.map(p=>p.id),['p1','p2']);
+ assert.equal(batches.length,1);assert.ok(JSON.stringify(batches[0][0].params.filter).includes('ilike'));
+ assert.deepEqual((await c.request('projects',{search:'garden',archived:1})).projects.map(p=>p.id),['p3']);
+ assert.deepEqual((await c.request('projects',{search:'100%_'})).projects.map(p=>p.id),['p4']);
+ const empty=await c.request('projects',{search:'no match'});assert.deepEqual(empty.projects,[]);assert.equal(empty.studio_empty,false);
+});
+
+test('file search and category selections constrain platform queries in one batch',async()=>{
+ const {c,batches}=fakeClient({...fixture,iteration_files:[
+  {id:'l1',iteration_id:'i1',version_id:'v1',asset_id:'a1',category:'drawings'},
+  {id:'l2',iteration_id:'i1',version_id:'v2',asset_id:'a2',category:'renders'}],file_versions:[
+  {id:'v1',asset_id:'a1',name:'Garden plan.pdf',mime:'application/pdf'},
+  {id:'v2',asset_id:'a2',name:'Garden image.png',mime:'image/png'}]});
+ await c.bootstrap('200');batches.length=0;
+ const d=await c.project('p1','i1',['files'],{fileSearch:'garden',fileCategories:['drawings']});
+ assert.deepEqual(d.files.map(f=>f.id),['v1']);assert.equal(batches.length,1);
+ assert.deepEqual((await c.project('p1','i1',['files'],{fileCategories:[]})).files,[]);
+ assert.equal((await c.project('p1','i1',['slides'],{fileSearch:'no-match',fileCategories:[]})).files.length,2,'file filters do not affect other tabs');
+});
+test('member directory searches names, email and studio display names on the server',async()=>{
+ const {c,batches}=fakeClient({...fixture,users:[...fixture.users,{id:'u2',name:'Second',email:'second@example.com'}],studio_members:[{id:'m1',studio_id:'s1',user_id:'u1',display_name:'Designer',role:'admin'},{id:'m2',studio_id:'s1',user_id:'u2',role:'member'}]});
+ await c.bootstrap('200');batches.length=0;
+ const found=await c.request('studio_users',{search:'designer'});assert.deepEqual(found.users.map(u=>u.id),['u1']);assert.equal(found.total,2);assert.equal(batches.length,1);
+ assert.deepEqual((await c.request('studio_users',{search:'second@'})).users.map(u=>u.id),['u2']);
 });

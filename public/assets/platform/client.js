@@ -7,6 +7,7 @@ import {installOperations} from './operations.js';
 import {installCommunication} from './communication.js';
 import {installPacks} from './packs.js';
 export const eq=(field,value)=>[field,'=',value];
+export const contains=(fields,value)=>{const text=String(value??'').trim().slice(0,500),pattern='%'+text.replace(/[\\%_]/g,'\\$&')+'%';return text?['OR',...fields.map(field=>[field,'ilike',pattern])]:[];};
 export const oneOf=(field,values)=>[field,'IN',values];
 export const and=(...filters)=>['AND',...filters.filter(f=>f?.length)];
 export const uuid=()=>crypto.randomUUID();
@@ -28,16 +29,17 @@ export class PlatformClient {
   more(body,length,size){return body.other&&'nextPage'in body.other?body.other.nextPage!==null:body.other?.hasmore??(length>=size);}
   async graph(specs,{completeScope}={}){
     const scope=this.context();
-    let results;
+    let results,feed;
     if(completeScope){
       const body=assertResult((await this.transport({...scope,calls:[{id:'view',resource:'projects:readView',method:'QUERY',params:{...completeScope,queries:specs}}]}))[0]);
+      feed=body.other?.feed;
       const returned=body.other?.results,ids=new Set(specs.map(s=>s.id));
       if(!Array.isArray(returned)||returned.length!==specs.length||new Set(returned.map(r=>r.responseid)).size!==specs.length||returned.some(r=>!ids.has(r.responseid)))throw Error('Incomplete project view response.');
       const byId=new Map(returned.map(r=>[r.responseid,r]));results=specs.map(s=>byId.get(s.id));
       if(results.some(r=>r.body?.other?.nextPage!==null))throw Error('Project view pagination must be completed by the server.');
     }else results=await this.transport({...scope,calls:specs});
     if(this.tenant!==scope.tenant)throw Object.assign(Error('This data request was superseded.'),{superseded:true});
-    const data={},expanded=new Set();
+    const data=feed?{_feed:feed}:{},expanded=new Set();
     for(let n=0;n<specs.length;n++){
       const spec=specs[n],body=assertResult(results[n]);
       if(spec.resource.includes(':')){data[spec.id]=rows(body);continue;}
@@ -103,11 +105,11 @@ export class PlatformClient {
   async request(action,params={}){const op=this.operations[action];if(!op)throw unavailable(action);const read=['session','switch_studio','create_studio','logout','projects','project','deck','destinations','profile','document_page','project_testimonials','studio_starting_pack','project_starting_pack','comments_feed','attention','mention_people','drive_status'].includes(action);if(!read)this.pendingWrites=(this.pendingWrites||0)+1;try{return await op(params);}finally{if(!read)this.pendingWrites--;}}
   async resources({calls}){
     const projectCalls=calls.filter(c=>c.resource.startsWith('project:'));let view=null;
-    if(projectCalls.length){const {projectId,iterationId}=projectCalls[0].params;view=await this.project(projectId,iterationId,projectCalls.map(c=>c.resource.split(':')[1]));}
+    if(projectCalls.length){const {projectId,iterationId,...filters}=projectCalls[0].params;view=await this.project(projectId,iterationId,projectCalls.map(c=>c.resource.split(':')[1]),filters);}
     return Promise.all(calls.map(async c=>({responseid:c.id,code:200,body:{other:c.resource==='app:context'?await this.bootstrap():c.resource==='app:status'?await this.status():view}})));
   }
   async status(){const key='user:'+this.identity.email.toLowerCase();const d=await this.graph([this.querySpec('comments','comments',[],['author']),this.querySpec('reads','comment_reads',eq('person_key',key),['comment_id'])]);return {unread_count:d.comments.filter(r=>r.author!==this.identity.email&&!d.reads.some(read=>read.comment_id===r.id)).length};}
-  async project(projectId,iterationId,names=['presentation']){
+  async project(projectId,iterationId,names=['presentation'],{fileSearch='',fileCategories=null,communication=null}={}){
     const scope=this.context();const presentation=names.includes('presentation'),wanted=name=>presentation||names.includes(name),specs=[];
     const add=(id,table,filter,fields,extra)=>specs.push(this.querySpec(id,table,filter,fields,{nperpage:1000,...extra}));
     const iterationRef=iterationId||'{{iterations.entities[0].id}}',i=()=>eq('iteration_id',iterationRef),p=()=>eq('project_id',projectId);
@@ -117,12 +119,13 @@ export class PlatformClient {
     const needFiles=wanted('slides')||wanted('files')||wanted('budget')||wanted('overview')||wanted('communication');
     const needBudget=wanted('slides')||wanted('budget')||wanted('overview'),overviewOnly=!presentation&&names.includes('overview');
     const hasSlides=wanted('slides')||wanted('files')||wanted('overview');
-    if(needFiles)add('links','iteration_files',i());
+    const fileView=!presentation&&names.includes('files');
+    if(needFiles)add('links','iteration_files',and(i(),fileView&&Array.isArray(fileCategories)?oneOf('category',fileCategories):[]));
     if(wanted('slides')||wanted('files')||wanted('overview')){
       add('slides','presentation_slides',i(),overviewOnly?['iteration_id','slide_key','title','type','source_version_id','page_number','image_number','image_version_id','position']:undefined);add('layout','slide_layout',i());add('covers','iteration_covers',i());
       if(wanted('slides')){add('content','slide_content',i());add('sections','slide_sections',i());add('groups','slide_groups',i());add('system','system_slides',i());add('media','slide_media',p(),['data_file_id','project_id']);}
     }
-    if(needFiles)add('versions','file_versions',hasSlides?['OR',oneOf('id','{{links.entities[].version_id}}'),oneOf('id','{{slides.entities[].source_version_id}}')]:oneOf('id','{{links.entities[].version_id}}'),overviewOnly?['name','mime','preview_file_id','data_file_id']:undefined);
+    if(needFiles)add('versions','file_versions',and(hasSlides&&!fileView?['OR',oneOf('id','{{links.entities[].version_id}}'),oneOf('id','{{slides.entities[].source_version_id}}')]:oneOf('id','{{links.entities[].version_id}}'),fileView?contains(['name'],fileSearch):[]),overviewOnly?['name','mime','preview_file_id','data_file_id']:undefined);
     if(hasSlides){
       add('pages','document_pages',oneOf('version_id','{{versions.entities[].id}}'),['version_id','number','metadata','preview_file_id']);
       add('images','document_images',oneOf('version_id','{{versions.entities[].id}}'),['version_id','page_number','number','data_file_id','metadata']);
@@ -133,7 +136,7 @@ export class PlatformClient {
     if(wanted('budget')){add('suggestions','budget_link_suggestions',i());add('budgetChecks','budget_match_checks',i());}
     if(wanted('people')||wanted('overview')||wanted('communication')){add('clients','project_client_members',p());if(wanted('people')||wanted('communication')){add('contacts','contacts',p());add('team','project_team_contacts',p());add('memberUsers','users',oneOf('id','{{members.entities[].user_id}}'),['name','email']);add('shares','shares',i());add('testimonials','project_testimonials',p());}}
     if(wanted('communication'))this.communicationSpecs(add,iterationRef);
-    const d=await this.graph(specs,{completeScope:{project_id:projectId}}),project=d.project[0];if(this.tenant!==scope.tenant)throw Object.assign(Error('This data request was superseded.'),{superseded:true});if(!project)throw new PlatformError('Project not found.',{status:404});
+    const d=await this.graph(specs,{completeScope:{project_id:projectId,...(!presentation&&wanted('communication')?{feed:communication||{}}:{})}}),project=d.project[0];if(this.tenant!==scope.tenant)throw Object.assign(Error('This data request was superseded.'),{superseded:true});if(!project)throw new PlatformError('Project not found.',{status:404});
     const iteration=iterationId?d.iterations.find(r=>r.id===iterationId):d.iterations[0];if(!iteration)throw new PlatformError('Iteration not found.',{status:404});
     const ancestors=new Map([...(d.history||[]),...(d.versions||[])].map(v=>[v.id,v]));
     const result={project:{...project,...d.details[0],id:project.id,theme:object(iteration.theme||project.theme)},iteration,iterations:d.iterations,
@@ -152,8 +155,8 @@ export class PlatformClient {
     add('attachments','comment_attachments',oneOf('comment_id','{{comments.entities[].id}}'));add('mentions','comment_mentions',oneOf('comment_id','{{comments.entities[].id}}'));add('reads','comment_reads',and(oneOf('comment_id','{{comments.entities[].id}}'),eq('person_key','user:'+this.identity.email.toLowerCase())));add('confirmations','comment_confirmations',oneOf('comment_id','{{comments.entities[].id}}'));add('questions','open_questions',eq('iteration_id',iteration));add('findings','consistency_findings',eq('iteration_id',iteration));add('runs','consistency_runs',eq('iteration_id',iteration));
   }
   assembleCommunication(d,iteration,project){
-    const comments=d.comments.map(c=>{const root=c.parent_id||c.id,topic=d.topics.find(t=>t.root_id===root),thread=d.threads.find(t=>t.comment_id===root);return {...c,name:c.author,unread:!d.reads.some(r=>r.comment_id===c.id),annotation:object(c.annotation),mentions:d.mentions.filter(m=>m.comment_id===c.id),audience:d.audiences.find(a=>a.root_id===root)?.audience||'studio',thread_details:topic?{...topic,title:thread?.title}:null,attachments:d.attachments.filter(a=>a.comment_id===c.id)};});
-    const communication={enabled:true,actor:this.identity.email,comments,items:d.questions,confirmations:d.confirmations,attachments:d.attachments,iterations:[iteration],people:[],recipients:[],threads:d.threads,iteration_files:{},iteration_slides:{},public_iteration_slides:{},project_id:project.id};
+    const comments=d.comments.map(c=>{const root=c.parent_id||c.id,topic=d.topics.find(t=>t.root_id===root),thread=d.threads.find(t=>t.comment_id===root);return {...c,name:c.author,unread:c.unread??(c.author!==this.identity.email&&!d.reads.some(r=>r.comment_id===c.id)),confirmation:d.confirmations.find(r=>r.comment_id===c.id),annotation:object(c.annotation),mentions:d.mentions.filter(m=>m.comment_id===c.id),audience:d.audiences.find(a=>a.root_id===root)?.audience||'studio',thread_details:topic?{...topic,title:thread?.title}:null,attachments:d.attachments.filter(a=>a.comment_id===c.id)};});
+    const communication={...d._feed,enabled:true,actor:this.identity.email,comments,items:d.questions,confirmations:d.confirmations,attachments:d.attachments,iterations:d.iterations||[iteration],people:[],recipients:[],threads:d.threads,iteration_files:{},iteration_slides:{},public_iteration_slides:{},project_id:project.id};
     return {comments,open_questions:d.questions,communication,checks:{findings:d.findings,runs:d.runs,sources:[]},confirmations:d.confirmations};
   }
 }

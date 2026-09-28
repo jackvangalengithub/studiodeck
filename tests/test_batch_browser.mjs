@@ -1,4 +1,5 @@
 import test,{before,after} from 'node:test';
+import {matchesFilter} from './helpers/filter.mjs';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 import {schema} from '../public/assets/platform/schema.js';
@@ -32,7 +33,7 @@ async function fixture(t,{withImages=false}={}){
    if(controls.failNext){controls.failNext=false;return route.fulfill({status:503,json:{message:'Temporarily unavailable'}});}
    const wire=req.postDataJSON().flat(),outer=wire[0],complete=outer?.relative_url==='200/projects:readView',calls=complete?JSON.parse(outer.body).queries.map(q=>({...q,requestingId:q.id,method:'QUERY',relative_url:'200/'+q.resource,body:JSON.stringify(q.params)})):wire,outputs={},results=[];batches.push(calls);
    const subst=v=>{if(Array.isArray(v))return v.map(subst);if(typeof v!=='string')return v;const m=v.match(/^\{\{(\w+)\.entities\[(\d*)\]\.(\w+)\}\}$/);return m?(m[2]===''?(outputs[m[1]]||[]).map(r=>r[m[3]]).filter(x=>x!=null):outputs[m[1]]?.[+m[2]]?.[m[3]]):v;};
-   const matches=(r,f)=>!f?.length?true:f[0]==='AND'?f.slice(1).every(s=>matches(r,s)):f[0]==='OR'?f.slice(1).some(s=>matches(r,s)):f[1]==='IN'?(f[2]||[]).includes(r[f[0]]):r[f[0]]===(typeof r[f[0]]==='boolean'&&['true','false'].includes(f[2])?f[2]==='true':f[2]);
+   const matches=matchesFilter;
    for(const call of calls){const [,table,id]=call.relative_url.split('/'),body=JSON.parse(call.body);if(table==='users:ensureIdentity'){outputs[call.requestingId]=[{id:'u1'}];results.push({responseid:call.id,code:200,body:{entities:[{id:'u1',tablename:'users',data:{id:'u1'}}],other:{id:'u1'}}});continue;}if(!schema[table]){errors.push('Unknown resource '+call.relative_url);results.push({responseid:call.id,code:404,body:{message:'Unknown table'}});continue;}if(call.method==='QUERY'){
      for(const key of body.selectList)if(!schema[table][key])errors.push('Unknown field '+table+'.'+key);
      const found=(tables[table]||[]).filter(r=>matches(r,subst(body.filter)));outputs[call.requestingId]=found;results.push({responseid:call.id,code:200,body:{entities:found.map(r=>({id:r.id,tablename:table,data:r,writablefields:Object.keys(r)})),other:{nextPage:null}}});
@@ -105,4 +106,68 @@ test('failed or superseded tabs retain the previous view until the selected view
  controls.batchGate=null;await page.locator('nav [data-tab="budget"]').click();await page.locator('nav [data-tab="budget"].active').waitFor();
  release();await page.waitForTimeout(200);
  assert.equal(await page.locator('nav [data-tab="budget"].active').count(),1);
+});
+
+test('project search refreshes from one server batch and survives reload and history',async t=>{
+ const {page,tables,controls,wireBatches}=await fixture(t);
+ tables.projects.push({id:'p2',studio_id:tables.projects[1].studio_id,name:'Archived garden',archived:true});
+ await page.goto(baseURL+'/200/projects');await page.getByText('Garden project',{exact:true}).first().waitFor();
+ let release;controls.batchGate=new Promise(resolve=>release=resolve);t.after(()=>release());
+ const before=wireBatches.length;await page.locator('#project-search').fill('missing');await page.waitForTimeout(350);
+ assert.equal(wireBatches.length-before,1);assert.equal(await page.getByText('Garden project',{exact:true}).count(),1,'old grid stays while loading');
+ controls.batchGate=null;release();await page.getByText('Garden project',{exact:true}).waitFor({state:'detached'});
+ assert.equal(new URL(page.url()).searchParams.get('search'),'missing');
+ await page.reload();await page.locator('#project-search').waitFor();assert.equal(await page.locator('#project-search').inputValue(),'missing');assert.equal(await page.getByText('Garden project',{exact:true}).count(),0);
+ await page.locator('#project-search').fill('garden');await page.getByText('Garden project',{exact:true}).first().waitFor();
+ const start=wireBatches.length;await page.locator('#show-archived').check();await page.getByText('Archived garden',{exact:true}).first().waitFor();assert.equal(wireBatches.length-start,1);
+ await page.reload();await page.getByText('Archived garden',{exact:true}).first().waitFor();assert.equal(await page.locator('#show-archived').isChecked(),true);
+ await page.goBack();await page.getByText('Garden project',{exact:true}).first().waitFor();assert.equal(await page.locator('#show-archived').isChecked(),false);
+});
+test('file search and category filters use the server and restore from URL',async t=>{
+ const {page,wireBatches}=await fixture(t,{withImages:true});
+ await page.goto(baseURL+'/200/projects/p1?tab=files');await page.locator('#file-search').waitFor();
+ const before=wireBatches.length;await page.locator('#file-search').fill('Image 4');await page.waitForTimeout(450);
+ assert.equal(await page.locator('.file-group').count(),1);assert.equal(wireBatches.length-before,1);
+ await page.reload();await page.locator('#file-search').waitFor();assert.equal(await page.locator('#file-search').inputValue(),'Image 4');assert.equal(await page.locator('.file-group').count(),1);
+ await page.locator('[data-action="file-filter"]').click();await page.locator('[data-file-filter-select="none"]').click();await page.waitForTimeout(180);
+ assert.equal(await page.locator('.file-group').count(),0);assert.equal(new URL(page.url()).searchParams.get('categories'),'');
+ await page.reload();await page.locator('#file-search').waitFor();assert.equal(await page.locator('.file-group').count(),0);
+});
+test('slide filter remains local and its selection and layout survive refresh',async t=>{
+ const {page,wireBatches}=await fixture(t,{withImages:true});
+ await page.goto(baseURL+'/200/projects/p1?tab=slides');await page.locator('.slide-editor').waitFor();
+ const before=wireBatches.length;await page.locator('[data-slide-filter-open]').click();await page.locator('[data-slide-filter-select="none"]').click();await page.locator('[data-slide-type="render"]').check();await page.locator('[data-slide-filter-apply]').click();
+ assert.equal(wireBatches.length,before);assert.equal(await page.locator('.slide-editor-row').count(),6);
+ await page.locator('[data-action="slide-view"][data-view="grid"]').click();await page.reload();await page.locator('.slide-editor.all-slides').waitFor();assert.equal(await page.locator('.slide-editor-row').count(),6);
+ assert.equal(new URL(page.url()).searchParams.get('types'),'render');
+});
+
+test('late or failed searches preserve the newest successful grid',async t=>{
+ const {page,controls,wireBatches}=await fixture(t);
+ await page.goto(baseURL+'/200/projects');await page.getByText('Garden project',{exact:true}).first().waitFor();
+ let release;controls.batchGate=new Promise(resolve=>release=resolve);t.after(()=>release());
+ await page.locator('#project-search').fill('missing');await page.waitForTimeout(300);
+ controls.batchGate=null;await page.locator('#project-search').fill('Garden');await page.waitForTimeout(350);release();await page.waitForTimeout(100);
+ assert.equal(await page.getByText('Garden project',{exact:true}).count(),1);
+ controls.failNext=true;const start=wireBatches.length;await page.locator('#project-search').fill('fail');await page.waitForTimeout(350);
+ assert.equal(wireBatches.length-start,1);assert.equal(await page.getByText('Garden project',{exact:true}).count(),1);
+});
+test('member search requests a filtered directory and persists in the URL',async t=>{
+ const {page,tables,wireBatches}=await fixture(t);
+ tables.studio_members=[{id:'m1',studio_id:tables.projects[1].studio_id,user_id:'u1',role:'admin'}];
+ await page.goto(baseURL+'/200/users');await page.locator('#studio-user-search').waitFor();
+ const start=wireBatches.length;await page.locator('#studio-user-search').fill('nobody');await page.waitForTimeout(350);
+ assert.equal(wireBatches.length-start,1);assert.equal(await page.locator('#studio-user-list .member-row').count(),0);
+ await page.reload();await page.locator('#studio-user-search').waitFor();assert.equal(await page.locator('#studio-user-search').inputValue(),'nobody');
+ assert.equal(await page.locator('#studio-user-list .member-row').count(),0);
+});
+test('communication search and types are sent in the batch and restored on refresh',async t=>{
+ const {page,wireBatches}=await fixture(t);
+ await page.goto(baseURL+'/200/projects/p1?tab=comments');await page.locator('[data-comm-search="project"]').waitFor();
+ let start=wireBatches.length;await page.locator('[data-comm-search="project"]').fill('paint');await page.waitForTimeout(300);
+ assert.equal(wireBatches.length-start,1);let call=wireBatches.at(-1).flat()[0];assert.equal(JSON.parse(call.body).feed.search,'paint');
+ await page.reload();await page.locator('[data-comm-search="project"]').waitFor();assert.equal(await page.locator('[data-comm-search="project"]').inputValue(),'paint');
+ call=wireBatches.at(-1).flat()[0];assert.equal(JSON.parse(call.body).feed.search,'paint');
+ await page.goto(baseURL+'/200/comments?filter=attention&q=wood&threadTypes=todo&sort=oldest&offset=25');await page.locator('[data-comm-search="studio"]').waitFor();
+ call=wireBatches.at(-1).flat()[0];const feed=JSON.parse(call.body).feed;assert.equal(feed.search,'wood');assert.equal(feed.filter,'attention');assert.equal(feed.types,'todo');assert.equal(feed.sort,'oldest');assert.equal(feed.offset,25);
 });

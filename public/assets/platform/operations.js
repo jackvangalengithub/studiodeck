@@ -1,4 +1,4 @@
-import {eq,and,oneOf,now,uuid} from './client.js';
+import {eq,and,oneOf,now,uuid,contains} from './client.js';
 import {unavailable,PlatformError} from './transport.js';
 const pick=(value,keys)=>Object.fromEntries(keys.filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));
 const bool=v=>v===true||v===1||v==='1'||v==='on'||v==='true';
@@ -24,8 +24,9 @@ export function installOperations(c){
     studio_theme:async b=>{if(!c.studioRecord)throw Error('Complete studio setup first.');let theme=b.theme||{};if(typeof theme==='string')theme=JSON.parse(theme);await write('studios',{theme,...pick(b,['name','language'])},c.studioRecord.id);c.session=null;return {studio_theme:theme};},
     projects:async b=>{
       const spec=(id,table,filter,fields,extra={})=>c.querySpec(id,table,filter,fields,{nperpage:1000,...extra});
+      const search=text(b.search,500);
       const d=await c.graph([
-        spec('projects','projects',and(eq('studio_id',c.studioRecord?.id??null),eq('archived',bool(b.archived)))),
+        spec('projects','projects',and(eq('studio_id',c.studioRecord?.id??null),eq('archived',bool(b.archived)),contains(['name','location','description'],search))),
         spec('iterations','iterations',oneOf('project_id','{{projects.entities[].id}}'),['project_id','number','title','status','locked'],{orderBy:[{field:'iterations.number',direction:'desc'}]}),
         spec('pins','project_pins',eq('user_id',c.identity.user_id)),spec('members','project_members',oneOf('project_id','{{projects.entities[].id}}')),
         spec('covers','iteration_covers',oneOf('iteration_id','{{iterations.entities[].id}}'),['iteration_id','slide_id']),
@@ -36,7 +37,15 @@ export function installOperations(c){
         spec('pages','document_pages',oneOf('version_id','{{slides.entities[].source_version_id}}'),['version_id','number','preview_file_id']),
         spec('images','document_images',oneOf('version_id','{{slides.entities[].source_version_id}}'),['version_id','page_number','number','data_file_id']),
       ],{completeScope:{studio_id:c.studioRecord?.id}});
-      return {projects:d.projects.map(p=>{const iteration=d.iterations.find(i=>i.project_id===p.id),cover=iteration&&c.media.cover(iteration.id,d.slides,d.links,d.covers.find(r=>r.iteration_id===iteration.id)?.slide_id);c.media.covers.set(p.id,cover?.fileId||null);return {...p,iteration_id:iteration?.id,iteration,iteration_number:iteration?.number||0,status:iteration?.status||'draft',pinned:d.pins.some(r=>r.project_id===p.id),members:d.members.filter(r=>r.project_id===p.id).map(r=>({id:r.user_id,name:r.user_id===c.identity.user_id?c.session.user.name:'Project member'})),has_cover:!!cover,cover_key:cover?.fileId||'',cover_url:cover?.url||'',processing:false,can_edit:!!p._platform?.writablefields?.length};}),studio_empty:d.projects.length===0};
+      return {projects:d.projects.map(p=>{const iteration=d.iterations.find(i=>i.project_id===p.id),cover=iteration&&c.media.cover(iteration.id,d.slides,d.links,d.covers.find(r=>r.iteration_id===iteration.id)?.slide_id);c.media.covers.set(p.id,cover?.fileId||null);return {...p,iteration_id:iteration?.id,iteration,iteration_number:iteration?.number||0,status:iteration?.status||'draft',pinned:d.pins.some(r=>r.project_id===p.id),members:d.members.filter(r=>r.project_id===p.id).map(r=>({id:r.user_id,name:r.user_id===c.identity.user_id?c.session.user.name:'Project member'})),has_cover:!!cover,cover_key:cover?.fileId||'',cover_url:cover?.url||'',processing:false,can_edit:!!p._platform?.writablefields?.length};}),studio_empty:!search&&!bool(b.archived)&&d.projects.length===0};
+    },
+    studio_users:async b=>{
+      const search=String(b.search||'').trim(),scope=eq('studio_id',c.studioRecord?.id??null);
+      const specs=[c.querySpec('members','studio_members',scope,['user_id','role','display_name','phone'])];
+      if(search)specs.push(c.querySpec('names','studio_members',and(scope,contains(['display_name'],search)),['user_id']));
+      specs.push(c.querySpec('users','users',and(oneOf('id','{{members.entities[].user_id}}'),search?['OR',contains(['name','email'],search),oneOf('id','{{names.entities[].user_id}}')]:[]),['name','email']));
+      const d=await c.graph(specs,{completeScope:{studio_id:c.studioRecord?.id,directory:true}});
+      return {users:d.users.map(user=>{const member=d.members.find(m=>m.user_id===user.id);return {...user,name:member.display_name||user.name,role:member.role,phone:member.phone};}),total:d.members.length};
     },
     create_project:async b=>{
       if(!text(b.name,160))throw Error('Give your project a name.');
@@ -144,7 +153,7 @@ export function installOperations(c){
   // Reject before writing any rows; never fall back to the old PHP API.
   const gaps={
     billing:'Stripe billing is not connected to the platform.',billing_invoices:'Stripe invoices are not connected to the platform.',project_access:'Project billing and coverage are not configured on the platform.',
-    studio_users:'Platform tenant membership is not exposed by the current StudioDeck API contract.',project_members:'The platform needs a tenant-member lookup before project membership can be edited.',
+    project_members:'The platform needs a tenant-member lookup before project membership can be edited.',
     share:'Presentation invitation delivery and client access profiles are not configured.',revoke_share:'Share revocation needs a platform workflow that also revokes derived conversation access.',conversation_revoke:'Derived conversation access revocation is not configured.',
     confirmation_decide:'Confirmation decisions and their protected budget adjustments need an atomic platform workflow.',
     prepare_delete_project:'Permanent deletion needs platform cleanup and confirmation integration.',delete_project:'Permanent deletion needs platform cleanup and confirmation integration.',

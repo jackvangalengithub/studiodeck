@@ -42,9 +42,9 @@ export function createDataLayer({context, transport}) {
     }
     return Promise.all(promises);
   }
-  function specs({projectId,iterationId=null,view}){
+  function specs({projectId,iterationId=null,view,fileSearch='',fileCategories=null,communication=null}){
     if(!viewResources[view])throw Error('Unknown project view.');
-    return viewResources[view].map(name=>({resource:`project:${name}`,params:{projectId,iterationId}}));
+    return viewResources[view].map(name=>({resource:`project:${name}`,params:{projectId,iterationId,...(view==='files'?{fileSearch,fileCategories}:{}),...(view==='comments'?{communication}:{})}}));
   }
   function assemble(parts,view){return structuredClone(Object.assign({},...parts,{_loadedView:view}));}
   return {

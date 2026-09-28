@@ -29,3 +29,19 @@ assert.equal(parse(workspaceUrl({studioId:'200',view:'all-comments',communicatio
 
 assert.equal(parse('/200/projects/project-1?tab=activity').tab,'overview');
 assert.equal(parse('/200/activity'),null);
+
+for(const slideTypes of [null,[],['text','render']]){
+ const url=workspaceUrl({studioId:'200',view:'project',projectId:'p1',tab:'slides',slideTypes,slideView:'grid'});
+ const route=parse(url);assert.deepEqual(route.slideTypes??null,slideTypes===null?null:[...slideTypes].sort());assert.equal(route.slideView,'grid');
+}
+assert.deepEqual(parse('/200/projects/p1?tab=slides&types=text,text').slideTypes,['text']);
+
+const fileRoute=parse(workspaceUrl({studioId:'200',view:'project',projectId:'p1',tab:'files',fileSearch:'garden & wood',fileCategories:[]}));
+assert.equal(fileRoute.fileSearch,'garden & wood');assert.deepEqual(fileRoute.fileCategories,[]);
+assert.equal(parse(workspaceUrl({studioId:'200',view:'studio-users',userSearch:'Jack'})).userSearch,'Jack');
+for(const view of ['project','all-comments']){
+ const communication={filter:'attention',search:'which paint?',types:'approval,todo',sort:'oldest',offset:25};
+ assert.deepEqual(parse(workspaceUrl({studioId:'200',view,projectId:'p1',tab:'comments',communication})).communication,communication);
+}
+
+assert.equal(parse(workspaceUrl({studioId:'200',view:'project',projectId:'p1',tab:'slides',slideGroup:'designs'})).slideGroup,'designs');

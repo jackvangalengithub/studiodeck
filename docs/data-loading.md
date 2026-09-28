@@ -144,3 +144,40 @@ authenticated batch smoke check covers identity linking, dependent preference re
 and maintenance-action denial. Full guest/client permission and concurrency coverage
 still requires the profiles described in the issue report. No live payments, emails or
 AI calls are made by these checks.
+
+## Grid filters and URLs
+
+Projects search name/location/description with escaped `ilike` conditions; archived
+selection uses an equality filter. Files apply category `IN` to iteration links and
+name search to current file versions. The Studio Users directory queries scoped
+`studio_members` and filtered users (name, email or studio display name). Counts use
+all scoped memberships, so a search does not change seat usage. Directory records
+are domain membership records, not new platform login or auth grants.
+
+Each refresh uses one `projects:readView` subrequest inside one batch. Search inputs
+are debounced; grids keep their previous results until the current request is ready.
+Older requests cannot replace newer results. File filters are isolated from other
+tabs and their cache entries. Category checkbox changes each trigger one refresh.
+
+Project and studio communication send a `feed` selection to the same repo action.
+The server returns complete matching threads, status counts and a page of roots,
+including all replies for those roots. It computes actor-specific attention and
+thread-wide search/type matches server-side. PostgreSQL supplies status through
+`studiodeck_thread_status(id)` (`pending`, `open`, `completed`):
+
+```json
+["studiodeck_thread_status(id)", "=", "pending"]
+```
+
+This is a normal platform filter expression. The function is granted through the
+StudioDeck contract, runs with invoker privileges, and is bound to the tenant search
+path at migration time. The view action also validates function names and argument
+columns before passing expressions through normal repository rights checks.
+Communication assembly still reads scoped dependencies on the server before thread
+search, attention and pagination; moving those remaining aggregates into SQL is a
+future optimization, not additional browser requests.
+
+URLs store project search/archived, file search/categories, member search and
+communication search/types/status/sort/offset. Refresh and Back/Forward restore them
+before fetching. Slide type filtering remains local by request, and its selection
+group selection and grid/list layout are also stored in the URL. It does not change playback.
