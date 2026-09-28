@@ -87,14 +87,14 @@ const projectView=()=>state.present?'presentation':(viewResources[state.tab]?sta
 const withAppContext=data=>({...data,capabilities:state.capabilities,profile:state.profile||state.user?.profile});
 async function readProjectView(projectId,iterationId,view){
  if(!useProjectData())return api('project',{id:projectId,iteration:iterationId});
- try{const data=withAppContext(await projectData.loadProjectView({projectId,iterationId,view,fileSearch:state.search,fileCategories:state.fileCategories?[...state.fileCategories]:null,communication:communication.params}));await prepareViewImages(data,view);return data;}catch(error){if([401,403,404].includes(error.status)){projectData.invalidate({projectId});if(state.data?.project.id===projectId){state.data=null;routeError(error);}}throw error;}
+ try{const data=withAppContext(await projectData.loadProjectView({projectId,iterationId,view,fileSearch:state.search,fileCategories:state.fileCategories?[...state.fileCategories]:null,communication:communication.params}));return data;}catch(error){if([401,403,404].includes(error.status)){projectData.invalidate({projectId});if(state.data?.project.id===projectId){state.data=null;routeError(error);}}throw error;}
 }
 async function selectProjectTab(view){
  if(!state.data)return;
  if(view!=='files')clearTimeout(fileSearchTimer);
  const projectId=state.data.project.id,iterationId=state.data.iteration.id,request=++projectLoadSequence;
  if(!useProjectData()){state.tab=view;state.present=false;if(view==='comments')await loadFeed();if(view==='overview')await refresh(true);render();return;}
- // Keep the current tab and its DOM intact until data and images are ready.
+ // Keep the current tab and its DOM intact until the batch is ready; images load after render.
  try{
   const filters=view==='comments'?JSON.stringify(communication.params):null;
   const data=await readProjectView(projectId,iterationId,view);
@@ -225,22 +225,7 @@ const theme=()=>normalizedProjectTheme(state.data?.project.theme);
 installFullPhotoContrast();
 const photoFiles=(category='renders')=>visualSlides(state.data||{files:[]}).filter(s=>s.type===({renders:'render',photos:'photo',drawings:'drawing'}[category]||category)).map(s=>s.visual);
 function imageParams(f,iteration=state.data?.iteration.id){return {action:f.slide_id&&!f.slide_id.startsWith('legacy-')?'slide_image':Number(f.page_number)>0?'document_page':'file',id:f.id,iteration,slide_id:f.slide_id,image_version_id:f.show_original?'':f.slide_image_version,original:f.show_original?1:0,page:f.page_number,image:f.image_number,preview:1};}
-function imageUrl(f,iteration){if(!f)return '';const resolved=!DEMO?platform.media.url(imageParams(f,iteration)):'';const url=resolved||(!f.slide_image_version&&!f.page_number&&f.preview_url)||imageCache.get(imageKey(f))||((!f.slide_image_version&&!f.page_number&&f.url&&f.mime?.startsWith('image/'))?f.url:'');return imageCache.get('url:'+url)||url;}
-const preparingImages=new Map();
-async function prepareImageUrls(urls){
- if(DEMO)return;
- await Promise.all([...new Set(urls.filter(Boolean))].map(url=>{
-  const key='url:'+url;if(imageCache.has(key))return;
-  if(preparingImages.has(url))return preparingImages.get(url);
-  const promise=(async()=>{let blobUrl;try{const response=await platform.fetcher(url,{credentials:'same-origin'});if(!response.ok)return;blobUrl=URL.createObjectURL(await response.blob());const image=new Image();image.src=blobUrl;await image.decode();imageCache.set(key,blobUrl);blobUrl=null;}catch{}finally{if(blobUrl)URL.revokeObjectURL(blobUrl);preparingImages.delete(url);}})();
-  preparingImages.set(url,promise);return promise;
- }));
-}
-async function prepareViewImages(data,view){
- if(DEMO)return;
- const visuals=view==='overview'?[data.overview?.cover,...(data.overview?.previews||[]).map(s=>s.visual)]:['slides','presentation'].includes(view)?presentationSlides(data,{includeHidden:view==='slides'}).map(s=>s.visual):[];
- await prepareImageUrls(visuals.filter(Boolean).map(f=>imageUrl(f,data.iteration.id)).filter(url=>!url.startsWith('blob:')));
-}
+function imageUrl(f,iteration){if(!f)return '';const resolved=!DEMO?platform.media.url(imageParams(f,iteration)):'';const url=resolved||(!f.slide_image_version&&!f.page_number&&f.preview_url)||imageCache.get(imageKey(f))||((!f.slide_image_version&&!f.page_number&&f.url&&f.mime?.startsWith('image/'))?f.url:'');return url;}
 function img(f,alt='',extra=''){const url=imageUrl(f);return url?`<img src="${esc(url)}" alt="${esc(alt||f.name)}" loading="${url.startsWith('blob:')?'eager':'lazy'}" ${extra}>`:`<div class="image-pending" data-image="${esc(imageKey(f))}" data-version="${esc(f.id)}" data-slide="${esc(f.slide_id||'')}" data-variant="${esc(f.slide_image_version||'')}" data-original="${f.show_original?'1':''}" data-page="${f.page_number||''}" data-crop="${f.image_number||''}" data-alt="${esc(alt||f.name)}" ${extra}>${icon('image')}</div>`;}
 const hydratingImages=new Set();
 let scrollImageObserver;
@@ -260,18 +245,9 @@ async function hydrateImages(nearby=false){if(DEMO)return;const d=state.data;if(
         }catch{}finally{hydratingImages.delete(key);}
     }));
 }
-async function prepareGeneratedImages(previous,updated){
-    const old=new Map((previous?.slides||[]).map(s=>[s.id,s.image_version_id]));
-    for(const slide of updated.slides||[]){
-        if(!slide.image_version_id||old.get(slide.id)===slide.image_version_id)continue;
-        selectedEnhancements.delete(slide.id);
-        for(const original of [false,true]){
-            const f={id:slide.source_version_id,page_number:slide.page_number,image_number:slide.image_number,slide_image_version:original?'':slide.image_version_id,show_original:original},key=imageKey(f);
-            if(imageCache.has(key)||DEMO)continue;
-            const params=new URLSearchParams({action:'slide_image',iteration:updated.iteration.id,slide_id:slide.id});if(original)params.set('original','1');else params.set('image_version_id',slide.image_version_id);
-            try{const response=await platformFetch(params,{credentials:'same-origin',headers:resourceHeaders()});if(!response.ok)continue;const url=URL.createObjectURL(await response.blob()),im=new Image();im.src=url;await im.decode();imageCache.set(key,url);}catch{}
-        }
-    }
+function resetChangedEnhancements(previous,updated){
+ const old=new Map((previous?.slides||[]).map(s=>[s.id,s.image_version_id]));
+ for(const slide of updated.slides||[])if(slide.image_version_id!==old.get(slide.id))selectedEnhancements.delete(slide.id);
 }
 async function openProject(pid,iid=null,preview=false,bypass=false,options={}){
  const request=++projectLoadSequence,studio=state.studio?.id;
@@ -286,7 +262,7 @@ async function openProject(pid,iid=null,preview=false,bypass=false,options={}){
  if(preview)await startPresentation(0,{loaded:true});
  if(!options.deferRender){if(!state.present)render();pollJobs();}return true;
 }
-async function refresh(force=false){if(!state.data)return;const request=projectLoadSequence,projectId=state.data.project.id,iterationId=state.data.iteration.id,view=projectView(),scroll=window.scrollY;const previous=JSON.stringify(state.data),updated=state.client?await api('deck'):await readProjectView(projectId,iterationId,view);if(request!==projectLoadSequence||state.data?.project.id!==projectId||state.data?.iteration.id!==iterationId||view!==projectView())return;const scanPending=[...(state.data.jobs||[]),...(updated.jobs||[])].some(j=>j.type==='consistency'&&['queued','running'].includes(j.status));if(!force&&((scanPending&&document.activeElement?.closest('input,textarea,select,[contenteditable="true"]'))||document.activeElement?.closest('#comm-reply-form')||document.querySelector('[data-uploading]')||budgetChoiceSaving.size||state.reordering||document.activeElement?.matches('[data-budget-range]')||document.activeElement?.closest('[data-form="inline-slide-labels"]'))){if(scanPending){state.data.jobs=[...(state.data.jobs||[]).filter(j=>j.type!=='consistency'),...(updated.jobs||[]).filter(j=>j.type==='consistency')];state.data.checks=updated.checks;checksUi.sync();}pollJobs();return;}const accessExpired=!state.client&&state.data.billing?.active&&updated.billing&&!updated.billing.active;await prepareGeneratedImages(state.data,updated);if(!state.client&&updated.slides?.some(s=>s.metadata?.motion_candidate?.media_id&&s.metadata.motion_candidate.media_id!==state.data.slides?.find(old=>old.id===s.id)?.metadata?.motion_candidate?.media_id))toast(tr('media_ready'));state.data=updated;checksUi.sync();updateEnhancementAllowance();if(JSON.stringify(updated)!==previous){render();renderProcessing();if(magnifiedPhoto)renderPhotoLightbox();}window.scrollTo(0,scroll);pollJobs();if(accessExpired){state.present=false;render();await projectAccess.gate(updated.project.id);}}
+async function refresh(force=false){if(!state.data)return;const request=projectLoadSequence,projectId=state.data.project.id,iterationId=state.data.iteration.id,view=projectView(),scroll=window.scrollY;const previous=JSON.stringify(state.data),updated=state.client?await api('deck'):await readProjectView(projectId,iterationId,view);if(request!==projectLoadSequence||state.data?.project.id!==projectId||state.data?.iteration.id!==iterationId||view!==projectView())return;const scanPending=[...(state.data.jobs||[]),...(updated.jobs||[])].some(j=>j.type==='consistency'&&['queued','running'].includes(j.status));if(!force&&((scanPending&&document.activeElement?.closest('input,textarea,select,[contenteditable="true"]'))||document.activeElement?.closest('#comm-reply-form')||document.querySelector('[data-uploading]')||budgetChoiceSaving.size||state.reordering||document.activeElement?.matches('[data-budget-range]')||document.activeElement?.closest('[data-form="inline-slide-labels"]'))){if(scanPending){state.data.jobs=[...(state.data.jobs||[]).filter(j=>j.type!=='consistency'),...(updated.jobs||[]).filter(j=>j.type==='consistency')];state.data.checks=updated.checks;checksUi.sync();}pollJobs();return;}const accessExpired=!state.client&&state.data.billing?.active&&updated.billing&&!updated.billing.active;resetChangedEnhancements(state.data,updated);if(!state.client&&updated.slides?.some(s=>s.metadata?.motion_candidate?.media_id&&s.metadata.motion_candidate.media_id!==state.data.slides?.find(old=>old.id===s.id)?.metadata?.motion_candidate?.media_id))toast(tr('media_ready'));state.data=updated;checksUi.sync();updateEnhancementAllowance();if(JSON.stringify(updated)!==previous){render();renderProcessing();if(magnifiedPhoto)renderPhotoLightbox();}window.scrollTo(0,scroll);pollJobs();if(accessExpired){state.present=false;render();await projectAccess.gate(updated.project.id);}}
 function pollJobs(){clearTimeout(state.poll);if(state.tab==='projects'&&!state.present){if(state.projects.some(p=>p.processing))state.poll=setTimeout(async()=>{try{await loadProjects();const grid=$('#project-grid');if(grid){grid.innerHTML=projectTiles();hydrateProjectCovers();}}catch(error){toast(error.message);}pollJobs();},2200);return;}if(pending())state.poll=setTimeout(()=> (state.reordering?Promise.resolve():pollProjectJobs()).catch(e=>{toast(e.message);pollJobs();}),1800);}
 function slideDefs(){syncLanguage();const hidden=!state.client&&state.hiddenPreview;return presentationSlides(state.data,{includeHidden:!!hidden}).filter(def=>!def.hidden||def.id===hidden);}
 async function pollProjectJobs(){
@@ -358,11 +334,11 @@ document.addEventListener('keydown',e=>{
 const projectDate=value=>new Intl.DateTimeFormat(dateLocale(),{day:'numeric',month:'short',year:'numeric'}).format(new Date(value+'T12:00:00'));
 function projectTiles(){const search=(state.projectSearch||'').trim().toLowerCase(),projects=state.projects,pinned=projects.filter(p=>p.pinned),rest=projects.filter(p=>!p.pinned);if(!projects.length)return empty(search?tr("studio_no_matching_projects"):tr("studio_no_projects_to_show"),search?tr("studio_try_another_name_or_location"):tr("studio_create_a_project_or_turn_on_show_archived"));return pinned.length?`<section class="pinned-projects"><h2>${tr("studio_pinned",{v0:icon('pushpin')})}</h2><div class="project-grid">${pinned.map(projectCard).join('')}</div></section><hr class="project-divider"><section><h2 class="projects-section-title">${tr("studio_all_other_projects")}</h2><div class="project-grid">${rest.map(projectCard).join('')||`<p class="muted">${tr("studio_all_matching_projects_are_pinned")}</p>`}</div></section>`:`<div class="project-grid">${projects.map(projectCard).join('')}</div>`;}
 function projectList(){if(!DEMO&&state.studioEmpty)return onboarding.welcome();return `<div class="project-head"><div><h1>${tr("studio_your_projects")}</h1></div>${button(tr("studio_new_project"),'new-project','primary','','plus')}</div><div class="project-filters"><label class="project-search">${icon('search')}<input id="project-search" type="search" placeholder="${tr("studio_search_projects")}" aria-label="${tr("studio_search_projects")}" value="${esc(state.projectSearch||'')}"></label><label class="check-label"><input id="show-archived" type="checkbox" ${state.showArchived?'checked':''}>${tr("studio_show_archived")}</label></div><div id="project-grid">${projectTiles()}</div>`;}
-function hydrateProjectCovers(){for(const im of document.querySelectorAll('[data-project-cover]')){const url=state.projects.find(p=>p.id===im.dataset.projectCover)?.cover_url;if(url)im.src=imageCache.get('url:'+url)||url;}}
+function hydrateProjectCovers(){for(const im of document.querySelectorAll('[data-project-cover]')){const url=state.projects.find(p=>p.id===im.dataset.projectCover)?.cover_url;if(url)im.src=url;}}
 let projectsRequest=0,projectSearchTimer;
 async function loadProjects(){
  const request=++projectsRequest,studio=state.studio?.id,search=state.projectSearch||'',archived=!!state.showArchived;
- const r=await api('projects',{archived:archived?1:0,search});await prepareImageUrls(r.projects.map(p=>p.cover_url));
+ const r=await api('projects',{archived:archived?1:0,search});
  if(request!==projectsRequest||studio!==state.studio?.id||search!==(state.projectSearch||'')||archived!==!!state.showArchived)return false;
  state.projects=r.projects;state.studioEmpty=r.studio_empty===true;if(r.billing)state.billing=r.billing;return true;
 }

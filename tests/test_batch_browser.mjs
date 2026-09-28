@@ -60,19 +60,22 @@ test('project wizard creates rows in one transaction and opens the new project',
 
 
 test('overview covers load from the list batch without per-project metadata requests',async t=>{
- const {page,wireBatches,requests}=await fixture(t,{withImages:true});
- await page.goto(baseURL+'/200/projects');
+ const {page,wireBatches,requests,controls}=await fixture(t,{withImages:true});
+ let releaseImages;controls.imageGate=new Promise(resolve=>releaseImages=resolve);t.after(()=>releaseImages());
+ await page.goto(baseURL+'/200/projects',{waitUntil:'domcontentloaded'});
  const cover=page.locator('[data-project-cover="p1"]');await cover.waitFor();
- assert.equal(await cover.evaluate(im=>im.complete&&im.naturalWidth>0),true);
+ assert.equal(await cover.evaluate(im=>im.complete&&im.naturalWidth>0),false,'cover download does not block the project list');
+ controls.imageGate=null;releaseImages();
+ await page.waitForFunction(()=>{const im=document.querySelector('[data-project-cover="p1"]');return im?.complete&&im.naturalWidth>0;});
  const complete=wireBatches.flat(2).filter(c=>c.relative_url==='200/projects:readView');assert.equal(complete.length,1);
  assert.equal(requests.filter(p=>p==='/200/userfiles/file0').length,1);
  assert.equal(wireBatches.length,2,'one bootstrap and one list batch');
 });
 
-test('presentation tab uses one batch, parallel media, and commits only after images are ready',async t=>{
+test('presentation tab switches after one batch while images are still loading',async t=>{
  const {page,controls,wireBatches,requests}=await fixture(t,{withImages:true});
  await page.goto(baseURL+'/200/projects/p1');await page.locator('nav [data-tab="overview"].active').waitFor();
- const before=wireBatches.length,start= requests.length;
+ const before=wireBatches.length;
  let releaseBatch,releaseImages;
  controls.batchGate=new Promise(resolve=>releaseBatch=resolve);
  controls.imageGate=new Promise(resolve=>releaseImages=resolve);
@@ -83,16 +86,18 @@ test('presentation tab uses one batch, parallel media, and commits only after im
  assert.equal(await page.locator('.slide-editor').count(),0);
  assert.equal(await page.locator('.notice[role="status"]').count(),0);
  controls.batchGate=null;releaseBatch();
- await page.waitForTimeout(150);
- const downloads=requests.slice(start).filter(p=>p.startsWith('/200/userfiles/'));
- assert.ok(downloads.includes('/200/userfiles/crop-file'));
- assert.ok(downloads.includes('/200/userfiles/variant-file'),'both image requests start before either finishes');
- assert.equal(await page.locator('nav [data-tab="overview"].active').count(),1);
- controls.imageGate=null;releaseImages();
  await page.locator('nav [data-tab="slides"].active').waitFor();
  assert.equal(wireBatches.length-before,1,'one data fetch for the entire tab');
  assert.equal(await page.locator('.slide-editor [data-image]').count(),0);
- assert.equal(await page.locator('.slide-editor img').evaluateAll(images=>images.length===6&&images.every(im=>im.complete&&im.naturalWidth>0)),true);
+ const preview=page.locator('.slide-editor img[src$="/crop-file"]');
+ await preview.scrollIntoViewIfNeeded();
+ assert.equal(await preview.evaluate(im=>im.complete&&im.naturalWidth>0),false,'active tab does not wait for image bytes');
+ const bounds=await preview.locator('..').boundingBox();
+ controls.imageGate=null;releaseImages();
+ await page.waitForFunction(()=>{const im=document.querySelector('.slide-editor img[src$="/crop-file"]');return im?.complete&&im.naturalWidth>0;});
+ const after=await preview.locator('..').boundingBox();
+ assert.equal(after.width,bounds.width);assert.equal(after.height,bounds.height,'image arrival does not resize its container');
+ assert.equal(requests.filter(path=>path==='/200/userfiles/crop-file').length,1,'no duplicate preload and image-element downloads');
  await page.waitForTimeout(200);assert.equal(wireBatches.length-before,1,'rendering performs no follow-up API lookups');
 });
 

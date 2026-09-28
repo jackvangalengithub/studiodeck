@@ -115,12 +115,14 @@ inactive tabs are not prefetched. Overview queries omit extraction text and use 
 slide/file/budget projections, including the metadata required for cover images.
 File ancestry and image variants are included in the initial view graph.
 
-The current tab stays mounted and active until the new data and its preview images
-are ready. Failed reads retain the old tab; superseded responses cannot replace a more
-recent selection. The list similarly prepares its covers before rendering. Images are
-fetched in parallel through rights-checked userfiles URLs and cached as decoded blobs.
-These binary downloads are separate HTTP requests; rendering them causes no additional
-JSON lookup batches. An unavailable preview stays unavailable without a fallback query
+The current tab stays mounted and active until its batch is ready, then switches
+immediately. Failed reads retain the old tab; superseded responses cannot replace a
+more recent selection. Project lists follow the same rule. Images load independently
+after rendering through rights-checked userfiles URLs, using native lazy loading for
+offscreen images and browser caching. Their URLs are already resolved by the batch;
+rendering causes no additional JSON lookup batches. Existing fixed image containers
+reserve the layout while downloads finish. Refreshing generated-image selections also
+does not prefetch or wait for either the original or the generated image. An unavailable preview stays unavailable without a fallback query
 waterfall.
 
 Caches are in-memory and isolated by user and tenant. Mutations invalidate affected
