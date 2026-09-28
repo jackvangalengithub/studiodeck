@@ -29,16 +29,16 @@ export class MediaIndex {
       default:return undefined;
     }
   }
-  url(p){const id=this.fileId(p);return id?this.fileUrl(id):'';}
+  url(p){const id=this.fileId(p);return id?this.fileUrl(id,p.size):'';}
   cover(iteration,slides,links,selected){
     const candidates=slides.filter(s=>s.iteration_id===iteration&&['render','photo','moodboard','fullphoto','drawing','floorplan','other'].includes(s.type)&&!links.some(l=>l.iteration_id===iteration&&l.version_id===s.source_version_id&&l.category==='legal'));
     const rank=s=>s.type==='render'?0:s.type==='photo'?1:2;
     const selectedKey=String(selected||'').replace(/^visual-/,'');
     const chosen=candidates.find(s=>s.slide_key===selectedKey||s.id===selectedKey);
     const ordered=[...(chosen?[chosen]:[]),...candidates.filter(s=>['render','photo','moodboard','fullphoto'].includes(s.type)).sort((a,b)=>rank(a)-rank(b)||(a.position||0)-(b.position||0)||a.id.localeCompare(b.id))];
-    for(const s of ordered){const fileId=this.fileId({action:'slide_image',iteration,slide_id:s.slide_key||s.id});if(fileId)return {slide:s,fileId,url:this.fileUrl(fileId)};}
+    for(const s of ordered){const fileId=this.fileId({action:'slide_image',iteration,slide_id:s.slide_key||s.id});if(fileId)return {slide:s,fileId,url:this.fileUrl(fileId,'small')};}
     // Older imports can contain linked image files before slide extraction.
-    for(const link of links.filter(l=>l.iteration_id===iteration&&l.category!=='legal')){const f=this.row('file_versions',link.version_id);if(f?.mime?.startsWith('image/')){const fileId=f.preview_file_id||f.data_file_id;if(fileId)return {fileId,url:this.fileUrl(fileId)};}}
+    for(const link of links.filter(l=>l.iteration_id===iteration&&l.category!=='legal')){const f=this.row('file_versions',link.version_id);if(f?.mime?.startsWith('image/')){const fileId=f.preview_file_id||f.data_file_id;if(fileId)return {fileId,url:this.fileUrl(fileId,'small')};}}
     return null;
   }
 }

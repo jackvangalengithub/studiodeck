@@ -177,7 +177,8 @@ an authorization boundary. These rules must also hold for hand-written API calls
   editor is unavailable because its rendering/publishing contract is not ported.
 - Invitations and legacy magic-link/password-reset behavior. Use existing platform
   login methods; passkey registration routes are present in the OpenAPI.
-- Project ZIP/PDF rendering, thumbnails/page previews and stored-file deletion.
+- Project ZIP/PDF rendering, document page generation and stored-file deletion.
+  Raster thumbnails now exist in shared framework storage (see below).
 
 ## Client follow-ups and practical limits
 
@@ -231,7 +232,8 @@ generation at a time. These are fixed: cover metadata, page/crop previews, gener
 variants and history arrive in the initial graph. A scoped, rights-checked
 `projects:readView` custom repo action completes pagination server-side so the browser
 uses one JSON batch for each project list/tab load. See [the loading contract](data-loading.md).
-The current tab stays visible until the next view and its images are prepared.
+The current tab stays visible until the next view batch is ready. Images load
+afterward and do not delay navigation.
 
 Verified against real tenant data: all four active-project covers resolve; each of the
 seven project views uses one batch on a project with 35 slides and 40 files. The tested
@@ -260,3 +262,28 @@ server-side pagination, scope/rights, delayed images, failed reads and rapid tab
   shared runner was not changed; it should throw/rollback on statement failure.
 - Studio Users now reads domain `studio_members`; adding/removing platform login
   access still needs the auth membership integration already tracked above.
+
+
+## Shared image thumbnails (2026-09-28)
+
+Implemented in the framework's `UserFileService::storeFile()` and shared
+`ImageVariants` service, not in a StudioDeck repo. Uploads and generated output
+use the same synchronous processing boundary. Framework PHP images now enable
+GD JPEG and WebP support; both web runtimes and the worker can create derivatives.
+Small/large URLs reuse the original file ID and its current ACL. See
+[data loading](data-loading.md#image-sizes) for frontend size selection.
+
+Remaining limitations:
+
+- GIF/animated WebP, SVG, PDF and other non-raster inputs keep their original
+  behavior. This change does not generate document pages or composite slide screenshots.
+- Corrupt images, files above 40 megapixels, or images exceeding the current PHP
+  memory budget retain their original; conversion failures are logged with
+  tenant/file ID and can be retried by the backfill command.
+- StudioDeck AI generation and document-processing pipelines are still not
+  configured. Existing active framework generators already use `storeFile()`;
+  future pipelines must also persist through it, including worker output.
+- Project upload linking/file-sharing ACL integration remains a separate migration
+  issue. Derivatives always follow the source ACL and do not add sharing grants.
+- Stored-file deletion/retention must remove the entire per-file directory,
+  including `.platform-variants-v1`, when that feature is implemented.

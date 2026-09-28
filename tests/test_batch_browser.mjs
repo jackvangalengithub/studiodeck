@@ -64,6 +64,7 @@ test('overview covers load from the list batch without per-project metadata requ
  let releaseImages;controls.imageGate=new Promise(resolve=>releaseImages=resolve);t.after(()=>releaseImages());
  await page.goto(baseURL+'/200/projects',{waitUntil:'domcontentloaded'});
  const cover=page.locator('[data-project-cover="p1"]');await cover.waitFor();
+ assert.equal(new URL(await cover.getAttribute('src'),baseURL).searchParams.get('size'),'small');
  assert.equal(await cover.evaluate(im=>im.complete&&im.naturalWidth>0),false,'cover download does not block the project list');
  controls.imageGate=null;releaseImages();
  await page.waitForFunction(()=>{const im=document.querySelector('[data-project-cover="p1"]');return im?.complete&&im.naturalWidth>0;});
@@ -89,12 +90,12 @@ test('presentation tab switches after one batch while images are still loading',
  await page.locator('nav [data-tab="slides"].active').waitFor();
  assert.equal(wireBatches.length-before,1,'one data fetch for the entire tab');
  assert.equal(await page.locator('.slide-editor [data-image]').count(),0);
- const preview=page.locator('.slide-editor img[src$="/crop-file"]');
+ const preview=page.locator('.slide-editor img[src$="/crop-file?size=small"]');
  await preview.scrollIntoViewIfNeeded();
  assert.equal(await preview.evaluate(im=>im.complete&&im.naturalWidth>0),false,'active tab does not wait for image bytes');
  const bounds=await preview.locator('..').boundingBox();
  controls.imageGate=null;releaseImages();
- await page.waitForFunction(()=>{const im=document.querySelector('.slide-editor img[src$="/crop-file"]');return im?.complete&&im.naturalWidth>0;});
+ await page.waitForFunction(()=>{const im=document.querySelector('.slide-editor img[src$="/crop-file?size=small"]');return im?.complete&&im.naturalWidth>0;});
  const after=await preview.locator('..').boundingBox();
  assert.equal(after.width,bounds.width);assert.equal(after.height,bounds.height,'image arrival does not resize its container');
  assert.equal(requests.filter(path=>path==='/200/userfiles/crop-file').length,1,'no duplicate preload and image-element downloads');
@@ -175,4 +176,39 @@ test('communication search and types are sent in the batch and restored on refre
  call=wireBatches.at(-1).flat()[0];assert.equal(JSON.parse(call.body).feed.search,'paint');
  await page.goto(baseURL+'/200/comments?filter=attention&q=wood&threadTypes=todo&sort=oldest&offset=25');await page.locator('[data-comm-search="studio"]').waitFor();
  call=wireBatches.at(-1).flat()[0];const feed=JSON.parse(call.body).feed;assert.equal(feed.search,'wood');assert.equal(feed.filter,'attention');assert.equal(feed.types,'todo');assert.equal(feed.sort,'oldest');assert.equal(feed.offset,25);
+});
+
+
+test('presentation uses large variants and zoom resolves the same original file',async t=>{
+ const {page,wireBatches}=await fixture(t,{withImages:true});
+ await page.goto(baseURL+'/200/projects/p1');
+ await page.locator('nav [data-tab="overview"].active').waitFor();
+ assert.match(await page.locator('.cover-card img').getAttribute('src'),/size=large$/);
+ assert.match(await page.locator('.slide-cards img').first().getAttribute('src'),/size=small$/);
+ await page.locator('.slide-cards [data-action="open-editor-slide"]').first().click();
+ await page.waitForSelector('.presenting');
+ const photo=page.locator('.photo-magnify img').first();await photo.waitFor();
+ const src=new URL(await photo.getAttribute('src'),baseURL);
+ assert.equal(src.searchParams.get('size'),'large');
+ const tip=page.locator('#overlay [data-action="close-modal"]');if(await tip.count())await tip.first().click();
+ const batches=wireBatches.length;
+ await photo.click();
+ const zoom=page.locator('#photo-lightbox img').first();await zoom.waitFor();
+ const original=new URL(await zoom.getAttribute('src'),baseURL);
+ assert.equal(original.pathname,src.pathname);assert.equal(original.searchParams.has('size'),false);
+ assert.equal(wireBatches.length,batches,'zoom requires no metadata fetch');
+});
+
+test('floorplan zoom upgrades the large preview to original bytes without another batch',async t=>{
+ const {page,tables,wireBatches}=await fixture(t,{withImages:true});
+ tables.presentation_slides[0].type='floorplan';
+ await page.goto(baseURL+'/200/slide/visual-slide0?project=p1&iteration=i1');
+ const photo=page.locator('.floorplan-image img');await photo.waitFor();
+ const preview=new URL(await photo.getAttribute('src'),baseURL);assert.equal(preview.searchParams.get('size'),'large');
+ const tip=page.locator('#overlay [data-action="close-modal"]');if(await tip.count())await tip.first().click();
+ const batches=wireBatches.length;
+ await page.locator('[data-plan-zoom=".25"]').click();
+ const original=new URL(await photo.getAttribute('src'),baseURL);
+ assert.equal(original.pathname,preview.pathname);assert.equal(original.searchParams.has('size'),false);
+ assert.equal(wireBatches.length,batches);
 });

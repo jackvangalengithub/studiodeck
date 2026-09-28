@@ -85,7 +85,7 @@ test('project list resolves selected generated covers and original page crops in
   slide_image_versions:[{id:'edited',source_version_id:'source',data_file_id:'edited-file'}],
  });
  await c.bootstrap('200');batches.length=0;const {projects}=await c.request('projects',{});
- assert.equal(batches.length,1);assert.equal(projects[0].has_cover,true);assert.equal(projects[0].cover_url,'/200/userfiles/edited-file');
+ assert.equal(batches.length,1);assert.equal(projects[0].has_cover,true);assert.equal(projects[0].cover_url,'/200/userfiles/edited-file?size=small');
  assert.equal(c.media.url({action:'project_cover',project_id:'p1'}),'/200/userfiles/edited-file');
  assert.equal(c.media.url({action:'slide_image',iteration:'i1',slide_id:'slide',original:1}),'/200/userfiles/crop-file');
  assert.equal(c.media.url({action:'document_page',id:'source',page:2}),'/200/userfiles/page-file');
@@ -137,4 +137,15 @@ test('member directory searches names, email and studio display names on the ser
  await c.bootstrap('200');batches.length=0;
  const found=await c.request('studio_users',{search:'designer'});assert.deepEqual(found.users.map(u=>u.id),['u1']);assert.equal(found.total,2);assert.equal(batches.length,1);
  assert.deepEqual((await c.request('studio_users',{search:'second@'})).users.map(u=>u.id),['u2']);
+});
+
+
+test('image variants retain source identity and downloads keep original bytes',async()=>{
+ const {c}=fakeClient(fixture);await c.bootstrap('200');
+ c.media.remember('file_versions',[{id:'source',data_file_id:'original',mime:'image/jpeg'}]);
+ assert.equal(c.media.url({action:'file',id:'source',size:'small'}),'/200/userfiles/original?size=small');
+ assert.equal(c.media.url({action:'file',id:'source',size:'large'}),'/200/userfiles/original?size=large');
+ assert.equal(c.media.url({action:'file',id:'source'}),'/200/userfiles/original');
+ assert.equal(c.fileUrl('original',true,'small'),'/200/userfiles/original/download');
+ assert.throws(()=>c.fileUrl('original',false,'huge'),/Unknown image size/);
 });

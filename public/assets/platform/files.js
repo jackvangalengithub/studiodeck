@@ -2,10 +2,10 @@ import {platform,eq,and} from './client.js';
 import {uploadSelectionError} from '../upload-limits.js';
 import {unavailable,PlatformError} from './transport.js';
 const values=params=>params instanceof URLSearchParams?Object.fromEntries(params):params;
-export function platformUrl(params){const p=values(params);const cached=platform.media.url(p);if(cached)return cached;if(p.action==='studio_logo')return platform.session?.studio?.logo||'';const f=platform.files.get(p.id);if(f&&(p.action==='file'||p.action==='conversation_file'))return platform.fileUrl(p.preview&&f.preview_file_id?f.preview_file_id:f.data_file_id);return '/platform-unavailable/'+encodeURIComponent(p.action||'file');}
+export function platformUrl(params){const p=values(params);const cached=platform.media.url(p);if(cached)return cached;if(p.action==='studio_logo')return platform.session?.studio?.logo||'';const f=platform.files.get(p.id);if(f&&(p.action==='file'||p.action==='conversation_file'))return platform.fileUrl(p.preview&&f.preview_file_id?f.preview_file_id:f.data_file_id,false,p.size);return '/platform-unavailable/'+encodeURIComponent(p.action||'file');}
 export async function platformFetch(params,options={}){
   const p=values(params);let fileId=platform.media.fileId(p);
-  if(fileId)return platform.fetcher(platform.fileUrl(fileId),{...options,headers:{},credentials:'same-origin'});
+  if(fileId)return platform.fetcher(platform.fileUrl(fileId,false,p.size),{...options,headers:{},credentials:'same-origin'});
   if(p.cached_only)throw new PlatformError('This view has no preview for this image.',{status:404});
   const lookup=async(table,filter,field)=>{const rows=await platform.query(table,filter,[field]);return rows[0]?.[field];};
   if(!fileId)switch(p.action){
@@ -14,17 +14,17 @@ export async function platformFetch(params,options={}){
     case 'slide_media':fileId=await lookup('slide_media',eq('id',p.media_id),'data_file_id');break;
     case 'slide_image':{
       if(p.image_version_id&&!p.original)fileId=await lookup('slide_image_versions',eq('id',p.image_version_id),'data_file_id');
-      else{const s=(await platform.query('presentation_slides',and(eq('iteration_id',p.iteration),eq('slide_key',p.slide_id.replace(/^visual-/,'')))))[0];if(!s)break;if(s.image_version_id&&!p.original)fileId=await lookup('slide_image_versions',eq('id',s.image_version_id),'data_file_id');else if(s.page_number)return platformFetch({action:'document_page',id:s.source_version_id,page:s.page_number,image:s.image_number},options);else return platformFetch({action:'file',id:s.source_version_id,preview:1},options);}break;
+      else{const s=(await platform.query('presentation_slides',and(eq('iteration_id',p.iteration),eq('slide_key',p.slide_id.replace(/^visual-/,'')))))[0];if(!s)break;if(s.image_version_id&&!p.original)fileId=await lookup('slide_image_versions',eq('id',s.image_version_id),'data_file_id');else if(s.page_number)return platformFetch({action:'document_page',id:s.source_version_id,page:s.page_number,image:s.image_number,size:p.size},options);else return platformFetch({action:'file',id:s.source_version_id,preview:1,size:p.size},options);}break;
     }
     case 'studio_logo':fileId=await lookup('studio_logos',eq('studio_id',platform.studioRecord?.id),'data_file_id');break;
     case 'product_feedback_image':fileId=await lookup('product_feedback_images',eq('feedback_id',p.id),'data_file_id');break;
     case 'project_testimonial_photo':fileId=await lookup('project_testimonials',eq('id',p.id),'data_file_id');break;
     case 'pack_file':fileId=await lookup('studio_pack_versions',eq('id',p.version),'data_file_id');break;
-    case 'project_cover':case 'destination_cover':{const iterations=await platform.query('iterations',eq('project_id',p.project_id),['id','number'],{orderBy:[{field:'iterations.number',direction:'desc'}]});const iteration=p.iteration||iterations[0]?.id;const cover=(await platform.query('iteration_covers',eq('iteration_id',iteration),['slide_id']))[0];if(cover)return platformFetch({action:'slide_image',iteration,slide_id:cover.slide_id},options);break;}
+    case 'project_cover':case 'destination_cover':{const iterations=await platform.query('iterations',eq('project_id',p.project_id),['id','number'],{orderBy:[{field:'iterations.number',direction:'desc'}]});const iteration=p.iteration||iterations[0]?.id;const cover=(await platform.query('iteration_covers',eq('iteration_id',iteration),['slide_id']))[0];if(cover)return platformFetch({action:'slide_image',iteration,slide_id:cover.slide_id,size:p.size},options);break;}
     default:throw unavailable(p.action);
   }
   if(!fileId)throw new PlatformError('This file or preview is not available on the platform.',{status:404});
-  return platform.fetcher(platform.fileUrl(fileId),{...options,headers:{},credentials:'same-origin'});
+  return platform.fetcher(platform.fileUrl(fileId,false,p.size),{...options,headers:{},credentials:'same-origin'});
 }
 export async function uploadPlatformFiles(client,form){
   const files=[...form.values()].filter(v=>v instanceof Blob&&v.size&&v.name);

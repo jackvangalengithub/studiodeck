@@ -183,3 +183,29 @@ URLs store project search/archived, file search/categories, member search and
 communication search/types/status/sort/offset. Refresh and Back/Forward restore them
 before fetching. Slide type filtering remains local by request, and its selection
 group selection and grid/list layout are also stored in the URL. It does not change playback.
+
+## Image sizes
+
+Thumbnail processing belongs to the shared platform backend, next to
+`UserFileService::storeFile()`. Uploads and generated output save their original
+bytes and synchronously create WebP variants (JPEG, PNG and static WebP input).
+The original file UUID remains the only reference stored on domain records.
+
+- `/{tenant}/userfiles/{file_id}?size=small`: up to 640px on the longest side;
+  project-list covers, slide grids, cover pickers and extracted-image thumbnails.
+- `?size=large`: up to 1920px; project-detail hero, presentation and image previews.
+- No size, or `/download`: original bytes; photo and floorplan zoom use this.
+
+Both variants preserve aspect ratio, orientation and transparency without
+upscaling. Every request checks the source file's current ACL. Variants have
+separate ETags and private browser caching; missing/unsupported variants return
+the original with a 30-second cache lifetime. GET does not perform conversion.
+Image cache keys include size; selecting a generated image still resolves that
+version's source file ID using the existing view batch.
+
+Navigation waits for JSON only. Images load afterward without metadata calls or
+layout changes. Existing files are backfilled using the framework's resumable
+`userfiles_thumbnails_backfill.php APP TENANT [AFTER_UUID]` command, run as the
+same OS user as file uploads. Other framework apps automatically get variants
+for new images saved through the shared service; their existing files need their
+own tenant-scoped backfill.

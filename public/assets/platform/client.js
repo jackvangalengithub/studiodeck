@@ -15,7 +15,7 @@ export const now=()=>new Date().toISOString();
 const object=value=>{if(typeof value==='string'){try{return JSON.parse(value);}catch{return {};}}return value||{};};
 export class PlatformClient {
   constructor({fetcher=(...args)=>fetch(...args),transport,studioMappings}={}){
-    this.fetcher=fetcher;this.transport=transport||((args)=>sendPlatformBatch({...args,fetcher:this.fetcher}));this.queue=createRowQueue({transport:this.transport});this.tenant=null;this.session=null;this.files=new Map();this.media=new MediaIndex(id=>this.fileUrl(id));this.selected=null;
+    this.fetcher=fetcher;this.transport=transport||((args)=>sendPlatformBatch({...args,fetcher:this.fetcher}));this.queue=createRowQueue({transport:this.transport});this.tenant=null;this.session=null;this.files=new Map();this.media=new MediaIndex((id,size)=>this.fileUrl(id,false,size));this.selected=null;
     this.studioMappings=studioMappings??configuredStudioMappings;
     installOperations(this);installCommunication(this);installPacks(this);
   }
@@ -101,7 +101,7 @@ export class PlatformClient {
     this.session={user,studio,studios:tenants.map(t=>({id:String(t.id),name:t.companyname,role:String(t.id)===String(chosen?.id)?role:'member'})),profile,studio_theme:object(preference.theme||record?.theme),csrf:null,unread_count:0,capabilities:{platform:true,batch_reads:true,batch_json:true,communication:true},billing:null};
     return structuredClone(this.session);
   }
-  fileUrl(id,download=false){return id&&this.tenant?`/${encodeURIComponent(this.tenant)}/userfiles/${encodeURIComponent(id)}${download?'/download':''}`:'';}
+  fileUrl(id,download=false,size=''){if(size&&!['small','large'].includes(size))throw new Error('Unknown image size');return id&&this.tenant?`/${encodeURIComponent(this.tenant)}/userfiles/${encodeURIComponent(id)}${download?'/download':size?'?size='+size:''}`:'';}
   async request(action,params={}){const op=this.operations[action];if(!op)throw unavailable(action);const read=['session','switch_studio','create_studio','logout','projects','project','deck','destinations','profile','document_page','project_testimonials','studio_starting_pack','project_starting_pack','comments_feed','attention','mention_people','drive_status'].includes(action);if(!read)this.pendingWrites=(this.pendingWrites||0)+1;try{return await op(params);}finally{if(!read)this.pendingWrites--;}}
   async resources({calls}){
     const projectCalls=calls.filter(c=>c.resource.startsWith('project:'));let view=null;
