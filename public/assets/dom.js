@@ -1,3 +1,4 @@
+import {navigationElement} from './navigation.js';
 // Deliberately limited HTML builder. Strings are always text, never markup.
 // Keep tags and prop names in application code; pass user data only as values.
 const tags=new Set('a abbr article aside b blockquote br button caption code col colgroup datalist dd details dialog div dl dt em fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 header hr i img input label legend li main mark nav ol optgroup option output p picture pre progress q kbd s section select small source span strong sub summary sup table tbody td textarea tfoot th thead time tr u ul video audio track iframe'.split(' '));
@@ -17,6 +18,7 @@ export function safeUrl(value,attribute,download=false){
 
 /** e('div', {className:'title'}, [e('strong', {}, name), ' details']) */
 export function e(tag,props={},children=[],svg=false){
+ ({tag,props}=navigationElement(tag,props));
  if(typeof tag!=='string'||!(svg?svgTags:tags).has(tag)&&tag!=='svg')throw new TypeError('Unsupported element');
  if(tag==='iframe'&&(!Object.hasOwn(props,'sandbox')||props.sandbox==null||String(props.sandbox).toLowerCase().includes('allow-same-origin')))throw new TypeError('Frames must have an isolated sandbox');
  const node=svg||tag==='svg'?document.createElementNS('http://www.w3.org/2000/svg',tag):document.createElement(tag);

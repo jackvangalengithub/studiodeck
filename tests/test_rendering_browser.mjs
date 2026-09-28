@@ -86,3 +86,69 @@ test('the frozen communication demo also renders without HTML insertion',async t
  await page.locator('.workspace,.presentation,.destination-shell').first().waitFor();
  assert.equal(await page.locator('.status-page').count(),0);
 });
+
+test('CSP rejects eval, indirect eval, dynamic constructors and string timers',async t=>{
+ const page=await fixture(t);
+ await page.route('**/no-eval-host',r=>r.fulfill({contentType:'text/html',headers:{'Content-Security-Policy':browserPolicy},body:'<!doctype html><body><script type="module" src="/assets/no-eval-probe.js"></script></body>'}));
+ await page.route('**/assets/no-eval-probe.js',r=>r.fulfill({contentType:'text/javascript',body:`
+  const code='window.__compiled=true';
+  const attempts=[()=>eval(code),()=>(0,eval)(code),()=>window['ev'+'al'](code),()=>new Function(code)(),()=>new (async()=>{}).constructor(code)(),()=>new (function*(){}).constructor(code)(),()=>setTimeout(code,0),()=>setInterval(code,10)];
+  window.probeResult={blocked:attempts.map(run=>{try{run();return false;}catch{return true;}}),executed:window.__compiled};
+  document.body.dataset.ready='true';
+ `}));
+ await page.goto(base+'/no-eval-host');await page.locator('body[data-ready]').waitFor({state:'attached'});
+ const result=await page.evaluate(()=>window.probeResult);
+ assert.ok(result.blocked.every(Boolean),JSON.stringify(result));assert.equal(result.executed,undefined);
+});
+
+test('navigation renders anchors and modified clicks leave the current view untouched',async t=>{
+ const page=await fixture(t),selector='nav [data-action="tab"][data-tab="files"]';
+ assert.equal(await page.locator(selector).evaluate(n=>n.tagName),'A');
+ const href=await page.locator(selector).getAttribute('href');assert.equal(new URL(href,base).searchParams.get('tab'),'files');
+ const before=page.url();
+ const checks=await page.locator(selector).evaluate(async node=>{
+  const {isPlainNavigation}=await import('/assets/navigation.js');
+  return ['ctrlKey','metaKey','shiftKey','altKey'].map(modifier=>isPlainNavigation(new MouseEvent('click',{button:0,[modifier]:true}),node));
+ });assert.deepEqual(checks,[false,false,false,false]);assert.equal(page.url(),before);
+ await page.locator(selector).focus();await page.keyboard.press('Enter');await page.locator('nav [data-tab="files"].active').waitFor();
+ assert.equal(new URL(page.url()).searchParams.get('tab'),'files');
+ assert.equal(await page.locator('[data-action="upload"]').first().evaluate(n=>n.tagName),'BUTTON');
+});
+
+test('file preview URLs restore the viewer on refresh and history navigation',async t=>{
+ const page=await fixture(t);await page.locator('nav [data-tab="files"]').click();
+ const preview=page.locator('a[data-action="preview-image"]').first();await preview.waitFor();
+ const href=await preview.getAttribute('href');assert.equal(new URL(href,base).searchParams.get('panel'),'preview-image');
+ await preview.click();await page.locator('.modal [data-file-preview]').waitFor();
+ assert.equal(new URL(page.url()).searchParams.get('panel'),'preview-image');
+ await page.reload();await page.locator('.modal [data-file-preview]').waitFor();
+ await page.goBack();await page.locator('.modal').waitFor({state:'detached'});
+ await page.goForward();await page.locator('.modal [data-file-preview]').waitFor();
+ await page.locator('.modal [data-action="close-modal"]').first().click();assert.equal(new URL(page.url()).searchParams.has('panel'),false);
+});
+
+test('website panel and source-file selections survive refresh',async t=>{
+ const page=await fixture(t);
+ const site={studio_id:'demo',revision:1,live:false,can_undo:false,projects:[],templates:[],billing:{active:false},draft:{started:true,name:'Test website',pages:[{id:'home',name:'Home',slug:'',navigation:true,kind:'custom'}],files:{'index.html':'<h1>Home</h1>','styles.css':'body { color: black; }','script.js':''},projects:[],testimonials:[],chat:[],sections:[]}};
+ await page.route('**/assets/demo.js',async route=>{const response=await route.fetch();const source=await response.text();await route.fulfill({response,body:source.replace('export async function demoRequest(action,body={}) {','export async function demoRequest(action,body={}) { if(action===\'website\')return '+JSON.stringify(site)+';')});});
+ await page.route('**/platform-unavailable/**',r=>r.fulfill({contentType:'text/html',body:'<!doctype html><p>Preview</p>'}));
+ await page.goto(base+'/demo/website?edit=1');await page.locator('[data-action="website-tab"][data-tab="source"]').click();
+ const file=page.locator('[data-action="website-file"][data-file="styles.css"]');await file.click();
+ assert.equal(new URL(page.url()).searchParams.get('panel'),'website-file');
+ await page.reload();await page.locator('.cm-editor').waitFor();
+ assert.equal(await page.locator('[data-action="website-file"][data-file="styles.css"].active').count(),1);
+});
+
+test('navigation links retain the typography of the original button controls',async t=>{
+ const page=await fixture(t);
+ const differences=await page.evaluate(()=>{
+  const fields=['fontSize','fontFamily','fontWeight','lineHeight','letterSpacing'];
+  return [...document.querySelectorAll('a[data-navigation]')].flatMap(link=>{
+    const old=document.createElement('button');
+    for(const attribute of link.attributes)if(!['href','data-navigation','data-navigation-selection','download'].includes(attribute.name))old.setAttribute(attribute.name,attribute.value);
+    old.append(...[...link.childNodes].map(n=>n.cloneNode(true)));link.after(old);
+    const expected=getComputedStyle(old),actual=getComputedStyle(link);
+    const mismatches=fields.filter(key=>actual[key]!==expected[key]).map(key=>({action:link.dataset.action,key,expected:expected[key],actual:actual[key]}));old.remove();return mismatches;
+  });
+ });assert.deepEqual(differences,[]);
+});

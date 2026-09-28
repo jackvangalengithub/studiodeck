@@ -5,7 +5,7 @@ import {createCommunicationControls} from './communication-controls.js';
 import {summaryPerson, completionCheckbox, audienceSwitch, composerFields, initComposers, selectComposerType, composerText, threadTypes, plainMessageFields, normalizeThreadType} from './communication-composer.js';
 import {mentionData, mentionBody} from './mentions.js';
 import {getLanguage, tr} from './i18n.js';
-export function communicationUi({state, onFilterChange = async () => {}, loadBudget = async () => true, api, render, refresh, openModal, closeModal, toast, button, icon, esc, personAvatar, slideDefs, startPresentation, markCommentsRead, openProject}) {
+export function communicationUi({state, onFilterChange = async () => {}, loadBudget = async () => true, openFile, api, render, refresh, openModal, closeModal, toast, button, icon, esc, personAvatar, slideDefs, startPresentation, markCommentsRead, openProject}) {
   const nl = {
     'Waiting for reply': 'Wacht op reactie',
     'Needs resolution': 'Moet worden opgelost',
@@ -814,16 +814,16 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
       toast(error.message);
     }
   }
-  function open(id) {
+  async function open(id) {
     const c = comments().find(c => c.id === id);
-    if (!c) return;
+    if (!c) throw new Error('This conversation is no longer available.');
     ensureScope();
     thread = threadFor(c);
     view = 'all';
     controls.reset();
     revealThread = true;
     highlight = id;
-    show();
+    await show();
   }
   function budgetSource(item) {
     const r = item.confirmation;
@@ -882,7 +882,7 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
       "class": "section-title"
     }], [domView.element("h1", [], [state.data.project.name], false), btn('Back to presentation', 'back', '', '', 'arrow')], false), page()], false);
   }
-  document.addEventListener('click', async e => {
+  async function dispatchCommunicationAction(e) {
     const el = e.target.closest('[data-action]');
     if (!el?.dataset.action.startsWith('comm-') || !enabled() && el.dataset.action !== 'comm-location') return;
     e.preventDefault();
@@ -896,7 +896,7 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
           closeModal();
           await openProject(project, el.dataset.iteration);
         }
-        open(id);
+        await open(id);
       }
       if (action === 'new') newConversation();
       if (action === 'linked') newConversation('', null, thread);
@@ -920,6 +920,8 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
         await reloadList();
       }
       if (action === 'thread') {
+        ensureScope();
+        if (!comments().some(c=>c.id===id)) throw new Error('This conversation is no longer available.');
         thread = id;
         replyTo = null;
         highlight = null;
@@ -927,9 +929,9 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
       }
       if (action === 'ask') popup(drafts.get(domView.concat(scope, thread)) || '');
       if (action === 'ask-existing') popup(comments().find(c => c.id === id)?.body || '');
-      if (action === 'open') open(id);
+      if (action === 'open') await open(id);
       if (action === 'reply') {
-        open(id);
+        await open(id);
         replyTo = id;
         render();
         $('#comm-reply')?.focus();
@@ -1030,31 +1032,21 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
       }
       if (action === 'evidence') {
         if (el.dataset.iteration !== state.data.iteration.id) await openProject(state.data.project.id, el.dataset.iteration);
-        const proxy = document.createElement('button');
-        proxy.dataset.action = Number(el.dataset.page) ? 'legal-citation' : 'download';
-        proxy.dataset.id = id;
-        proxy.dataset.version = id;
-        proxy.dataset.page = el.dataset.page;
-        document.body.append(proxy);
-        proxy.click();
-        proxy.remove();
+        await openFile(Number(el.dataset.page)?'legal-citation':'download',{id,version:id,page:el.dataset.page});
       }
       if (action === 'download') {
         if (el.dataset.iteration && el.dataset.iteration !== state.data.iteration.id) await openProject(state.data.project.id, el.dataset.iteration);
-        const proxy = document.createElement('button');
-        proxy.dataset.action = 'download';
-        proxy.dataset.id = id;
-        document.body.append(proxy);
-        proxy.click();
-        proxy.remove();
+        await openFile('download',{id});
       }
     } catch (err) {
       toast(err.message);
+      return false;
     } finally {
       busy = false;
       if (el.isConnected) el.disabled = false;
     }
-  }, true);
+  }
+  document.addEventListener('click', dispatchCommunicationAction, true);
   document.addEventListener('input', e => {
     if (e.target.id === 'comm-reply') drafts.set(domView.concat(scope, thread), e.target.value);
   });
@@ -1175,6 +1167,8 @@ export function communicationUi({state, onFilterChange = async () => {}, loadBud
     };
   }
   return {
+    action:dispatchCommunicationAction,
+    controls,
     get params() {
       return {
         filter: view,

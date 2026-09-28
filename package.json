@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node scripts/preview.mjs",
     "check:dom": "node scripts/check-dom-safety.mjs",
-    "test": "npm run check:dom && node --test tests/test_dom_safety.mjs tests/test_dom_render.mjs tests/test_csv_preview.mjs tests/test_presentation_scroll.mjs",
+    "test": "npm run check:dom && node --test tests/test_dom_safety.mjs tests/test_dom_render.mjs tests/test_csv_preview.mjs tests/test_presentation_scroll.mjs tests/test_no_eval.mjs tests/test_navigation.mjs tests/test_routes.mjs",
     "test:browser:dom": "node --test tests/test_dom_browser.mjs tests/test_batch_browser.mjs tests/test_rendering_browser.mjs",
     "predev": "npm run check:dom"
   },

@@ -334,6 +334,7 @@ export function createCommunicationControls({id, esc, icon, typeLabel, openModal
     timer = setTimeout(() => update(), 180);
   });
   return {
+    async goToPage(value) {offset=Math.max(0,Number(value)||0);await update(false);},
     get search() {
       return search.trim();
     },

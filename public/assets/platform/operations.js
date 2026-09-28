@@ -1,6 +1,6 @@
 import {safeUrl} from '../dom.js';
 import {eq,and,oneOf,now,uuid,contains} from './client.js';
-import {unavailable,PlatformError} from './transport.js';
+import {unavailable,PlatformError,rows} from './transport.js';
 const pick=(value,keys)=>Object.fromEntries(keys.filter(k=>value[k]!==undefined).map(k=>[k,value[k]]));
 const bool=v=>v===true||v===1||v==='1'||v==='on'||v==='true';
 const cents=v=>{if(v===''||v==null)return null;const n=Number(String(v).replace(',','.'));if(!Number.isFinite(n))throw Error('Enter a valid price.');return Math.round(n*100);};
@@ -146,7 +146,12 @@ export function installOperations(c){
     archive_pack_item:async b=>{await write('studio_pack_items',{archived:bool(b.archived??true)},b.id);return {ok:true};},
     save_pack_item:async b=>{if(!c.studioRecord)throw Error('Complete studio setup first.');await write('studio_pack_items',{studio_id:c.studioRecord.id,...pick(b,['kind','position','slide_type']),default_enabled:bool(b.default_enabled)},b.id);return {ok:true};},
     product_feedback_submit:async b=>{const result=await write('product_feedback',{...pick(b,['category','area','detail','goal','impact','frequency','screen','app_version','request_key']),user_id:c.identity.user_id,studio_id:c.studioRecord?.id,created_at:now(),updated_at:now(),status:'new',contact_allowed:bool(b.contact_allowed)});return {id:result.id};},
-    product_feedback_inbox:()=>q('product_feedback').then(items=>({items})),
+    product_feedback_inbox:async b=>{
+      const filter=b.id?eq('id',b.id):and(...['category','area','status','impact','theme'].filter(k=>b[k]).map(k=>eq(k,text(b[k],200))),contains(['goal','detail','theme'],b.search));
+      const params=c.querySpec('feedback','product_feedback',filter,undefined,{page:Math.floor(Math.max(0,Number(b.offset)||0)/50)+1,nperpage:50,orderBy:[{field:'product_feedback.created_at',direction:'desc'},{field:'product_feedback.id',direction:'asc'}]}).params;
+      const body=await c.queue.request({...c.context(),resource:'product_feedback',params});
+      return {items:rows(body),has_more:body.other?.nextPage!=null,themes:[],counts:null};
+    },
     product_feedback_review:async b=>{await write('product_feedback',{...pick(b,['status','theme','notes']),updated_at:now()},b.id);return {ok:true};},
     drive_status:async()=>({configured:false,connected:false,email:'',unavailable_reason:'The Drive connector is not configured on the platform.'}),
   };

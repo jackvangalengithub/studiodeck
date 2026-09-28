@@ -23,7 +23,7 @@ async function fixture(t,{withImages=false}={}){
   tables.document_images=[{id:'crop',version_id:'version4',page_number:1,number:1,data_file_id:'crop-file',metadata:{}}];
   tables.slide_image_versions=[{id:'variant',source_version_id:'version5',data_file_id:'variant-file'}];
  }
- await page.route('**/*',async route=>{
+ await page.context().route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url());requests.push(url.pathname);
   if(url.pathname==='/whoami')return route.fulfill({json:{user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Test Studio'}],profiles:['studioadmin']}});
   if(url.pathname.startsWith('/200/userfiles/')){if(controls.imageGate)await controls.imageGate;return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="green"/></svg>'});}
@@ -38,7 +38,7 @@ async function fixture(t,{withImages=false}={}){
      for(const key of body.selectList)if(!schema[table][key])errors.push('Unknown field '+table+'.'+key);
      const found=(tables[table]||[]).filter(r=>matches(r,subst(body.filter)));outputs[call.requestingId]=found;results.push({responseid:call.id,code:200,body:{entities:found.map(r=>({id:r.id,tablename:table,data:r,writablefields:Object.keys(r)})),other:{nextPage:null}}});
     }else{if(call.method==='POST')(tables[table]??=[]).push(body);else if(call.method==='PATCH')Object.assign(tables[table].find(r=>r.id===id),body);else tables[table]=(tables[table]||[]).filter(r=>r.id!==id);results.push({responseid:call.id,code:call.method==='DELETE'?204:201,body:{id:body.id||id,errors:[]}});}
-   }return route.fulfill({json:complete?[{responseid:outer.id,code:200,body:{other:{results}}}]:results.reverse()});
+   }return route.fulfill({json:complete?[{responseid:outer.id,code:200,body:{other:{results,...(JSON.parse(outer.body).feed?{feed:{server_filtered:true,total:(outputs.comments||[]).filter(c=>!c.parent_id).length,offset:0,limit:25,view_counts:{open:0,attention:0}}}:{})}}}]:results.reverse()});
   }
   if(url.pathname==='/api.php'){errors.push('Legacy API request');return route.fulfill({status:410,json:{error:'Retired'}});}
   await route.continue();
@@ -241,4 +241,61 @@ for(const route of ['/200/comments?filter=all','/200/projects/p1?tab=comments'])
  const count=wireBatches.length;await page.waitForTimeout(150);assert.equal(wireBatches.length,count);
  assert.equal(wireBatches.length,2,'bootstrap plus one communication view batch');
  assert.ok(requests.every(p=>!p.includes('comment_preview')&&!p.includes('platform-unavailable')&&p!=='/api.php'));
+});
+
+test('Ctrl-click and middle-click open real project/tab URLs without navigating the source tab',async t=>{
+ const {page}=await fixture(t);await page.goto(baseURL+'/200/projects');await page.locator('.project-tile-open').waitFor();
+ const source=page.url();
+ for(const click of [{modifiers:['Control']},{button:'middle'}]){
+  const pending=page.context().waitForEvent('page');await page.locator('.project-tile-open').click(click);
+  const popup=await pending;await popup.locator('.project-head').waitFor();
+  assert.equal(new URL(popup.url()).pathname,'/200/projects/p1');assert.equal(page.url(),source);
+  await popup.close();
+ }
+ await page.locator('.project-tile-open').click();await page.locator('.project-head').waitFor();
+ const pending=page.context().waitForEvent('page');await page.locator('nav [data-tab="files"]').click({modifiers:['Control']});
+ const popup=await pending;await popup.locator('nav [data-tab="files"].active').waitFor();
+ assert.equal(await page.locator('nav [data-tab="overview"].active').count(),1);await popup.close();
+});
+
+test('conversation deep links select the requested thread in one filtered project batch',async t=>{
+ const {page,tables,wireBatches}=await fixture(t,{withImages:true});
+ tables.comments=[{id:'c1',iteration_id:'i1',slide:'visual-slide0',author:'jack@example.com',body:'First subject',thread_title:'First subject',created_at:'2026-01-01',parent_id:null},{id:'c2',iteration_id:'i1',slide:'general',author:'jack@example.com',body:'Second subject',thread_title:'Second subject',created_at:'2026-01-02',parent_id:null}];
+ await page.goto(baseURL+'/200/comments?filter=all');await page.locator('[data-action="comm-location"][data-id="c1"]').waitFor();
+ const before=wireBatches.length;await page.locator('[data-action="comm-location"][data-id="c1"]').click();
+ await page.locator('.comm-thread').waitFor();assert.equal(wireBatches.length,before+1);
+ assert.equal(new URL(page.url()).searchParams.get('panel'),'comm-location');
+ await page.reload();await page.locator('.comm-thread').waitFor();
+ assert.ok((await page.locator('.comm-thread').innerText()).includes('First subject'));
+ const call=wireBatches.at(-1).flat().find(c=>c.relative_url==='200/projects:readView');
+ assert.ok(JSON.parse(call.body).queries.some(q=>q.id==='selectedComment'&&JSON.stringify(q.params.filter).includes('c1')));
+});
+
+test('file links use native download URLs and hidden editor slides have restorable preview links',async t=>{
+ const {page,tables}=await fixture(t,{withImages:true});
+ tables.slide_layout=[{id:'layout0',iteration_id:'i1',slide_id:'visual-slide0',hidden:true,deleted:false,position:0}];
+ await page.goto(baseURL+'/200/projects/p1?tab=files');await page.locator('a[data-action="download"]').first().waitFor();
+ const download=page.locator('a[data-action="download"]').first();
+ assert.match(await download.getAttribute('href'),/^\/200\/userfiles\/[^/]+\/download$/);assert.ok(await download.getAttribute('download'));
+ await page.locator('nav [data-tab="slides"]').click();
+ const hidden=page.locator('a[data-action="open-editor-slide"][data-id="visual-slide0"]');
+ const href=await hidden.getAttribute('href');assert.equal(new URL(href,baseURL).searchParams.get('preview'),'hidden');
+ await page.goto(new URL(href,baseURL).href);await page.locator('.presentation').waitFor();assert.equal(new URL(page.url()).pathname,'/200/slide/visual-slide0');
+ await page.reload();await page.locator('.presentation').waitFor();assert.equal(new URL(page.url()).searchParams.get('preview'),'hidden');
+});
+
+test('feedback report URLs reload the selected record and filters stay server-side',async t=>{
+ const {page,tables,wireBatches}=await fixture(t);
+ tables.product_feedback=[{id:'feedback1',category:'broken',area:'projects',goal:'Open a project',detail:'Example feedback',impact:'slows',frequency:'often',screen:'projects',app_version:'test',status:'new',theme:'Navigation',notes:'',created_at:'2026-01-01',updated_at:'2026-01-01'}];
+ const url=new URL('/200/projects',baseURL);url.searchParams.set('panel','product-feedback-inbox');
+ await page.goto(url.href);await page.locator('a[data-pf-report="feedback1"]').waitFor();
+ await page.locator('a[data-pf-report="feedback1"]').click();await page.locator('[data-pf-review]').waitFor();
+ assert.equal(new URL(page.url()).searchParams.get('panel'),'feedback-report');
+ await page.reload();await page.locator('[data-pf-review]').waitFor();
+ assert.ok((await page.locator('.pf-report-body').innerText()).includes('Example feedback'));
+ assert.ok(wireBatches.at(-1).flat().some(c=>c.relative_url==='200/product_feedback'&&JSON.stringify(JSON.parse(c.body).filter).includes('feedback1')));
+ await page.locator('a[data-pf="backInbox"]').click();await page.locator('.pf-filters').waitFor();
+ await page.locator('.pf-filters [name="search"]').fill('Example');await page.locator('.pf-filters [type="submit"]').click();
+ await page.waitForURL(url=>url.searchParams.get('selection')?.includes('Example'));
+ assert.ok(wireBatches.at(-1).flat().some(c=>c.relative_url==='200/product_feedback'&&JSON.stringify(JSON.parse(c.body).filter).includes('ilike')));
 });

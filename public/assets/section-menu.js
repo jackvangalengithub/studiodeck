@@ -1,10 +1,11 @@
+import {e} from './dom.js';
 export function installSectionMenus({getSlides,onNavigate}){
  let menu=null,anchor=null;
  function close(restore=false){const button=anchor;menu?.remove();menu=null;anchor=null;button?.setAttribute('aria-expanded','false');if(restore&&button?.isConnected)button.focus();}
  function position(){if(!menu||!anchor?.isConnected){close();return;}const rect=anchor.parentElement.getBoundingClientRect(),width=Math.min(360,innerWidth-24),sidebar=anchor.closest('.presentation-sidebar');Object.assign(menu.style,{width:width+'px',left:Math.max(12,Math.min(innerWidth-width-12,sidebar?rect.right+8:rect.left))+'px',top:(rect.bottom+6)+'px',maxHeight:Math.max(100,Math.min(420,sidebar?innerHeight-24:innerHeight-rect.bottom-18))+'px'});if(sidebar)menu.style.top=Math.max(12,Math.min(rect.top,innerHeight-menu.offsetHeight-12))+'px';}
  function open(button){if(anchor===button){close(true);return;}close();anchor=button;const slides=getSlides();menu=document.createElement('div');menu.id='section-slide-menu';menu.className='section-slide-menu';menu.setAttribute('role','menu');menu.setAttribute('aria-label',button.getAttribute('aria-label'));
-  slides.forEach((slide,index)=>{if(slide.section!==button.dataset.sectionMenu)return;const item=document.createElement('button');item.type='button';item.setAttribute('role','menuitem');const number=document.createElement('span'),title=document.createElement('span');number.className='section-slide-number';number.textContent=String(index+1).padStart(2,'0');title.textContent=slide.title;item.append(number,title);item.addEventListener('click',()=>{close();onNavigate(slide.id);document.querySelector('.slide-area')?.focus({preventScroll:true});});menu.append(item);});
-  document.body.append(menu);button.setAttribute('aria-expanded','true');position();menu.querySelector('button')?.focus();
+  slides.forEach((slide,index)=>{if(slide.section!==button.dataset.sectionMenu)return;const item=e('button',{type:'button','data-action':'go-slide','data-slide':index});item.setAttribute('role','menuitem');const number=document.createElement('span'),title=document.createElement('span');number.className='section-slide-number';number.textContent=String(index+1).padStart(2,'0');title.textContent=slide.title;item.append(number,title);item.addEventListener('click',()=>{close();onNavigate(slide.id);document.querySelector('.slide-area')?.focus({preventScroll:true});});menu.append(item);});
+  document.body.append(menu);button.setAttribute('aria-expanded','true');position();menu.querySelector('button,a[href]')?.focus();
  }
  document.addEventListener('click',e=>{const button=e.target.closest('[data-section-menu]');if(button){open(button);return;}if(menu&&!menu.contains(e.target))close();});
  document.addEventListener('keydown',e=>{
@@ -14,7 +15,7 @@ export function installSectionMenus({getSlides,onNavigate}){
   if(e.key==='Tab'){close(true);return;}
   if(!menu.contains(e.target))return;
   if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(e.key)){
-   e.preventDefault();e.stopImmediatePropagation();const items=[...menu.querySelectorAll('button')],index=items.indexOf(document.activeElement);
+   e.preventDefault();e.stopImmediatePropagation();const items=[...menu.querySelectorAll('button,a[href]')],index=items.indexOf(document.activeElement);
    const next=e.key==='Home'?0:e.key==='End'?items.length-1:(index+(['ArrowUp','ArrowLeft'].includes(e.key)?-1:1)+items.length)%items.length;items[next]?.focus();
   }
  },true);

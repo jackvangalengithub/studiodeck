@@ -1,3 +1,4 @@
+import {configureNavigation, destinationFor, readPanel, withPanel, isPlainNavigation, navigationActions} from './navigation.js';
 import {commentPreviewImage} from './comment-preview.js';
 import {safeUrl, setDomAttribute} from './dom.js';
 import * as domView from "./render.js";
@@ -279,7 +280,7 @@ async function readProjectView(projectId, iterationId, view) {
       view,
       fileSearch: state.search,
       fileCategories: state.fileCategories ? [...state.fileCategories] : null,
-      communication: communication.params
+      communication: {...communication.params,...(navigationPanel && ['comm-open','comm-thread','comm-location'].includes(navigationPanel.action)?{selected:navigationPanel.data.id,filter:'all'}:{})}
     }));
     return data;
   } catch (error) {
@@ -563,7 +564,8 @@ const productFeedback = productFeedbackUi({
   openModal,
   closeModal,
   resourceHeaders,
-  demo: DEMO
+  demo: DEMO,
+  navigate: navigatePanel
 });
 const studioSetup = studioSetupUi({
   state,
@@ -591,6 +593,7 @@ const communication = communicationUi({
   state,
   onFilterChange: refreshCommunicationGrid,
   loadBudget: () => ensureProjectResource('budget'),
+  openFile: (action,data)=>dispatchAppAction(actionEvent(action,data)),
   api,
   render,
   refresh,
@@ -624,6 +627,7 @@ installMentions({
 });
 const website = websiteUi({
   state,
+  onNavigate: rememberNavigationPanel,
   api,
   esc,
   button,
@@ -962,7 +966,8 @@ async function openProject(pid, iid = null, preview = false, bypass = false, opt
   state.imageIndex = 0;
   state.chat = [];
   if (preview) await startPresentation(0, {
-    loaded: true
+    loaded: true,
+    editorSlide: options.includeHidden?options.slide:''
   });
   if (!options.deferRender) {
     if (!state.present) render();
@@ -4043,6 +4048,7 @@ function closeModal(force = false) {
     syncWorkspaceUrl(true);
   }
   activeModal = false;
+  if (!routeLoading && !navigationBusy && navigationPanel && !['website-tab','website-file','website-source-scope','website-open-page','website-gallery','website-gallery-back','website-filter-style','website-example','comm-open','comm-thread','comm-location','comm-show','comm-view','comm-pending','project-pending','studio-checklist'].includes(navigationPanel.action)) {navigationPanel=null;syncWorkspaceUrl(true);}
   domView.mount($('#overlay'), '');
   document.body.style.overflow = '';
   previousFocus?.focus();
@@ -5435,7 +5441,7 @@ function showInfo(kind) {
     "class": "modal-footer"
   }], [button(tr("studio_explore_the_client_view"), 'preview', 'primary', '', 'play')], false)]));
 }
-document.addEventListener('click', async e => {
+async function dispatchAppAction(e) {
   const el = e.target.closest('[data-action]');
   if (!el || el.disabled) return;
   const a = el.dataset.action;
@@ -5488,7 +5494,7 @@ document.addEventListener('click', async e => {
         break;
       case 'preview-csv':
       case 'preview-image':
-        await previewFile(el.dataset.id);
+        previewFile(el.dataset.id).catch(error=>toast(error.message));
         break;
       case 'preview-extracted':
         await previewExtracted(el.dataset.id);
@@ -5497,7 +5503,7 @@ document.addEventListener('click', async e => {
         await downloadExtracted(el.dataset.id);
         break;
       case 'review-pages':
-        await reviewPage(el.dataset.id);
+        await reviewPage(el.dataset.id, Number(el.dataset.page) || 1);
         break;
       case 'add-slide':
         if (requireDraft()) editSlideModal('', DEMO ? '' : await pack.slidePicker());
@@ -6462,8 +6468,10 @@ document.addEventListener('click', async e => {
     }
   } catch (error) {
     toast(error.message);
+    return false;
   }
-});
+}
+document.addEventListener('click', dispatchAppAction);
 document.addEventListener('submit', async e => {
   const form = e.target.closest('[data-form]');
   if (!form) return;
@@ -6864,7 +6872,7 @@ document.addEventListener('submit', async e => {
 });
 document.addEventListener('change', async e => {
   try {
-    if (e.target.id === 'document-page-select') await reviewPage(e.target.dataset.version, Number(e.target.value));
+    if (e.target.id === 'document-page-select') {await reviewPage(e.target.dataset.version, Number(e.target.value));navigationPanel={action:'review-pages',data:{id:e.target.dataset.version,page:String(e.target.value)}};syncWorkspaceUrl();}
     if (e.target.id === 'iteration-select') await openProject(state.data.project.id, e.target.value);
     if (e.target.matches('[data-category]')) {
       await api('category', {
@@ -6992,10 +7000,12 @@ function renderLogin(token = '') {
   }], [domView.fragment([hasToken ? tr("continue") : tr("email_me_a_sign_in_link"), icon('arrow')])], false), domView.element("small", [], [tr("no_password_to_remember_your_sign_in_lasts_14_days_on_this_device")], false)], false)], false)], false));
 }
 let routeLoading = false;
+let navigationPanel = null, navigationBusy = 0, navigationSequence = 0;
 async function start() {
   routeLoading = true;
   let success = false;
   try {
+    navigationPanel = readPanel(location);
     const match = location.hash.match(/^#\/(view|login|preview)\/([^/]+)$/);
     if (match?.[1] === 'login' || match?.[1] === 'view') {
       location.replace(safeUrl(domView.concat('/login', location.hash), 'href'));
@@ -7051,6 +7061,9 @@ async function start() {
   } catch (error) {
     routeError(error);
   } finally {
+    if (success && navigationPanel) {
+      try {await restoreNavigationPanel();} catch (error) {success=false;routeError(error);}
+    }
     routeLoading = false;
     if (success) syncWorkspaceUrl(true);
   }
@@ -7074,21 +7087,107 @@ function routeError(error) {
     email: state.user?.email
   });
 }
+
+function navigationContext() {
+  const route = {studioId:state.studio?.id, search:state.projectSearch, archived:state.showArchived,
+    slideTypes:state.slideTypes,slideView:state.slideView,slideGroup:state.slideGroup,
+    fileSearch:state.search,fileCategories:state.fileCategories?[...state.fileCategories]:null,
+    userSearch:state.studioUserSearch,communicationFilter,
+    communication:state.tab==='all-comments'?{filter:communicationFilter,...communicationControls.params}:communication.params};
+  const slides = state.data ? slideDefs() : [];
+  const projectId=state.data?.project.id,iteration=state.data?.iteration.id;
+  const clientUrl=(slide,mode)=>clientProjectUrl(state.accountClientProject||projectId,iteration,slide,mode);
+  const globals=['projects','studio-users','all-comments','profile','billing','website'];
+  const view=state.settingsOpen?'settings':state.present?'slide':globals.includes(state.tab)?state.tab:state.data?'project':'projects';
+  const current=state.tab==='destinations'&&!state.present?'/choose':state.client?clientUrl(slides[state.slide]?.id,state.presentationMode):workspaceUrl({...route,view,projectId,iteration,tab:state.tab,slide:slides[state.slide]?.id,presentationMode:state.presentationMode,websiteEditing:state.websiteEditing});
+  return {route,current,projectId,iteration,slides,hiddenSlides:new Set((state.data?.slide_layout||[]).filter(s=>Number(s.hidden)).map(s=>s.slide_id)),slide:state.slide||0,tab:state.tab,present:state.present,
+    client:state.client,destinations:state.tab==='destinations',clientUrl,presentationMode:state.presentationMode,
+    download(action,data) {
+      if(action==='download-extracted'){const asset=findExtractedAsset(data.id);if(asset&&asset.kind!=='text'){const fileId=platform.media.fileId(assetImage(asset));return fileId?{url:platform.fileUrl(fileId,true),name:asset.name}:null;}return null;}
+      const id=action==='download-current'?slideFiles(slides[state.slide]?.id)[0]?.id:data.id;
+      if(DEMO){const f=demoFile(id);return f?{url:f.url,name:f.name}:null;}
+      const f=(state.data?.files||[]).flatMap(f=>[f,...f.history||[]]).find(f=>f.id===id)||platform.files.get(id);
+      const fileId=f?.data_file_id||platform.media.fileId(action==='pack-download'?{action:'pack_file',version:data.version}:{action:'file',id});
+      return fileId?{url:platform.fileUrl(fileId,true),name:f?.name||data.name||tr('source_file')}:null;
+    }};
+}
+function navigationDestination(props) {
+  let action=props['data-action'];
+  let data=Object.fromEntries(Object.entries(props).filter(([key])=>key.startsWith('data-')).map(([key,value])=>[key.slice(5).replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),String(value)]));
+  if(props['data-comm-page']!=null){action='communication-page';data={owner:props['data-comm-owner'],offset:String(props['data-comm-page'])};}
+  const feedback=productFeedback.destination(props);
+  if(feedback){action=feedback.action;data=feedback.data;}
+  if(!navigationActions.has(action))return null;
+  if(action?.startsWith('website-'))data={...website.routeState(),...data,...(action==='website-open-page'?{pageId:data.id}:{})};
+  const destination=destinationFor(action,data,navigationContext());
+  return destination?{...destination,action,data}:null;
+}
+function actionEvent(action,data,element=null) {
+  // Detached native button avoids synthesizing a browser click or accepting
+  // arbitrary selectors from the URL. Only registered view actions reach here.
+  const target=element||document.createElement('button');
+  if(!element){target.dataset.action=action;for(const [key,value] of Object.entries(data||{}))target.dataset[key]=String(value);}
+  return {target,preventDefault(){},stopImmediatePropagation(){}};
+}
+async function dispatchNavigation(action,data,element=null) {
+  if(action==='communication-page')return (data.owner==='studio'?communicationControls:communication.controls).goToPage(data.offset);
+  if(action==='feedback-report'||action==='product-feedback-inbox')return productFeedback.restoreDestination(action,data);
+  if(action.startsWith('website-') && data.pageId)await website.restoreRouteState(data);
+  if(action==='comm-location' && (!state.data || state.data.project.id!==data.project || state.data.iteration.id!==data.iteration || !state.data.communication?.comments?.some(c=>c.id===data.id))) {
+    state.tab='comments';communication.restore({filter:'all'});
+    if(!await openProject(data.project,data.iteration,false,false,{fromRoute:true,deferRender:true}))return false;
+  }
+  if(action.startsWith('comm-'))return communication.action(actionEvent(action,data,element));
+  return dispatchAppAction(actionEvent(action,data,element));
+}
+function rememberNavigationPanel(action,data) {
+  navigationPanel=readPanel(new URL(withPanel(navigationContext().current,{action,data}),location.origin));
+  syncWorkspaceUrl();
+}
+async function navigatePanel(action,data) {
+  const destination=destinationFor(action,data,navigationContext());
+  if(!destination)throw new Error('Unknown navigation destination.');
+  const link=e('a',{href:destination.href,'data-navigation':action,'data-navigation-selection':JSON.stringify(data)});
+  await interceptNavigation({target:link,button:0,preventDefault(){},stopImmediatePropagation(){}});
+}
+async function restoreNavigationPanel() {
+  if(navigationPanel)await dispatchNavigation(navigationPanel.action,navigationPanel.data);
+}
+async function interceptNavigation(event) {
+  const link=event.target.closest?.('a[data-navigation]');
+  if(!link)return;
+  // Do not let older delegated handlers mutate this tab on a modified click.
+  if(link.dataset.navigation==='native'||!isPlainNavigation(event,link)){event.stopImmediatePropagation();return;}
+  event.preventDefault();event.stopImmediatePropagation();
+  if(link.disabled||link.getAttribute('aria-disabled')==='true')return;
+  const destination=new URL(link.href),panel=readPanel(destination),priorPanel=navigationPanel,sequence=++navigationSequence;
+  navigationBusy++;
+  try {
+    navigationPanel=panel;
+    const action=link.dataset.navigation,data=JSON.parse(link.dataset.navigationSelection||'{}');
+    const result=await dispatchNavigation(action,data,link);
+    if(result===false&&sequence===navigationSequence)navigationPanel=priorPanel;
+  } catch(error) {if(sequence===navigationSequence)navigationPanel=priorPanel;toast(error.message);}
+  finally {navigationBusy--;if(!navigationBusy)syncWorkspaceUrl();}
+}
+
 function syncWorkspaceUrl(replace = false) {
   if (TOUR_MODE) return;
-  if (routeLoading || !state.user || state.present && state.hiddenPreview && slideDefs()[state.slide]?.hidden) return;
-  const accountPath = state.client && state.accountClientProject ? clientProjectUrl(state.accountClientProject, state.data?.iteration.id, slideDefs()[state.slide]?.id, state.presentationMode) : state.tab === 'destinations' && !state.present ? '/choose' : null;
+  if (routeLoading || navigationBusy || !state.user) return;
+  let accountPath = state.client && state.accountClientProject ? clientProjectUrl(state.accountClientProject, state.data?.iteration.id, slideDefs()[state.slide]?.id, state.presentationMode) : state.tab === 'destinations' && !state.present ? '/choose' : null;
   if (accountPath) {
+    accountPath = withPanel(accountPath, navigationPanel);
     if (accountPath !== domView.concat(location.pathname, location.search) || location.hash) history[replace ? 'replaceState' : 'pushState'](null, '', accountPath);
     return;
   }
   if (state.client || !state.studio?.id) return;
   const globalViews = ['projects', 'studio-users', 'all-comments', 'profile', 'billing', 'website'];
   const view = state.settingsOpen ? 'settings' : state.present ? 'slide' : globalViews.includes(state.tab) ? state.tab : state.data ? 'project' : 'projects';
-  const path = workspaceUrl({
+  const path = withPanel(workspaceUrl({
     studioId: state.studio.id,
     view,
     presentationMode: state.presentationMode,
+    hiddenPreview:!!state.hiddenPreview&&!!slideDefs()[state.slide]?.hidden,
     websiteEditing: !!state.websiteEditing,
     communicationFilter,
     projectId: state.data?.project.id,
@@ -7107,7 +7206,7 @@ function syncWorkspaceUrl(replace = false) {
       filter: communicationFilter,
       ...communicationControls.params
     } : communication.params
-  });
+  }), navigationPanel);
   if (path !== domView.concat(location.pathname, location.search) || location.hash) history[replace ? 'replaceState' : 'pushState'](null, '', path);
 }
 async function openWorkspaceRoute(route) {
@@ -7163,8 +7262,9 @@ async function openWorkspaceRoute(route) {
       }
       state.presentationMode = route.presentationMode || 'slides';
       state.tab = route.view === 'project' ? route.tab : 'slides';
-      if (!await openProject(projectId, iteration, route.view === 'slide', false, {
+      if (!await openProject(projectId, iteration, route.view === 'slide' || route.presentation, false, {
         slide: route.slide,
+        includeHidden:!!route.includeHidden,
         tab: route.tab,
         fromRoute: true
       })) return;
@@ -7208,7 +7308,10 @@ window.addEventListener('popstate', async () => {
   try {
     const route = readWorkspaceRoute(location);
     if (route && !readClientRoute(location) && state.user) {
+      navigationPanel = readPanel(location);
       await openWorkspaceRoute(route);
+      const prior = routeLoading; routeLoading = true;
+      try {await restoreNavigationPanel();} finally {routeLoading = prior;}
       syncWorkspaceUrl(true);
     } else await start();
   } catch (error) {
@@ -7460,12 +7563,7 @@ let pageReviewSequence = 0;
 async function reviewPage(id, number = 1) {
   const f = state.data.files.find(f => f.id === id);
   if (!f) return;
-  const sequence = ++pageReviewSequence;
-  openModal(tr("studio_inside_your_document"), domView.fragment([domView.element("p", [], [f.name], false), domView.element("p", [], [domView.element("span", [{
-    "class": "loading-inline"
-  }], [], false), domView.fragment([" ", tr("studio_opening_page", {
-    v1: number
-  })])], false)]));
+  const sequence = ++pageReviewSequence, reviewIteration=state.data.iteration.id;
   if (!f.pages?.length) {
     openModal(tr("studio_inside_your_document"), domView.fragment([domView.element("p", [], [f.name], false), domView.element("p", [], [tr("studio_this_file_has_no_extracted_pages_yet")], false), domView.fragment([editable() ? button(tr("studio_extract_pages_images"), 'reprocess', 'primary', domView.attributes([{
       "data-id": id
@@ -7479,7 +7577,7 @@ async function reviewPage(id, number = 1) {
     id,
     page: number
   });
-  if (sequence !== pageReviewSequence || !activeModal) return;
+  if (sequence !== pageReviewSequence || state.data?.iteration.id !== reviewIteration) return;
   const meta = p.metadata || ({}), suggestion = meta.analysis || ({}), pageImage = {
     ...f,
     page_number: number
@@ -7719,6 +7817,8 @@ document.addEventListener('keydown', e => {
     }
   }
 }, true);
+configureNavigation(navigationDestination);
+window.addEventListener('click', interceptNavigation, true);
 start();
 function applySession(session) {
   if (state.user?.id !== session.user?.id || state.studio?.id !== session.studio?.id) {

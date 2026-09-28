@@ -136,7 +136,7 @@ export class PlatformClient {
     if(needBudget){add('budget','budget_items',i(),overviewOnly?['parent_id','included','is_optional','amount_cents','min_amount_cents','max_amount_cents']:undefined);add('choices','budget_choices',oneOf('budget_item_id','{{budget.entities[].id}}'));}
     if(wanted('budget')){add('suggestions','budget_link_suggestions',i());add('budgetChecks','budget_match_checks',i());}
     if(wanted('people')||wanted('overview')||wanted('communication')){add('clients','project_client_members',p());if(wanted('people')||wanted('communication')){add('contacts','contacts',p());add('team','project_team_contacts',p());add('memberUsers','users',oneOf('id','{{members.entities[].user_id}}'),['name','email']);add('shares','shares',i());add('testimonials','project_testimonials',p());}}
-    if(wanted('communication'))this.communicationSpecs(add,iterationRef);
+    if(wanted('communication'))this.communicationSpecs(add,iterationRef,communication?.selected);
     const d=await this.graph(specs,{completeScope:{project_id:projectId,...(!presentation&&wanted('communication')?{feed:communication||{}}:{})}}),project=d.project[0];if(this.tenant!==scope.tenant)throw Object.assign(Error('This data request was superseded.'),{superseded:true});if(!project)throw new PlatformError('Project not found.',{status:404});
     const iteration=iterationId?d.iterations.find(r=>r.id===iterationId):d.iterations[0];if(!iteration)throw new PlatformError('Iteration not found.',{status:404});
     const ancestors=new Map([...(d.history||[]),...(d.versions||[])].map(v=>[v.id,v]));
@@ -151,8 +151,10 @@ export class PlatformClient {
     if(wanted('overview')){const visible=(result.slides||[]).filter(s=>!d.layout?.some(l=>l.slide_id==='visual-'+s.id&&(l.hidden||l.deleted)));const visual=s=>({id:s.source_version_id,name:s.title,slide_id:s.id,page_number:s.page_number,image_number:s.image_number,slide_image_version:s.image_version_id,iteration_id:iteration.id,preview_url:s.preview_url});result.overview={file_count:result.file_count||0,slide_count:visible.length+6,cover:visible.length?visual(visible.find(s=>s.id===result.cover_slide_id)||visible[0]):null,previews:visible.slice(0,4).map(s=>({id:'visual-'+s.id,title:s.title,visual:visual(s)})),client_count:d.clients?.length||0,client_name:d.clients?.[0]?.name||'',pending_confirmation_count:0};}
     if(presentation){result.changes=[];result.previous_total_cents=null;result.capabilities=this.session?.capabilities;}return result;
   }
-  communicationSpecs(add,iteration){
-    add('comments','comments',eq('iteration_id',iteration));add('threads','communication_threads',oneOf('comment_id','{{comments.entities[].id}}'));add('audiences','communication_audiences',oneOf('root_id','{{comments.entities[].id}}'));add('topics','communication_topics',oneOf('root_id','{{comments.entities[].id}}'));
+  communicationSpecs(add,iteration,selected=null){
+    if(selected)add('selectedComment','comments',and(eq('iteration_id',iteration),eq('id',selected)),['parent_id']);
+    const threadIds=selected?[selected,'{{selectedComment.entities[0].parent_id}}']:null;
+    add('comments','comments',and(eq('iteration_id',iteration),selected?['OR',oneOf('id',threadIds),oneOf('parent_id',threadIds)]:[]));add('threads','communication_threads',oneOf('comment_id','{{comments.entities[].id}}'));add('audiences','communication_audiences',oneOf('root_id','{{comments.entities[].id}}'));add('topics','communication_topics',oneOf('root_id','{{comments.entities[].id}}'));
     add('attachments','comment_attachments',oneOf('comment_id','{{comments.entities[].id}}'));add('mentions','comment_mentions',oneOf('comment_id','{{comments.entities[].id}}'));add('reads','comment_reads',and(oneOf('comment_id','{{comments.entities[].id}}'),eq('person_key','user:'+this.identity.email.toLowerCase())));add('confirmations','comment_confirmations',oneOf('comment_id','{{comments.entities[].id}}'));add('questions','open_questions',eq('iteration_id',iteration));add('findings','consistency_findings',eq('iteration_id',iteration));add('runs','consistency_runs',eq('iteration_id',iteration));
     // Resolve every preview in this same view request. Keep history metadata for
     // annotations pinned to an earlier source/image version.

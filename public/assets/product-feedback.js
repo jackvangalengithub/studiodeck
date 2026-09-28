@@ -2,7 +2,7 @@ import {safeUrl} from './dom.js';
 import * as domView from "./render.js";
 import {platformFetch} from './platform/files.js';
 import {feedbackText as t, feedbackCategories, feedbackAreas, feedbackStatuses, feedbackPrompts} from './product-feedback-copy.js';
-export function productFeedbackUi({state, api, esc, icon, openModal, closeModal, resourceHeaders, demo = false}) {
+export function productFeedbackUi({state, api, esc, icon, openModal, closeModal, resourceHeaders, demo = false, navigate}) {
   let draft = null, identity = '', sending = false, reviewBusy = false, preview = '', inboxData = null, inboxRequest = 0;
   let filters = {
     search: '',
@@ -345,26 +345,11 @@ export function productFeedbackUi({state, api, esc, icon, openModal, closeModal,
     }], [text('inbox')], false)], false) : '']);
   }
   async function inbox() {
-    const request = ++inboxRequest;
-    const modal = mount(t('inbox'), domView.element("div", [{
-      "class": "pf"
-    }, {
-      "data-pf-inbox": domView.text([])
-    }], [domView.element("p", [{
-      "role": "status"
-    }], [text('loading')], false)], false), true);
-    try {
-      const result = await api('product_feedback_inbox', filters);
-      if (request !== inboxRequest || !modal.isConnected) return;
-      inboxData = result;
-      renderInbox();
-    } catch (e) {
-      if (request !== inboxRequest || !modal.isConnected) return;
-      domView.mount(modal.querySelector('[data-pf-inbox]'), domView.fragment([domView.element("p", [{
-        "role": "alert"
-      }], [text('loadFailed')], false), button('retry', 'retry')]));
-      modal.querySelector('[data-pf="retry"]').onclick = inbox;
-    }
+    const request=++inboxRequest;
+    const result=await api('product_feedback_inbox',filters);
+    if(request!==inboxRequest)return;
+    inboxData={...result,themes:result.themes||[]};
+    renderInbox();
   }
   function renderInbox() {
     const d = inboxData;
@@ -398,9 +383,9 @@ export function productFeedbackUi({state, api, esc, icon, openModal, closeModal,
       "class": "button"
     }, {
       "type": "submit"
-    }], [text('filter')], false)], false), domView.element("p", [{
+    }], [text('filter')], false)], false), d.counts?domView.element("p", [{
       "class": "pf-counts"
-    }], [t('counts', d.counts)], false), d.themes.length ? domView.element("details", [{
+    }], [t('counts', d.counts)], false):'',  d.themes.length ? domView.element("details", [{
       "class": "pf-themes"
     }], [domView.element("summary", [], [text('themes')], false), domView.join(d.themes.map(theme => domView.element("button", [{
       "type": "button"
@@ -437,7 +422,7 @@ export function productFeedbackUi({state, api, esc, icon, openModal, closeModal,
         ...Object.fromEntries(new FormData(event.target)),
         offset: 0
       };
-      inbox();
+      if(navigate)navigate('product-feedback-inbox',filters);else inbox();
     };
     modal.querySelectorAll('[data-pf-report]').forEach(el => el.onclick = () => review(d.items.find(item => item.id === el.dataset.pfReport)));
     modal.querySelectorAll('[data-pf-theme]').forEach(el => el.onclick = () => {
@@ -576,7 +561,26 @@ export function productFeedbackUi({state, api, esc, icon, openModal, closeModal,
       }
     };
   }
+  function destination(props) {
+    const data=Object.fromEntries(Object.entries(filters).map(([key,value])=>[key,String(value)]));
+    if(props['data-pf-report'])return {action:'feedback-report',data:{...data,id:String(props['data-pf-report'])}};
+    if(props['data-pf-theme']!=null)return {action:'product-feedback-inbox',data:{...data,theme:String(props['data-pf-theme']),offset:'0'}};
+    const action=props['data-pf'];
+    if(['previous','nextPage','backInbox'].includes(action))return {action:'product-feedback-inbox',data:{...data,offset:String(action==='previous'?Math.max(0,filters.offset-50):action==='nextPage'?Number(filters.offset)+50:filters.offset)}};
+    return null;
+  }
+  async function restoreDestination(action,data={}) {
+    filters={...filters,...Object.fromEntries(Object.keys(filters).filter(k=>data[k]!=null).map(k=>[k,data[k]])),offset:Math.max(0,Number(data.offset)||0)};
+    if(action==='feedback-report') {
+      let item=inboxData?.items?.find(item=>item.id===data.id);
+      if(!item){const result=await api('product_feedback_inbox',{...filters,id:data.id});inboxData={...result,themes:result.themes||[]};item=result.items.find(item=>item.id===data.id);}
+      if(!item)throw new Error('This feedback report is no longer available.');
+      review(item);
+    } else await inbox();
+  }
   return {
+    destination,
+    restoreDestination,
     open,
     inbox,
     navigation,

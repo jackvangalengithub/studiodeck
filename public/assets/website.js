@@ -3,7 +3,7 @@ import * as domView from "./render.js";
 import {platformUrl} from './platform/files.js';
 import {studioBusiness, studioTypes} from './studio-business.js';
 import {getLanguage} from './i18n.js';
-export function websiteUi({state, api, esc, button, openModal, closeModal, render, toast, resourceHeaders}) {
+export function websiteUi({state, onNavigate = () => {}, api, esc, button, openModal, closeModal, render, toast, resourceHeaders}) {
   let data = null, studio = '', tab = 'chat', dirty = false, busy = false, message = '', source = null, portrait = '', pendingPrompt = '', galleryOpen = false, previewTemplate = '', sourceFile = 'index.html', previewChannel = '', previewReport = null, device = 'desktop', chatDraft = '', codeView = null, codeFilename = '', codeStates = {}, projectQuotes = null, businessFilter = '', styleFilter = 'all', publishTab = 'publish', publishChecks = null, materialsTab = 'projects', selectedPage = 'home', editScope = 'page', sourceScope = 'page';
   const freeze = value => document.querySelectorAll('.workspace,.website-workspace,.website-studio,.modal').forEach(el => {
     el.inert = value;
@@ -157,6 +157,7 @@ export function websiteUi({state, api, esc, button, openModal, closeModal, rende
     selectedPage = id;
     sourceScope = 'page';
     sourceFile = pageFile(id);
+    onNavigate('website-open-page',{id,pageId:id,sourceScope,sourceFile});
     render();
     const frame = document.querySelector('.website-preview iframe');
     if (frame && fragment) frame.src = safeUrl(frame.src + domView.concat('#', encodeURIComponent(fragment)), 'src');
@@ -758,8 +759,8 @@ export function websiteUi({state, api, esc, button, openModal, closeModal, rende
       "class": "website-material-actions"
     }], [domView.fragment([btn('Edit', 'edit-project', 'small', domView.attributes([{
       "data-id": p.id
-    }])), btn(data.draft.pages.some(page => page.project === p.id) ? 'Open project page' : 'Create project page', 'project-page', 'small ghost', domView.attributes([{
-      "data-id": p.id
+    }])), btn(data.draft.pages.some(page => page.project === p.id) ? 'Open project page' : 'Create project page', data.draft.pages.some(page=>page.project===p.id)?'open-page':'project-page', 'small ghost', domView.attributes([{
+      "data-id": data.draft.pages.find(page=>page.project===p.id)?.id||p.id
     }, domView.spread(p.included ? '' : domView.attributes([{
       "disabled": domView.text([])
     }]))])), btn(p.included ? 'Hide' : 'Include', 'toggle-project', 'small ghost', domView.attributes([{
@@ -1335,6 +1336,7 @@ export function websiteUi({state, api, esc, button, openModal, closeModal, rende
         galleryOpen = false;
         renderGallery();
       }
+      if (['filter-style','gallery-back','example'].includes(act))galleryOpen=true;
       if (act === 'filter-style') {
         styleFilter = el.dataset.style;
         renderGallery();
@@ -1749,6 +1751,15 @@ export function websiteUi({state, api, esc, button, openModal, closeModal, rende
     }
   });
   return {
+    routeState:()=>({pageId:selectedPage,sourceScope,sourceFile,galleryStyle:styleFilter}),
+    async restoreRouteState(selection) {
+      if(!data||studio!==state.studio.id)await load();
+      if(selection.pageId && !enabledPages().some(p=>p.id===selection.pageId))throw new Error('This website page is no longer available.');
+      if(selection.pageId)selectedPage=selection.pageId;
+      sourceScope=selection.sourceScope==='shared'?'shared':'page';
+      styleFilter=selection.galleryStyle||'all';
+      if(selection.sourceFile && editableFiles().includes(selection.sourceFile))sourceFile=selection.sourceFile;
+    },
     page,
     load,
     action,

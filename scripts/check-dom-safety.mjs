@@ -1,3 +1,4 @@
+import {checkNoEval, checkNoEvalPolicy} from './check-no-eval.mjs';
 import {parse} from 'acorn';
 import {createHash} from 'node:crypto';
 import {ancestor} from 'acorn-walk';
@@ -17,7 +18,7 @@ export function constant(node){
 const name=n=>n?.type==='MemberExpression'?(n.computed?constant(n.property):n.property.name):undefined;
 const validated=n=>n?.type==='CallExpression'&&n.callee.type==='Identifier'&&n.callee.name==='safeUrl';
 export function checkJavaScript(source,file='input.js'){
- const errors=[],report=(n,message)=>errors.push(`${file}:${n.loc.start.line}: ${message}`);
+ const errors=checkNoEval(source,file),report=(n,message)=>errors.push(`${file}:${n.loc.start.line}: ${message}`);
  let ast;try{ast=parse(source,{ecmaVersion:'latest',sourceType:'module',locations:true});}catch(e){return [`${file}: ${e.message}`];}
  const boundary=file.replaceAll('\\','/')==='public/assets/dom.js';
  ancestor(ast,{
@@ -48,6 +49,7 @@ export function checkHTML(source,file){
  function visit(n){
   const attrs=Object.fromEntries((n.attrs||[]).map(a=>[a.name,a.value]));
   const fail=m=>errors.push(`${file}:${n.sourceCodeLocation?.startLine||1}: ${m}`);
+  if(n.tagName==='meta'&&attrs['http-equiv']?.toLowerCase()==='content-security-policy')for(const error of checkNoEvalPolicy(attrs.content||''))fail(error);
   if(n.tagName==='script'&&!attrs.src&&attrs.type!=='application/json')fail('Inline executable scripts are forbidden.');
   for(const [key,value]of Object.entries(attrs))if(/^on/i.test(key)||key==='srcdoc'||urlProps.has(key)&&/^\s*(?:javascript|vbscript):/i.test(value))fail(`Forbidden active HTML attribute ${key}.`);
   for(const child of n.childNodes||[])visit(child);if(n.content)visit(n.content);
@@ -60,6 +62,7 @@ export async function checkTree(root){
   if(!/\.(?:js|html)$/.test(file))continue;
   const source=await readFile(resolve(root,file),'utf8');count++;
   if(Object.hasOwn(vendors,file)){
+   errors.push(...checkNoEval(source,`public/${file}`));
    if(createHash('sha256').update(source).digest('hex')!==vendors[file])errors.push(`public/${file}: Vendor changed; review DOM behavior and renew the integrity entry.`);
    continue;
   }

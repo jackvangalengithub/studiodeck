@@ -3,16 +3,16 @@ html:has(body.presentation-reading),body.presenting.presentation-reading{overflo
 body.presenting.presentation-reading.photo-lightbox-open{overflow:hidden}
 .presentation.presentation-scroll{height:auto;min-height:100dvh;overflow:visible;display:block;color:var(--ink);--scroll-header-height:112px}
 .presentation-mode-switch{display:inline-flex;align-items:center;border:1px solid var(--line);padding:3px;border-radius:7px;gap:2px;flex-shrink:0;width:max-content}
-.presentation-mode-switch button{padding:7px 15px;border-radius:7px;font-size:12px;line-height:1.4;color:var(--muted);min-height:34px}
-.presentation-mode-switch button[aria-pressed=true]{background:var(--ink);color:var(--deck-bg,var(--bg))}
-.presentation-mode-switch button:focus-visible,.presentation-scroll :is(button,a,select):focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.presentation-mode-switch :is(button,a):where(button,[data-navigation]){padding:7px 15px;border-radius:7px;font-size:12px;line-height:1.4;color:var(--muted);min-height:34px}
+.presentation-mode-switch :is(button,a):where(button,[data-navigation])[aria-pressed=true]{background:var(--ink);color:var(--deck-bg,var(--bg))}
+.presentation-mode-switch :is(button,a):where(button,[data-navigation]):focus-visible,.presentation-scroll :is(:is(button,a):where(button,[data-navigation]),a,select):focus-visible{outline:2px solid var(--green);outline-offset:3px}
 .scroll-header{position:sticky;top:0;z-index:30;background:var(--deck-bg,var(--bg));border-bottom:1px solid var(--line)}
 .scroll-header-top{max-width:1600px;margin:auto;padding:14px 4vw;display:flex;align-items:center;gap:24px;min-width:0}
 .scroll-brand{flex-shrink:0}.scroll-brand .brand{font-size:25px}.scroll-brand .presentation-logo{max-height:38px;max-width:150px}
 .scroll-project-name{font-size:12px;letter-spacing:.04em;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--muted)}
 .scroll-header-actions{display:flex;align-items:center;gap:8px}
 .scroll-chapters.section-index{display:flex;justify-content:safe center;gap:6px;overflow-x:auto;padding:6px 4vw 12px;scrollbar-width:thin}
-.scroll-chapters>button{flex-shrink:0}
+.scroll-chapters>:is(button,a):where(button,[data-navigation]){flex-shrink:0}
 .scroll-progress{height:2px;position:absolute;bottom:-1px;left:0;right:0;pointer-events:none}.scroll-progress span{display:block;height:100%;background:var(--green);transform:scaleX(0);transform-origin:left}
 .scroll-story{max-width:1600px;margin:auto;outline:none}
 .scroll-section{padding:clamp(40px,6vw,96px) clamp(22px,7vw,112px) 0;scroll-margin-top:calc(var(--scroll-header-height) + 24px);outline:none;min-width:0}
