@@ -1,3 +1,4 @@
+import {e} from './dom.js';
 import {createDataLayer,sendBatch,viewResources} from './data-layer.js';
 import {platform} from './platform/client.js';
 import {platformFetch,platformUrl,uploadPlatformFiles,uploadDecoration} from './platform/files.js';
@@ -691,7 +692,21 @@ function showClientPresentationHelp(){
  };
  showStep(1);
 }
-function openModal(title,content,wide=false){motionUi.close();clientPresentationHelpCleanup?.();if(!activeModal)previousFocus=document.activeElement;activeModal=true;$('#overlay').innerHTML=`<div class="modal-backdrop"><section class="modal ${wide?'wide':''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-header"><h2 id="modal-title">${title}</h2>${iconBtn('close','close-modal',tr('close_dialog'))}</div>${content}</section></div>`;document.body.style.overflow='hidden';setTimeout(()=>$('.modal input:not([type="hidden"]),.modal textarea,.modal button')?.focus(),20);}
+function openModal(title,content,wide=false){
+ motionUi.close();clientPresentationHelpCleanup?.();if(!activeModal)previousFocus=document.activeElement;activeModal=true;
+ const close=e('button',{type:'button',className:'icon-button','data-action':'close-modal','aria-label':tr('close_dialog'),title:tr('close_dialog')});
+ // This icon is application-owned SVG; user content never enters this sink.
+ close.innerHTML=icon('close');
+ const dialog=e('section',{className:`modal ${wide?'wide':''}`,role:'dialog','aria-modal':'true','aria-labelledby':'modal-title'},[
+  e('div',{className:'modal-header'},[e('h2',{id:'modal-title'},String(title??'')),close])
+ ]);
+ // Transitional boundary: existing callers still supply escaped HTML bodies.
+ // New callers can pass DOM nodes; the title is always plain text.
+ if(typeof content==='string'){const body=document.createElement('template');body.innerHTML=content;dialog.append(body.content);}
+ else if(content!=null)dialog.append(content);
+ $('#overlay').replaceChildren(e('div',{className:'modal-backdrop'},dialog));
+ document.body.style.overflow='hidden';setTimeout(()=>$('.modal input:not([type="hidden"]),.modal textarea,.modal button')?.focus(),20);
+}
 function closeModal(force=false){if(productFeedback.busy()||newProjectWizard?.busy||(!force&&uploader.busy()))return;motionUi.close();clientPresentationHelpCleanup?.();newProjectWizard=null;if(state.settingsOpen){state.settingsOpen=false;syncWorkspaceUrl(true);}activeModal=false;$('#overlay').innerHTML='';document.body.style.overflow='';previousFocus?.focus();}
 function formFooter(label=tr("save"),iconName='check'){return `<div class="modal-footer">${button(tr("cancel"),'close-modal','ghost')}<button class="button primary" type="submit">${icon(iconName)}${esc(label)}</button></div>`;}
 function requireDraft(){if(state.data?.can_edit===false){toast(tr("studio_only_project_team_members_can_edit_this_project"));return false;}if(!editable()){iterationModal();return false;}return true;}
@@ -748,7 +763,7 @@ function filePreviewButton(file){const kind=filePreviewKind(file);return kind?ic
 async function previewFile(id){
  const file=downloadFile(id),kind=filePreviewKind(file);if(!kind)return;
  const label=kind==='csv'?'CSV':tr('image_lowercase');
- openModal(esc(file.name),`<div data-file-preview role="status"><p class="notice">${tr('loading_preview',{type:label})}</p></div><div class="modal-footer">${button(tr("download_original"),'download','primary',`data-id="${esc(id)}"`,'download')}</div>`,true);
+ openModal(file.name,`<div data-file-preview role="status"><p class="notice">${tr('loading_preview',{type:label})}</p></div><div class="modal-footer">${button(tr("download_original"),'download','primary',`data-id="${esc(id)}"`,'download')}</div>`,true);
  $('.modal').classList.add('file-preview-dialog',kind+'-preview-dialog');
  const target=$('[data-file-preview]'),params=new URLSearchParams({action:'file',id,iteration:state.data.iteration.id});
  if(kind==='image')params.set('size','large');
@@ -782,7 +797,7 @@ function originalsModal(){
 function historyModal(id){const f=state.data.files.find(x=>x.id===id);if(!f)return;openModal(tr("every_version_kept_safe"),`<p>${esc(f.name)}</p>${f.history.map((v,n)=>`<div class="history-item file-history-item">${fileTypeLogo(v)}<div class="download-file-copy">${tr("version")} ${v.number} ${n===0?`<span class="tag green">${tr("in_this_iteration")}</span>`:''}<small>${esc(v.enhancement_summary||v.name)}${n===f.history.length-1?' · '+tr('original_upload'):''}</small></div>${filePreviewButton(v)}${button(tr("download"),'download','small',`data-id="${esc(v.id)}"`,'download')}</div>`).join('')}${f.metadata?.generated?`<p class="budget-note">${tr("ai_change")} ${esc(f.metadata.prompt)}</p>`:''}`);}
 function budgetModal(id=''){
     const item=state.data.budget.find(x=>x.id===id);if(id&&!item)return;if(item&&communication.budgetSource(item))return;if(!id){editCostModal({});return;}
-    openModal(esc(item.label),`<p>${esc(item.vendor||tr("vendor_to_be_confirmed"))}</p><div class="budget-total">${budgetAmount(item)===null?tr("to_be_specified"):money(budgetAmount(item))}</div>${budgetIsRange(item)?`<p>${tr("source_range")} ${money(item.min_amount_cents)} – ${money(item.max_amount_cents)} · ${tr('towards_luxury',{percent:item.range_percent||0})}</p>`:''}<div class="row wrap"><span class="tag">${esc(['estimate','quote','unknown'].includes(item.kind)?tr(item.kind):item.kind)}</span>${Number(item.is_optional)?`<span class="tag">${tr("optional")} · ${item.selected?tr("selected"):tr("not_selected")}</span>`:''}${Number(item.included)?`<span class="tag">${tr("already_included_in_parent")}</span>`:''}</div><p>${esc(item.note||tr("no_additional_source_notes_have_been_recorded"))}</p>${item.relationship_evidence?`<details class="subquote-review"><summary>${item.relationship_origin==='auto'?tr("automatically_linked_source_evidence"):tr("quote_relationship_source_evidence")}</summary><p class="subquote-evidence">${esc(item.relationship_evidence)}</p>${editable()&&!state.present&&item.relationship_origin==='auto'?button(tr("undo_automatic_link"),'unlink-subquote','small',`data-id="${esc(item.id)}"`):''}</details>`:''}<div class="modal-footer">${item.source_version_id?button(fileTypeLogo(downloadFile(item.source_version_id))+tr("source_quote"),'download','',`data-id="${esc(item.source_version_id)}"`,'download'):''}${editable()&&!state.present?button(tr("edit_cost"),'edit-cost','primary',`data-id="${esc(item.id)}"`,'edit'):state.present?button(tr("ask_a_question_"),'feedback','primary','','chat'):''}</div>`);
+    openModal(item.label,`<p>${esc(item.vendor||tr("vendor_to_be_confirmed"))}</p><div class="budget-total">${budgetAmount(item)===null?tr("to_be_specified"):money(budgetAmount(item))}</div>${budgetIsRange(item)?`<p>${tr("source_range")} ${money(item.min_amount_cents)} – ${money(item.max_amount_cents)} · ${tr('towards_luxury',{percent:item.range_percent||0})}</p>`:''}<div class="row wrap"><span class="tag">${esc(['estimate','quote','unknown'].includes(item.kind)?tr(item.kind):item.kind)}</span>${Number(item.is_optional)?`<span class="tag">${tr("optional")} · ${item.selected?tr("selected"):tr("not_selected")}</span>`:''}${Number(item.included)?`<span class="tag">${tr("already_included_in_parent")}</span>`:''}</div><p>${esc(item.note||tr("no_additional_source_notes_have_been_recorded"))}</p>${item.relationship_evidence?`<details class="subquote-review"><summary>${item.relationship_origin==='auto'?tr("automatically_linked_source_evidence"):tr("quote_relationship_source_evidence")}</summary><p class="subquote-evidence">${esc(item.relationship_evidence)}</p>${editable()&&!state.present&&item.relationship_origin==='auto'?button(tr("undo_automatic_link"),'unlink-subquote','small',`data-id="${esc(item.id)}"`):''}</details>`:''}<div class="modal-footer">${item.source_version_id?button(fileTypeLogo(downloadFile(item.source_version_id))+tr("source_quote"),'download','',`data-id="${esc(item.source_version_id)}"`,'download'):''}${editable()&&!state.present?button(tr("edit_cost"),'edit-cost','primary',`data-id="${esc(item.id)}"`,'edit'):state.present?button(tr("ask_a_question_"),'feedback','primary','','chat'):''}</div>`);
 }
 function editCostModal(item){
     if(item.confirmation){communication.budgetSource(item);return;}

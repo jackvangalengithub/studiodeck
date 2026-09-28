@@ -212,3 +212,16 @@ test('floorplan zoom upgrades the large preview to original bytes without anothe
  assert.equal(original.pathname,preview.pathname);assert.equal(original.searchParams.has('size'),false);
  assert.equal(wireBatches.length,batches);
 });
+
+test('extracted filenames remain plain text in shared modal titles',async t=>{
+ const {page,tables}=await fixture(t,{withImages:true});
+ const filename='<svg onload="window.__filenameXss=1"></svg> & "design".pdf';
+ tables.file_versions.find(f=>f.id==='version4').name=filename;
+ await page.goto(baseURL+'/200/projects/p1?tab=files');
+ await page.locator('[data-action="toggle-extracted"][data-id="version4"]').click();
+ await page.locator('[data-action="preview-extracted"][data-id="version4:1:page:0"]').first().click();
+ const title=page.locator('#modal-title');await title.waitFor();
+ assert.equal(await title.textContent(),filename.replace(/\.[^.]+$/,'')+'-page-001.jpg');
+ assert.equal(await title.locator('svg,img,script').count(),0,'filename must not create HTML nodes');
+ assert.equal(await page.evaluate(()=>window.__filenameXss),undefined,'filename must not run code');
+});

@@ -15,13 +15,13 @@ export function productFeedbackUi({state,api,esc,icon,openModal,closeModal,resou
  }
  function reset(){if(preview)URL.revokeObjectURL(preview);preview='';draft=null;}
  function open(){
-  if(demo){openModal(text('title'),`<p>${text('demo')}</p>`);return;}
+  if(demo){openModal(t('title'),`<p>${text('demo')}</p>`);return;}
   if(identity!==currentIdentity()){reset();identity=currentIdentity();}
   if(!draft)draft={step:1,category:'',area:screen(),screen:screen(),goal:'',detail:'',impact:'',frequency:'',contact_allowed:false,screenshot:null,request_key:crypto.randomUUID()};
   show();
  }
  function mount(title,content,wide=false){
-  openModal(esc(title),content,wide);
+  openModal(title,content,wide);
   const modal=document.querySelector('.modal');modal.classList.add(wide?'pf-inbox-dialog':'pf-dialog');
   return modal;
  }
