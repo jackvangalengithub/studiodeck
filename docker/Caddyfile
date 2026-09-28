@@ -20,7 +20,7 @@
             respond `{"error":"This feature needs platform integration."}` 501
         }
 
-        @platform path /api/1.0/* /whoami /auth/config /authenticate /authenticate/* /webauthn/* /sso/* /google/* /microsoft/* /apple/* /oauth/* /login /logout /administrations /administrations/* /approval/* /wizard/* /avatars/*
+        @platform path /api/1.0/* /whoami /auth/config /authenticate /authenticate/* /magiclink/* /webauthn/* /sso/* /google/* /microsoft/* /apple/* /oauth/* /login /logout /administrations /administrations/* /approval/* /wizard/* /avatars/*
         reverse_proxy @platform {$PLATFORM_UPSTREAM:http://host.docker.internal:8101} {
             header_up Host {http.request.hostport}
         }

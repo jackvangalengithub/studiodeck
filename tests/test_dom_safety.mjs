@@ -26,7 +26,7 @@ test('HTML guard rejects inline handlers and executable scripts',()=>{
 });
 test('all shipped source passes and every shell carries the enforced browser policy',async()=>{
  assert.deepEqual((await checkTree(new URL('../public',import.meta.url).pathname)).errors,[]);
- for(const file of ['public/index.html','public/conversation.html','public/mock/index.html','public/auth/login.html'])assert.ok((await readFile(file,'utf8')).includes(`content="${browserPolicy}"`),file);
+ for(const file of ['public/index.html','public/conversation.html','public/mock/index.html'])assert.ok((await readFile(file,'utf8')).includes(`content="${browserPolicy}"`),file);
  const caddy=await readFile('docker/Caddyfile','utf8');assert.ok(caddy.includes(`header Content-Security-Policy "${browserPolicy}"`));
  assert.ok((await readFile('Dockerfile','utf8')).includes('RUN npm test'));
 });

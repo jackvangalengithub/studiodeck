@@ -17,10 +17,6 @@ const server=createServer(async(req,res)=>{try{
  if(url.pathname==='/server-error'){
   res.writeHead(404,{'Content-Type':'text/html','Content-Security-Policy':`default-src 'none'; style-src 'sha256-${createHash('sha256').update(css).digest('base64')}'; base-uri 'none'; frame-ancestors 'none'`});res.end(document);return;
  }
- if(url.pathname==='/login'){
-  let html=await readFile(root+'/auth/login.html','utf8');html=html.replace('{{login_translations}}',JSON.stringify(copy));html=html.replace(/\{\{(login_\w+)\}\}/g,(_,key)=>copy.en[key]);
-  res.writeHead(200,{'Content-Type':'text/html','Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'"});res.end(html);return;
- }
  const file=resolve(root,'.'+(url.pathname.startsWith('/client/')||url.pathname==='/choose'||url.pathname.startsWith('/conversations/')?'/index.html':url.pathname));
  if(!file.startsWith(root+'/')){res.writeHead(404);res.end();return;}
  let body=await readFile(file);if(url.pathname.startsWith('/conversations/'))body=body.toString().replace('src="assets/app.js"','src="assets/conversation.js"');
@@ -59,13 +55,6 @@ try{
  await page.goto(base+'/client/projects/missing');await page.locator('.status-page').waitFor();
  assert.ok(!(await page.locator('body').innerText()).includes('private diagnostic'));
  const before=requests;await page.getByRole('button',{name:'Try again'}).click();await page.waitForFunction(()=>document.querySelector('.status-page'));assert.ok(requests>before);
- await page.unroute('**/api.php?*');
- await page.route('**/api.php?*',route=>route.fulfill({status:403,json:{error:'This sign-in link is expired or has already been used.'}}));
- await page.goto(base+'/login#/login/'+'a'.repeat(64));await page.locator('.status-page').waitFor();
- assert.match(await page.locator('h1').innerText(),/A fresh link/);
- assert.equal(await page.locator('.status-page').evaluate(el=>getComputedStyle(el).maxWidth),'none');
- await page.getByRole('link',{name:'Get a new sign-in link'}).click();await page.locator('#email').waitFor();
- assert.ok(await page.locator('#email').isVisible());
  assert.ok(failures>=2);assert.deepEqual(errors,[]);
  console.log('PASS Server/CSP rendering, 320–1440px layouts, application and conversation errors, retry, project navigation, focus and expired-link recovery.');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

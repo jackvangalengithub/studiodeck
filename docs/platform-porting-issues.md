@@ -175,8 +175,11 @@ an authorization boundary. These rules must also hold for hand-written API calls
 - Website rendering/preview, publication artifacts/releases, restore/export and
   per-tenant domains/TLS. Website draft tables already support CRUD; the current
   editor is unavailable because its rendering/publishing contract is not ported.
-- Invitations and legacy magic-link/password-reset behavior. Use existing platform
-  login methods; passkey registration routes are present in the OpenAPI.
+- Invitations and legacy password-reset behavior. Use existing platform login
+  methods; passkey registration routes are present in the OpenAPI. Emailed
+  sign-in links are now a platform login method (`/magiclink/*`, enabled via
+  `auth_methods.magiclink`); they sign in existing accounts only and do not
+  create accounts or share grants.
 - Project ZIP/PDF rendering, document page generation and stored-file deletion.
   Raster thumbnails now exist in shared framework storage (see below).
 

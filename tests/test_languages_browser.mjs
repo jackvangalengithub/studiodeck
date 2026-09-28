@@ -9,12 +9,11 @@ import {demoRequest} from '../public/assets/demo.js';
 const require=createRequire(import.meta.url);
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=fileURLToPath(new URL('../public/',import.meta.url));
-const loginCopy={};for(const language of ['en','nl']){const php=await readFile(new URL('../app/languages/'+language+'.php',import.meta.url),'utf8');loginCopy[language]=Object.fromEntries(Object.entries(JSON.parse(php.split("<<<'JSON'\n")[1].split('\nJSON,')[0])).filter(([key])=>key.startsWith('login_')));}
 const server=createServer(async(req,res)=>{try{
- const path=new URL(req.url,'http://localhost').pathname,file=path.startsWith('/assets/')||path.startsWith('/auth/')?resolve(root,'.'+path):resolve(root,path==='/login'?'auth/login.html':'index.html');
+ const path=new URL(req.url,'http://localhost').pathname,file=path.startsWith('/assets/')||path.startsWith('/auth/')?resolve(root,'.'+path):resolve(root,'index.html');
  if(!file.startsWith(root))throw Error();
  res.setHeader('Content-Type',({'.js':'text/javascript','.html':'text/html','.css':'text/css','.svg':'image/svg+xml','.webp':'image/webp'})[extname(file)]||'application/octet-stream');
- if(path==='/login'){let html=await readFile(file,'utf8');html=html.replace('{{login_translations}}',JSON.stringify(loginCopy));html=html.replace(/\{\{(login_\w+)\}\}/g,(_,key)=>loginCopy.en[key]);res.end(html);}else res.end(await readFile(file));
+ res.end(await readFile(file));
 }catch{res.writeHead(404);res.end();}});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const base=`http://127.0.0.1:${server.address().port}`;
@@ -50,8 +49,6 @@ try{
   if(!(action in replies)){errors.push('Unexpected API request: '+action);await route.fulfill({status:500,json:{error:action}});return;}
   await route.fulfill({json:replies[action]});
  });
- await page.goto(base+'/login');assert.equal(await page.locator('select').count(),0);assert.equal(await page.locator('h1').innerText(),'Welcome to Studiodeck.');
- await page.evaluate(()=>localStorage.setItem('studiodeck.loginLanguage','nl'));await page.reload();assert.equal(await page.locator('h1').innerText(),'Welkom bij Studiodeck.');
  const clientUrl=`${base}/client/projects/van-galen`;
  await page.goto(clientUrl);await page.locator('.presentation').waitFor();
  assert.equal(await page.locator('html').getAttribute('lang'),'nl');
