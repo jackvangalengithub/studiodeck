@@ -24,6 +24,7 @@ export function installOperations(c){
     complete_studio_setup:async b=>{const data={...pick(b,['name','language','business_type']),setup_completed_at:now()};if(c.studioRecord)await write('studios',data,c.studioRecord.id);else await write('studios',{...data,created_at:now(),theme:{}});return c.bootstrap(c.tenant,{refresh:true});},
     studio_theme:async b=>{if(!c.studioRecord)throw Error('Complete studio setup first.');let theme=b.theme||{};if(typeof theme==='string')theme=JSON.parse(theme);await write('studios',{theme,...pick(b,['name','language'])},c.studioRecord.id);c.session=null;return {studio_theme:theme};},
     projects:async b=>{
+      if(!c.studioRecord)return {projects:[],studio_empty:true};
       const spec=(id,table,filter,fields,extra={})=>c.querySpec(id,table,filter,fields,{nperpage:1000,...extra});
       const search=text(b.search,500);
       const d=await c.graph([
@@ -41,6 +42,7 @@ export function installOperations(c){
       return {projects:d.projects.map(p=>{const iteration=d.iterations.find(i=>i.project_id===p.id),cover=iteration&&c.media.cover(iteration.id,d.slides,d.links,d.covers.find(r=>r.iteration_id===iteration.id)?.slide_id);c.media.covers.set(p.id,cover?.fileId||null);return {...p,iteration_id:iteration?.id,iteration,iteration_number:iteration?.number||0,status:iteration?.status||'draft',pinned:d.pins.some(r=>r.project_id===p.id),members:d.members.filter(r=>r.project_id===p.id).map(r=>({id:r.user_id,name:r.user_id===c.identity.user_id?c.session.user.name:'Project member'})),has_cover:!!cover,cover_key:cover?.fileId||'',cover_url:cover?.url||'',processing:false,can_edit:!!p._platform?.writablefields?.length};}),studio_empty:!search&&!bool(b.archived)&&d.projects.length===0};
     },
     studio_users:async b=>{
+      if(!c.studioRecord)return {users:[],total:0};
       const search=String(b.search||'').trim(),scope=eq('studio_id',c.studioRecord?.id??null);
       const specs=[c.querySpec('members','studio_members',scope,['user_id','role','display_name','phone'])];
       if(search)specs.push(c.querySpec('names','studio_members',and(scope,contains(['display_name'],search)),['user_id']));

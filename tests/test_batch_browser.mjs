@@ -8,9 +8,9 @@ const baseURL=process.env.STUDIODECK_TEST_URL||'http://localhost:8199';
 let browser;
 before(async()=>{browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH});});
 after(async()=>browser?.close());
-async function fixture(t,{withImages=false}={}){
+async function fixture(t,{withImages=false,newWorkspace=false}={}){
  const page=await browser.newPage(),errors=[],requests=[],batches=[];page.setDefaultTimeout(7000);page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')console.log(m.text());});t.after(async()=>{if(await page.locator('.status-page').count())console.log('STATUS',await page.locator('.status-page').innerText());await page.close();assert.deepEqual(errors,[]);});
- const controls={batchGate:null,imageGate:null,failNext:false},wireBatches=[];
+ const controls={batchGate:null,imageGate:null,failNext:false},wireBatches=[],newTables={};
  const studioId='85c6b0cc-eb61-3adb-3b2c-8e0db4f63d25';
  const tables={users:[{id:'u1',name:'Jack',email:'jack@example.com'}],studios:[{id:'s0',name:'Other Studio'},{id:studioId,name:'Test Studio',theme:{},language:'en',setup_completed_at:'2026-01-01'}],projects:[{id:'p0',studio_id:'s0',name:'Other project',archived:false},{id:'p1',studio_id:studioId,name:'Garden project',archived:false,theme:{},visibility:'team',created_at:'2026-01-01'}],iterations:[{id:'i1',project_id:'p1',number:1,title:'First concept',status:'draft',locked:false,theme:{}}],project_members:[{id:'m1',project_id:'p1',user_id:'u1'}]};
  if(withImages){
@@ -25,24 +25,25 @@ async function fixture(t,{withImages=false}={}){
  }
  await page.context().route('**/*',async route=>{
   const req=route.request(),url=new URL(req.url());requests.push(url.pathname);
-  if(url.pathname==='/whoami')return route.fulfill({json:{user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Test Studio'}],profiles:['studioadmin']}});
+  if(url.pathname==='/whoami')return route.fulfill({json:{user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Test Studio'},...(newWorkspace?[{id:201,companyname:'New Studio'}]:[])],profiles:['studioadmin'],profiles_by_tenant:{200:['studioadmin'],201:['studioadmin']}}});
   if(url.pathname.startsWith('/200/userfiles/')){if(controls.imageGate)await controls.imageGate;return route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><rect width="20" height="20" fill="green"/></svg>'});}
   if(url.pathname.endsWith('/batch')){
+   const tableData=url.pathname.includes('/201/')?newTables:tables;
    wireBatches.push(req.postDataJSON());
    if(controls.batchGate)await controls.batchGate;
    if(controls.failNext){controls.failNext=false;return route.fulfill({status:503,json:{message:'Temporarily unavailable'}});}
-   const wire=req.postDataJSON().flat(),outer=wire[0],complete=outer?.relative_url==='200/projects:readView',calls=complete?JSON.parse(outer.body).queries.map(q=>({...q,requestingId:q.id,method:'QUERY',relative_url:'200/'+q.resource,body:JSON.stringify(q.params)})):wire,outputs={},results=[];batches.push(calls);
+   const wire=req.postDataJSON().flat(),outer=wire[0],complete=outer?.relative_url?.endsWith('/projects:readView'),calls=complete?JSON.parse(outer.body).queries.map(q=>({...q,requestingId:q.id,method:'QUERY',relative_url:outer.relative_url.split('/')[0]+'/'+q.resource,body:JSON.stringify(q.params)})):wire,outputs={},results=[];batches.push(calls);
    const subst=v=>{if(Array.isArray(v))return v.map(subst);if(typeof v!=='string')return v;const m=v.match(/^\{\{(\w+)\.entities\[(\d*)\]\.(\w+)\}\}$/);return m?(m[2]===''?(outputs[m[1]]||[]).map(r=>r[m[3]]).filter(x=>x!=null):outputs[m[1]]?.[+m[2]]?.[m[3]]):v;};
    const matches=matchesFilter;
    for(const call of calls){const [,table,id]=call.relative_url.split('/'),body=JSON.parse(call.body);if(table==='users:ensureIdentity'){outputs[call.requestingId]=[{id:'u1'}];results.push({responseid:call.id,code:200,body:{entities:[{id:'u1',tablename:'users',data:{id:'u1'}}],other:{id:'u1'}}});continue;}if(!schema[table]){errors.push('Unknown resource '+call.relative_url);results.push({responseid:call.id,code:404,body:{message:'Unknown table'}});continue;}if(call.method==='QUERY'){
      for(const key of body.selectList)if(!schema[table][key])errors.push('Unknown field '+table+'.'+key);
-     const found=(tables[table]||[]).filter(r=>matches(r,subst(body.filter)));outputs[call.requestingId]=found;results.push({responseid:call.id,code:200,body:{entities:found.map(r=>({id:r.id,tablename:table,data:r,writablefields:Object.keys(r)})),other:{nextPage:null}}});
-    }else{if(call.method==='POST')(tables[table]??=[]).push(body);else if(call.method==='PATCH')Object.assign(tables[table].find(r=>r.id===id),body);else tables[table]=(tables[table]||[]).filter(r=>r.id!==id);results.push({responseid:call.id,code:call.method==='DELETE'?204:201,body:{id:body.id||id,errors:[]}});}
+     const found=(tableData[table]||[]).filter(r=>matches(r,subst(body.filter)));outputs[call.requestingId]=found;results.push({responseid:call.id,code:200,body:{entities:found.map(r=>({id:r.id,tablename:table,data:r,writablefields:Object.keys(r)})),other:{nextPage:null}}});
+    }else{if(call.method==='POST')(tableData[table]??=[]).push(body);else if(call.method==='PATCH')Object.assign(tableData[table].find(r=>r.id===id),body);else tableData[table]=(tableData[table]||[]).filter(r=>r.id!==id);results.push({responseid:call.id,code:call.method==='DELETE'?204:201,body:{id:body.id||id,errors:[]}});}
    }return route.fulfill({json:complete?[{responseid:outer.id,code:200,body:{other:{results,...(JSON.parse(outer.body).feed?{feed:{server_filtered:true,total:(outputs.comments||[]).filter(c=>!c.parent_id).length,offset:0,limit:25,view_counts:{open:0,attention:0}}}:{})}}}]:results.reverse()});
   }
   if(url.pathname==='/api.php'){errors.push('Legacy API request');return route.fulfill({status:410,json:{error:'Retired'}});}
   await route.continue();
- });return {page,batches,requests,tables,controls,wireBatches};
+ });return {page,batches,requests,tables,newTables,controls,wireBatches};
 }
 test('workspace and project tabs load from platform tables without inactive-tab reads',async t=>{
  const {page,batches,requests}=await fixture(t);await page.goto(baseURL+'/200/projects/p1');await page.getByRole('heading',{name:'Garden project',exact:true}).first().waitFor();
@@ -298,4 +299,28 @@ test('feedback report URLs reload the selected record and filters stay server-si
  await page.locator('.pf-filters [name="search"]').fill('Example');await page.locator('.pf-filters [type="submit"]').click();
  await page.waitForURL(url=>url.searchParams.get('selection')?.includes('Example'));
  assert.ok(wireBatches.at(-1).flat().some(c=>c.relative_url==='200/product_feedback'&&JSON.stringify(JSON.parse(c.body).filter).includes('ilike')));
+});
+
+test('choosing a new second workspace opens setup before any project reads and completes setup',async t=>{
+ const {page,wireBatches,newTables}=await fixture(t,{newWorkspace:true});
+ await page.goto(baseURL+'/choose');
+ await page.getByText('New Studio',{exact:true}).click();
+ const form=page.locator('[data-studio-setup]');await form.waitFor();
+ assert.equal(await page.locator('.status-page').count(),0);
+ assert.ok(!wireBatches.flat(2).some(c=>c.relative_url==='201/projects:readView'),'setup precedes project reads');
+ await form.locator('[name="language"][value="en"]').check();
+ await form.locator('[type="submit"]').click();
+ await form.locator('[name="name"]').fill('New Studio');
+ await form.locator('[type="submit"]').click();
+ await form.locator('label.setup-type').first().click();
+ assert.equal(await form.locator('[name="business_type"]').first().isChecked(),true);
+ await form.locator('[type="submit"]').click();
+ await page.locator('#welcome-title').waitFor();
+ assert.equal(newTables.studios.length,1);assert.ok(newTables.studios[0].setup_completed_at);
+ const save=wireBatches.flat(2).find(c=>c.relative_url==='201/studios'&&c.method==='POST');
+ assert.equal(JSON.parse(save.body).theme,'{}','setup sends JSON text accepted by the platform converter');
+ assert.equal(await page.locator('[data-studio-setup]').count(),0);
+ await page.reload();await page.locator('#welcome-title').waitFor();
+ const reads=wireBatches.flat(2).filter(c=>c.relative_url==='201/projects:readView');
+ assert.ok(reads.length>0);assert.ok(reads.every(c=>JSON.parse(c.body).studio_id===newTables.studios[0].id));
 });

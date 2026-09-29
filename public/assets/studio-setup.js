@@ -156,7 +156,7 @@ export function studioSetupUi({state, esc, brand, api, applySession, render}) {
         "src": b.image
       }, {
         "alt": domView.text([])
-      }, domView.spread(item.id === 'interior' ? 'fetchpriority="high"' : 'loading="lazy"')], [], false), domView.element("i", [{
+      }, domView.spread(domView.attributes([item.id === 'interior' ? {fetchpriority: 'high'} : {loading: 'lazy'}]))], [], false), domView.element("i", [{
         "aria-hidden": "true"
       }], ["✓"], false)], false), domView.element("span", [{
         "class": "setup-type-copy"

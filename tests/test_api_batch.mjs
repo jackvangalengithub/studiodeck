@@ -22,12 +22,13 @@ test('mutations are not retried and warnings do not become false success',async(
 });
 test('file-free forms become JSON; selected files are kept for dedicated upload handling',()=>{const body=new FormData();body.set('project_id','p');body.set('tags','one, two');assert.deepEqual(jsonFormBody('project_settings',body),{project_id:'p',tags:['one',' two']});body.set('logo',new Blob(['image']),'logo.png');assert.equal(jsonFormBody('project_settings',body),body);});
 
-test('boolean filter literals survive platform string binding without changing mutation bodies',async()=>{
+test('boolean filter literals survive platform string binding while mutation booleans retain their type',async()=>{
  const filter=['AND',['archived','=',false],['OR',['locked','=',true],['selected','IN',[false,true]]],['name','=','false'],['number','=',0],['parent_id','=',null],['project_id','IN','{{projects.entities[].id}}']];
  const calls=[{id:'read',resource:'projects',params:{filter}},{id:'write',resource:'projects/p',method:'PATCH',params:{archived:false,theme:{enabled:true}}}];
  let wire;
  await sendBatch({tenant:'200',calls,fetcher:async(url,options)=>{wire=JSON.parse(options.body).flat();return {ok:true,json:async()=>calls.map(result)};}});
  assert.deepEqual(JSON.parse(wire[0].body).filter,['AND',['archived','=','false'],['OR',['locked','=','true'],['selected','IN',['false','true']]],['name','=','false'],['number','=',0],['parent_id','=',null],['project_id','IN','{{projects.entities[].id}}']]);
- assert.deepEqual(JSON.parse(wire[1].body),calls[1].params);
+ assert.deepEqual(JSON.parse(wire[1].body),{archived:false,theme:JSON.stringify(calls[1].params.theme)});
+ assert.deepEqual(calls[1].params,{archived:false,theme:{enabled:true}});
  assert.equal(filter[1][2],false);
 });

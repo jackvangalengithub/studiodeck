@@ -82,8 +82,11 @@ export class PlatformClient {
     if(tenant&&!chosen)throw new PlatformError('This account cannot access that platform workspace. Old studio URLs must be replaced with platform tenant URLs.',{status:403});
     this.tenant=chosen?String(chosen.id):null;this.files.clear();this.media.clear();this.selected=null;
     const user={id:this.identity.user_id,email:this.identity.email,name:[this.identity.firstname,this.identity.lastname].filter(Boolean).join(' ')};
-    const profiles=this.identity.profiles||[]; // /whoami profiles are for the first tenant only.
-    const role=chosen&&String(chosen.id)===String(tenants[0]?.id)&&profiles.some(p=>['studioadmin','studio_owner','studio_admin'].includes(p))?'admin':'member';
+    const tenantRole=tenant=>{
+      const profiles=this.identity.profiles_by_tenant?.[tenant.id]??(this.identity.profiles_by_tenant?[]:String(tenant.id)===String(tenants[0]?.id)?this.identity.profiles||[]:[]);
+      return profiles.some(p=>['studioadmin','studio_owner','studio_admin'].includes(p))?'admin':'member';
+    };
+    const role=chosen?tenantRole(chosen):'member';
     const mappedStudio=chosen?this.studioMappings[String(chosen.id)]:null;
     let record=null,profile={},preference={},logos=[];
     if(chosen){const data=await this.graph([
@@ -99,7 +102,7 @@ export class PlatformClient {
     }
     profile={...profile,avatar:profile.avatar_file_id?this.fileUrl(profile.avatar_file_id):''};user.profile=profile;this.studioRecord=record;
     const studio=chosen?{...record,id:String(chosen.id),record_id:record?.id,name:record?.name||chosen.companyname,role,setup_completed_at:record?.setup_completed_at??null,has_logo:logos.length>0,logo:logos[0]?this.fileUrl(logos[0].data_file_id):''}:null;
-    this.session={user,studio,studios:tenants.map(t=>({id:String(t.id),name:t.companyname,role:String(t.id)===String(chosen?.id)?role:'member'})),profile,studio_theme:object(preference.theme||record?.theme),csrf:null,unread_count:0,capabilities:{platform:true,batch_reads:true,batch_json:true,communication:true},billing:null};
+    this.session={user,studio,studios:tenants.map(t=>({id:String(t.id),name:t.companyname,role:tenantRole(t)})),profile,studio_theme:object(preference.theme||record?.theme),csrf:null,unread_count:0,capabilities:{platform:true,batch_reads:true,batch_json:true,communication:true},billing:null};
     return structuredClone(this.session);
   }
   fileUrl(id,download=false,size=''){if(size&&!['small','large'].includes(size))throw new Error('Unknown image size');return id&&this.tenant?`/${encodeURIComponent(this.tenant)}/userfiles/${encodeURIComponent(id)}${download?'/download':size?'?size='+size:''}`:'';}

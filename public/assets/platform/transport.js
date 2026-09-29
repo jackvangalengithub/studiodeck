@@ -1,3 +1,4 @@
+import {schema} from './schema.js';
 // Only the platform's data API is used here. UI operation names never go on the wire.
 export class PlatformError extends Error {
   constructor(message,details={}){super(message);Object.assign(this,details);}
@@ -13,8 +14,15 @@ export function assertResult(result){
 export const rows=body=>(body.entities||[]).map(entity=>({...entity.data,id:entity.id??entity.data?.id,_platform:{tablename:entity.tablename,writablefields:entity.writablefields}}));
 // The current platform PDO binder treats non-integers as strings, turning false
 // into an invalid empty PostgreSQL boolean. Normalize filter literals only;
-// mutation fields retain their JSON types for the platform field converters.
+// mutation booleans retain their JSON type for the platform field converters.
 const wireFilter=value=>Array.isArray(value)?value.map(wireFilter):typeof value==='boolean'?String(value):value;
+// Generated JSON column converters currently expect JSON text. Encode only
+// declared object fields on CRUD writes; action payloads keep their native types.
+const wireMutation=(resource,params)=>{
+  const fields=schema[resource.split('/')[0]];
+  if(!fields)return params;
+  return Object.fromEntries(Object.entries(params).map(([key,value])=>[key,fields[key]?.type==='object'&&value!==null&&typeof value==='object'?JSON.stringify(value):value]));
+};
 export async function sendPlatformBatch({studioId,tenant=studioId,calls,fetcher=fetch}){
   if(!tenant||tenant==='account')throw new PlatformError('Select a platform tenant first.',{status:400});
   const ids=new Set(),groups=[],byGroup=new Map();let readGroup=0;
@@ -24,7 +32,7 @@ export async function sendPlatformBatch({studioId,tenant=studioId,calls,fetcher=
     const method=call.method||'QUERY';if(!['QUERY','GET','POST','PATCH','DELETE'].includes(method))throw Error('Invalid platform method.');
     const read=['QUERY','GET'].includes(method);const key=call.group??(read?'reads'+readGroup:call.id);if(!read)readGroup++;
     if(!byGroup.has(key)){const group=[];groups.push(group);byGroup.set(key,group);}
-    byGroup.get(key).push({id:call.id,requestingId:call.id,method,relative_url:`${tenant}/${call.resource}`,body:JSON.stringify(read&&call.params?.filter?{...call.params,filter:wireFilter(call.params.filter)}:call.params||{})});
+    byGroup.get(key).push({id:call.id,requestingId:call.id,method,relative_url:`${tenant}/${call.resource}`,body:JSON.stringify(read&&call.params?.filter?{...call.params,filter:wireFilter(call.params.filter)}:['POST','PATCH'].includes(method)?wireMutation(call.resource,call.params||{}):call.params||{})});
   }
   const response=await fetcher(`/api/1.0/${encodeURIComponent(tenant)}/batch`,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(groups)});
   let results;try{results=await response.json();}catch{throw new PlatformError('The platform returned an invalid response.',{status:response.status});}

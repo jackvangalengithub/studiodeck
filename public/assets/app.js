@@ -7241,8 +7241,9 @@ async function openWorkspaceRoute(route) {
     state.studioUserSearch = route.userSearch || '';
     communication.restore(route.communication || ({}));
     communicationControls.restore(route.communication || ({}));
-    if (state.capabilities?.batch_json ? ['projects', 'settings'].includes(route.view) : !useProjectData() || !['project', 'slide'].includes(route.view)) await loadProjects();
     if (!DEMO && studioSetup.required()) {
+      state.projects = [];
+      state.studioEmpty = true;
       state.data = null;
       state.present = false;
       state.websiteEditing = false;
@@ -7250,6 +7251,7 @@ async function openWorkspaceRoute(route) {
       render();
       return;
     }
+    if (state.capabilities?.batch_json ? ['projects', 'settings'].includes(route.view) : !useProjectData() || !['project', 'slide'].includes(route.view)) await loadProjects();
     if (route.view === 'project' || route.view === 'slide') {
       let projectId = route.projectId, iteration = route.iteration;
       if (route.view === 'slide' && !projectId) {

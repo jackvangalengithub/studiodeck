@@ -8,7 +8,7 @@ const fixture={users:[{id:'u1',email:'jack@example.com',name:'Jack'}],projects:[
 function fakeClient(seed=fixture,options={}){
  const tables=structuredClone(seed),batches=[];
  const transport=async({calls,tenant})=>{
-  assert.equal(tenant,'200');const complete=calls[0]?.resource==='projects:readView',outer=calls[0];if(complete)calls=outer.params.queries;batches.push(structuredClone(calls.map(({resolve,reject,...call})=>call)));const outputs={};
+  assert.equal(tenant,options.tenant||'200');const complete=calls[0]?.resource==='projects:readView',outer=calls[0];if(complete)calls=outer.params.queries;batches.push(structuredClone(calls.map(({resolve,reject,...call})=>call)));const outputs={};
   const resolve=v=>{if(Array.isArray(v))return v.map(resolve);if(typeof v!=='string')return v;const m=v.match(/^\{\{(\w+)\.entities\[(\d*)\]\.(\w+)\}\}$/);return m?(m[2]===''?(outputs[m[1]]||[]).map(r=>r[m[3]]):outputs[m[1]]?.[+m[2]]?.[m[3]]):v;};
   const matches=matchesFilter;
   const results=calls.map(call=>{
@@ -33,7 +33,7 @@ function fakeClient(seed=fixture,options={}){
   });
   return complete?[{responseid:outer.id,code:200,body:{other:{results}}}]:results;
  };
- const c=new PlatformClient({studioMappings:{},...options,transport,fetcher:async path=>{assert.equal(path,'/whoami');return {ok:true,json:async()=>({user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Studio'}],profiles:['studioadmin']})};}});
+ const c=new PlatformClient({studioMappings:{},...options,transport,fetcher:async path=>{assert.equal(path,'/whoami');return {ok:true,json:async()=>options.identity||({user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Studio'}],profiles:['studioadmin']})};}});
  return {c,batches,tables};
 }
 test('bootstrap is cached and uses platform identity plus tenant-local studio metadata',async()=>{const {c,batches}=fakeClient();const s=await c.bootstrap('200');assert.equal(s.studio.id,'200');assert.equal(s.studio.record_id,'s1');assert.equal(s.user.id,'u1');await c.bootstrap();assert.equal(batches.length,1);assert.ok(batches[0].every(call=>!['projects','users','studio_members'].includes(call.resource)));});
@@ -179,4 +179,51 @@ test('communication previews resolve crops, variations and pinned originals in o
   assert.equal(byId.removed.preview_url,'');assert.equal(byId.current.project_id,'p1');
   assert.equal(data.communication.iteration_slides.i1.find(s=>s.id==='visual-slide').title,'Drawing');
  }
+});
+
+const multiTenantIdentity={user_id:'u1',email:'jack@example.com',firstname:'Jack',lastname:'',tenants:[{id:200,companyname:'Existing Studio'},{id:201,companyname:'New Studio'}],profiles:['users'],profiles_by_tenant:{200:['users'],201:['studioadmin']}};
+test('second workspace owner can set up an empty studio before project reads or creation',async()=>{
+ const {c,batches,tables}=fakeClient({users:[],studios:[]},{tenant:'201',identity:multiTenantIdentity});
+ const session=await c.bootstrap('201');
+ assert.equal(session.studio.role,'admin');assert.equal(session.studio.setup_completed_at,null);
+ assert.equal(session.studio.record_id,undefined);assert.deepEqual(session.studios.map(s=>s.role),['member','admin']);
+ batches.length=0;
+ assert.deepEqual(await c.request('projects',{}),{projects:[],studio_empty:true});
+ assert.deepEqual(await c.request('studio_users',{}),{users:[],total:0});
+ assert.equal(batches.length,0,'no scoped reads without a studio UUID');
+ const setup=await c.request('complete_studio_setup',{name:'New Studio',language:'en',business_type:'interior'});
+ assert.ok(setup.studio.record_id);assert.ok(setup.studio.setup_completed_at);assert.equal(tables.studios.length,1);
+ await c.request('create_project',{name:'First project'});
+ assert.equal(tables.projects[0].studio_id,setup.studio.record_id);
+ assert.equal((await c.request('projects',{})).projects.length,1);
+});
+test('workspace roles never inherit admin permissions from a different tenant',async()=>{
+ for(const profilesByTenant of [{200:['studioadmin'],201:[]},{200:['studioadmin']}]){
+  const {c}=fakeClient({studios:[]},{tenant:'201',identity:{...multiTenantIdentity,profiles:['studioadmin'],profiles_by_tenant:profilesByTenant}});
+  const session=await c.bootstrap('201');assert.equal(session.studio.role,'member');assert.equal(session.studios[0].role,'admin');
+ }
+ const {c}=fakeClient({studios:[]},{tenant:'201',identity:{...multiTenantIdentity,profiles:['studioadmin'],profiles_by_tenant:undefined}});
+ assert.equal((await c.bootstrap('201')).studio.role,'member','legacy profiles apply only to the first tenant');
+});
+
+test('CRUD wire encodes JSON columns for the platform string converter without changing action payloads',async()=>{
+ const theme={palette:{background:'#fff'},fonts:['Inter']};
+ const calls=[
+  {id:'setup',resource:'studios',method:'POST',params:{name:'New Studio',theme:{}}},
+  {id:'theme',resource:'studios/s1',method:'PATCH',params:{theme}},
+  {id:'project',resource:'projects',method:'POST',params:{theme:{},archived:false}},
+  {id:'iteration',resource:'iterations',method:'POST',params:{theme:'{}',locked:false}},
+  {id:'nullable',resource:'studios/s1',method:'PATCH',params:{theme:null}},
+  {id:'action',resource:'projects:readView',method:'POST',params:{theme,queries:[]}},
+ ];
+ let wire;
+ await sendPlatformBatch({tenant:'201',calls,fetcher:async(url,options)=>{
+  wire=JSON.parse(options.body).flat();return {ok:true,json:async()=>wire.map(c=>({responseid:c.id,code:200,body:{}}))};
+ }});
+ const bodies=wire.map(c=>JSON.parse(c.body));
+ assert.equal(bodies[0].theme,'{}');assert.equal(bodies[1].theme,JSON.stringify(theme));
+ assert.equal(bodies[2].theme,'{}');assert.equal(bodies[2].archived,false);
+ assert.equal(bodies[3].theme,'{}');assert.equal(bodies[3].locked,false);
+ assert.equal(bodies[4].theme,null);assert.deepEqual(bodies[5].theme,theme);assert.deepEqual(bodies[5].queries,[]);
+ assert.deepEqual(calls[0].params.theme,{});assert.equal(calls[1].params.theme,theme);
 });
