@@ -14,6 +14,15 @@ Public means **public within that studio**. All files attached to an authorized 
 
 ## Authentication and invitations
 
+> Sign-in now runs on the platform: `/login` offers password, passkey, federated
+> sign-in and emailed sign-in links (`/magiclink/*`). A sign-in link is single use,
+> expires after 15 minutes, is stored only as a SHA-256 hash, is sent only to
+> existing active accounts (the request answers identically for unknown emails),
+> and still requires MFA and honours enforced SSO. Opening the link shows a
+> confirmation page; only its button (a same-origin POST) consumes the token, so
+> mail scanners that prefetch links cannot use it up. The rules below describe the
+> retired legacy PHP backend and remain for reference.
+
 `authenticated_user()` validates the opaque session and optionally CSRF. `owner()` additionally requires current studio membership. `owned_project()` checks studio scope and project membership/visibility. `access_iteration()` enforces either studio/project rights or an identity-matched client grant. Every non-login API requires a valid session by default.
 
 Sign-in credentials expire after 15 minutes, are stored as hashes and are consumed transactionally once. Sessions expire after 14 days and use HttpOnly, SameSite=Lax cookies with Secure enabled for an HTTPS `APP_URL`. The database remains the authority for current memberships and grants; removing membership or revoking a share affects subsequent requests using existing cookies.

@@ -14,7 +14,9 @@ docker compose up -d --build web
 
 Open `http://localhost:8199/200/projects` with the current local `.env` settings.
 `HOST_PORT` defaults to 8080; `PLATFORM_UPSTREAM` defaults to
-`http://host.docker.internal:8101`. Sign in with a platform account.
+`http://host.docker.internal:8101`. Sign in with a platform account, or use
+"Email me a sign-in link" on the login page (links arrive in the platform's
+configured SMTP catcher and expire after 15 minutes).
 
 The development override mounts `public/` and `docker/Caddyfile`, so frontend edits
 are served immediately. The image contains Caddy and `public/`; it runs no PHP,

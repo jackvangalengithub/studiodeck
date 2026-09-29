@@ -49,8 +49,8 @@ separate access boundaries still need separate tenants or backend row filters.
   Its internal resource names are local cache keys, never outgoing API endpoints.
 
 Identity comes from `/whoami`; tenant creation uses the existing form POST to
-`/administrations/create`. Platform login, MFA and logout retain their dedicated
-routes. Sessions, authentication roles and membership are not read from legacy tables.
+`/administrations/create`. Platform login, MFA, emailed sign-in links
+(`/magiclink/*`) and logout retain their dedicated routes. Sessions, authentication roles and membership are not read from legacy tables.
 The startup batch calls `users:ensureIdentity` with an empty body. The repo derives
 the identity from the authenticated actor; dependent preference reads reference
 `{{identity.entities[0].id}}`. The project-create transaction repeats this idempotent

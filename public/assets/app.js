@@ -1189,7 +1189,7 @@ function render() {
   $('#overlay').style.cssText = state.client || state.present ? '' : studioThemeStyle(state.studioTheme);
   if (!state.present) state.inspectHidden = false;
   if (!state.user && !state.client) {
-    renderLogin();
+    location.replace(safeUrl('/login', 'href'));
     return;
   }
   if (state.tab === 'destinations' && !state.present) {
@@ -6835,23 +6835,6 @@ document.addEventListener('submit', async e => {
       await refresh();
       toast(tr("studio_your_image_variation_is_being_created"));
     }
-    if (type === 'login') {
-      const r = await api('request_login', {
-        email: data.email,
-        name: data.email.split('@')[0]
-      });
-      domView.mount(form, domView.element("div", [{
-        "class": "notice"
-      }], [r.message], false));
-    }
-    if (type === 'consume-login') {
-      await api('consume_login', {
-        token: data.token
-      });
-      history.replaceState(null, '', sessionStorage.getItem('studiodeck.returnTo') || '/');
-      sessionStorage.removeItem('studiodeck.returnTo');
-      await start();
-    }
   } catch (error) {
     if (['slide-image-edit', 'image-edit'].includes(type)) {
       try {
@@ -6961,44 +6944,6 @@ document.addEventListener('keydown', e => {
     chooseFiles();
   }
 });
-function renderLogin(token = '') {
-  const hasToken = !!token;
-  domView.mount($('#app'), domView.element("main", [{
-    "class": "login"
-  }, {
-    "id": "main"
-  }], [domView.element("div", [{
-    "class": "login-image"
-  }], [domView.element("img", [{
-    "src": "assets/interior.webp"
-  }, {
-    "alt": tr("error_a_warm_light_filled_interior")
-  }], [], false)], false), domView.element("div", [{
-    "class": "login-content"
-  }], [brand(), domView.element("h1", [], [hasToken ? tr("welcome_back") : domView.fragment([tr("good_design"), domView.element("br", [], [], false), tr("beautifully_together")])], false), domView.element("p", [], [hasToken ? tr("continue_to_your_studios_and_shared_projects") : tr("your_projects_presentations_and_clients_one_considered_space")], false), domView.element("form", [{
-    "data-form": hasToken ? 'consume-login' : 'login'
-  }], [hasToken ? domView.element("input", [{
-    "type": "hidden"
-  }, {
-    "name": "token"
-  }, {
-    "value": token
-  }], [], false) : domView.element("label", [], [tr("your_email_address"), domView.element("input", [{
-    "type": "email"
-  }, {
-    "name": "email"
-  }, {
-    "placeholder": "you@yourstudio.com"
-  }, {
-    "autocomplete": "email"
-  }, {
-    "required": domView.text([])
-  }], [], false)], false), domView.element("button", [{
-    "class": "button primary wide"
-  }, {
-    "type": "submit"
-  }], [domView.fragment([hasToken ? tr("continue") : tr("email_me_a_sign_in_link"), icon('arrow')])], false), domView.element("small", [], [tr("no_password_to_remember_your_sign_in_lasts_14_days_on_this_device")], false)], false)], false)], false));
-}
 let routeLoading = false;
 let navigationPanel = null, navigationBusy = 0, navigationSequence = 0;
 async function start() {
