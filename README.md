@@ -18,8 +18,20 @@ Open `http://localhost:8199/200/projects` with the current local `.env` settings
 "Email me a sign-in link" on the login page (links arrive in the platform's
 configured SMTP catcher and expire after 15 minutes).
 
-The development override mounts `public/` and `docker/Caddyfile`, so frontend edits
-are served immediately. The image contains Caddy and `public/`; it runs no PHP,
+Configure mail in `~/platform/apps/studiodeck/config/.env`: set
+`MAGICLINK_BASE_URL` to the public StudioDeck origin (locally
+`http://localhost:8199`; defaults to `FULL_URL`). Local platform SMTP uses
+`SMTP_HOST=mailcatcher` and `SMTP_PORT=1025`; view captured messages at
+`http://localhost:1080`. Delivering to real inboxes requires your SMTP host,
+port, credentials (`SMTP_USER`, `SMTP_PASS`), encryption (`SMTP_SSL`), and sender
+(`SMTP_FROM`). Magic links are for existing active platform accounts.
+
+After pulling changes to `docker/Caddyfile`, recreate the frontend with
+`docker compose up -d --force-recreate web`. Caddy reads routes at startup,
+and a file bind mount can retain the old file after Git replaces it.
+
+The development override mounts `public/` and `docker/Caddyfile`; static frontend
+edits are served immediately. The image contains Caddy and `public/`; it runs no PHP,
 StudioDeck worker, PostgreSQL or PgBouncer. Platform database/worker services remain
 required. The retired StudioDeck database volume is retained for recovery.
 
